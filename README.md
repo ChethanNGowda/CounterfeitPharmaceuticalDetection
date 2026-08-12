@@ -1,5 +1,3 @@
-Here is a **complete README.md** for your project:
-
 # Counterfeit Pharmaceutical Detection
 
 ## Project Overview

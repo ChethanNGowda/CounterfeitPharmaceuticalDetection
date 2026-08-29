@@ -1,99 +1,117 @@
-# Counterfeit Pharmaceutical Detection
+# 💊 Counterfeit Pharmaceutical Detection
 
-## Project Overview
+A **smartphone-based machine learning system** for preliminary screening of pharmaceutical tablets using **computer vision and image analysis**.
 
-A portable spectroscopy-based system for detecting counterfeit medicines by analyzing the chemical fingerprint of tablet coatings and comparing it with authenticated reference data using Machine Learning.
+The system captures an image of a tablet using a smartphone camera, extracts visual features such as **color, shape, texture, and markings**, and uses a trained machine learning model to classify the sample as **Authentic** or **Counterfeit/Suspicious**.
 
-## Problem Statement
+> ⚠️ **Note:** This is a student prototype for preliminary screening. It is not a replacement for certified laboratory testing and does not guarantee 100% detection accuracy.
 
-Counterfeit medicines pose a serious threat to public health. Traditional laboratory testing can be expensive and too slow for supply-chain verification. This project aims to provide fast, portable, and reliable medicine authentication at the distributor and pharmacy level.
+---
 
-## Objectives
+## 🎯 Problem
 
-* Capture chemical fingerprints of medicine coatings.
-* Compare samples with authenticated spectral data.
-* Classify medicines using Machine Learning.
-* Detect potentially counterfeit medicines in real time.
-* Provide a simple and portable verification system.
+Counterfeit medicines can be difficult to identify through visual inspection alone. Laboratory-based authentication methods can require specialized equipment, trained personnel, and controlled environments.
 
-## Key Features
+This project explores a **low-cost, phone-only approach** that uses a smartphone camera and machine learning to identify visual differences between authenticated and suspicious pharmaceutical samples.
 
-* Portable spectroscopy-based scanning
-* Spectral data processing
-* Machine Learning classification
-* Authenticated medicine database
-* Real-time counterfeit detection
-* User-friendly interface
+---
 
-## Technologies Used
+## 💡 Proposed Solution
 
-* **Python**
-* **Machine Learning**
-* **Spectroscopy**
-* **FastAPI**
-* **Flutter**
-* **Database**
+The system follows a simple computer-vision pipeline:
 
-## System Workflow
+**📱 Smartphone Camera**  
+↓  
+**🖼️ Image Capture**  
+↓  
+**🔧 Image Preprocessing**  
+↓  
+**🔍 Feature Extraction**  
+↓  
+**🤖 Machine Learning Model**  
+↓  
+**🗄️ Reference Database**  
+↓  
+**✅ Authentic / ⚠️ Counterfeit-Suspicious**
+
+No external scanner, microcontroller, breadboard, or dedicated spectroscopy hardware is required.
+
+---
+
+## 🔬 How It Works
+
+1. The user positions the pharmaceutical tablet in front of the smartphone camera.
+2. The application captures an image of the tablet.
+3. The image is preprocessed using resizing, normalization, and noise reduction.
+4. Relevant visual features such as color, shape, texture, and markings are extracted.
+5. The trained machine learning model analyzes the extracted information.
+6. The sample is compared against learned patterns from authenticated and suspicious samples.
+7. The application displays the predicted result with an optional confidence score.
+
+---
+
+## ✨ Features
+
+- 📱 Smartphone camera-based detection
+- 🖼️ Image preprocessing
+- 🔍 Visual feature extraction
+- 🤖 Machine learning classification
+- 🗄️ Authenticated reference database
+- 📊 Optional confidence score
+- 📲 Flutter-based user interface
+- 💻 Python-based ML pipeline
+- 🔌 No additional sensing hardware required
+- ⚠️ Designed for preliminary screening
+
+---
+
+## 🛠️ Technology Stack
+
+### Software
+
+- Python
+- Machine Learning
+- Computer Vision / Image Processing
+- Flutter
+- Database
+
+### Hardware
+
+- Smartphone with camera
+- Computer/Laptop for model development
+
+---
+
+## 📐 System Architecture
 
 ```text
-Medicine Sample
-      ↓
-Spectroscopy Scanner
-      ↓
-Spectral Fingerprint
-      ↓
-Signal Processing
-      ↓
-Feature Extraction
-      ↓
-Machine Learning Model
-      ↓
-Authenticated Database
-      ↓
-Genuine / Potential Counterfeit
-```
-
-## Repository Structure
-
-```text
-CounterfeitPharmaceuticalDetection/
-├── backend/
-├── frontend/
-├── ml/
-├── hardware/
-├── dataset/
-├── docs/
-├── README.md
-└── .gitignore
-```
-
-## Setup & Usage
-
-1. Clone the repository.
-2. Install the required dependencies.
-3. Configure the database.
-4. Connect the spectroscopy hardware.
-5. Start the backend server.
-6. Launch the Flutter application.
-7. Scan a medicine sample and view the verification result.
-
-## Expected Outcome
-
-A portable system capable of analyzing medicine samples and identifying potentially counterfeit products using spectroscopy and Machine Learning.
-
-## Future Scope
-
-* Improve ML accuracy with larger datasets.
-* Support more medicine types.
-* Develop a smaller portable scanning device.
-* Add cloud-based reference databases.
-* Enable supply-chain monitoring.
-
-## Team
-
-**Team Members:** 3
-
-* Chethan N
-* C M Manjunath
-* Dhanush D L
+┌──────────────────────┐
+│  Smartphone Camera   │
+└──────────┬───────────┘
+           ↓
+┌──────────────────────┐
+│   Image Capture      │
+└──────────┬───────────┘
+           ↓
+┌──────────────────────┐
+│ Image Preprocessing  │
+└──────────┬───────────┘
+           ↓
+┌──────────────────────┐
+│ Feature Extraction   │
+│ Color / Shape /      │
+│ Texture / Markings   │
+└──────────┬───────────┘
+           ↓
+┌──────────────────────┐
+│ ML Classification    │
+└──────────┬───────────┘
+           ↓
+┌──────────────────────┐
+│ Reference Database   │
+└──────────┬───────────┘
+           ↓
+     ┌─────┴─────┐
+     ↓           ↓
+ Authentic   Counterfeit/
+             Suspicious

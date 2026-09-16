@@ -1,0 +1,1932 @@
+{
+  "source_root": "C:\\Users\\Chethan N\\Downloads\\CounterfeitDrugs2",
+  "output_root": "data\\processed",
+  "source_split_annotation_records": {
+    "train": 3974,
+    "valid": 899,
+    "test": 854
+  },
+  "source_split_annotation_counts": {
+    "train": 4486,
+    "valid": 1089,
+    "test": 921
+  },
+  "source_split_image_files": {
+    "train": 3983,
+    "valid": 902,
+    "test": 858
+  },
+  "prepared_split_image_counts": {
+    "train": 3850,
+    "valid": 850,
+    "test": 844
+  },
+  "prepared_split_class_counts": {
+    "train": {
+      "authentic": 2500,
+      "counterfeit": 1350
+    },
+    "valid": {
+      "authentic": 558,
+      "counterfeit": 292
+    },
+    "test": {
+      "authentic": 558,
+      "counterfeit": 286
+    }
+  },
+  "ambiguous_mixed_label_images": {
+    "train": [
+      {
+        "image": "FDA-Advisory-2022-1081-A_png.rf.67cb6498809a2e35020c7044a710d976.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 5
+      },
+      {
+        "image": "FDA-Advisory-No_2024-0831-A_png.rf.29cb1d9bc4977669dbe7e834b712b833.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0484_png.rf.78fbc912782b0cf79c4955dee2528396.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1017-A_png.rf.d6f343f1a776d05d97c013e8c49b4669.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 6
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1000-A_png.rf.0e7af12f79cfced03cd2eba5fe599931.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1471_png.rf.a9a491862f7f74a4bcbe83e9d5e3618b.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-1841-A_png.rf.e2696de2888a0dc6a9f5903ab23fed9d.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1306-A_png.rf.6dc1bce9d9c8365de8d80adfefcc7ed8.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "both9_jpg.rf.acd7e618e054a0b32abe2aa7f2a1834c.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 2
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1495_png.rf.ab9bf53a83d4d4a2c223b1d81de5d235.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-1847-A_png.rf.9561816632d253670c9eda4d681f0af2.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1076_png.rf.65f554df6692168161f930f02902ed0f.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0676-A_png.rf.5009c85c53777e8f5743242f483112ba.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1093_png.rf.8328152548a80f4b6e253e5e07d872dc.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-0321-A_png.rf.08a8903aa8e5e88d0ca50a0deb3a6d9e.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "both5_jpg.rf.48083f19fc7e1794ee945a6dfa3556f1.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 2
+      },
+      {
+        "image": "FDA-Advisory-No_2023-0764_png.rf.7d779347684f50cbda93273850c2676c.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0620_png.rf.885afe02f32e8cc2a13c43ff2cce5659.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-1846_png.rf.3d3a862fc069c6cb4e633f31798c3206.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 6
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0619-A_png.rf.4a076e4b567d2b7eec7aec49786e3d86.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-0150_png.rf.e4540f72fdfeccc4a869c2dcf179fe80.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1226_png.rf.1404d222da42a6e9939ceaa8a8438a96.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1406-A_png.rf.7727bdf1f284b7de116d6f2cc8fa966d.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-2596-A_png.rf.80d5359e1d76a6f25746264d533b36e2.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0783-A_png.rf.119c3dfd1e8e649b40dd4effb91b8050.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0645-A_png.rf.ae0e296abdd0cbece1fa6379581d98d1.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1319_png.rf.266f164b3bdc69299afa44e56a952128.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-0150-A_png.rf.924117d0844d1ebbf95b51198582e00c.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1306_png.rf.aa15a18068f991cf9f805aa7d951ae56.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-1187-A_png.rf.af86caf1472a8acde3c3499c58f1335b.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2025-0508_png.rf.11138ff69da986603574738975fa0fa0.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1469_png.rf.2a6c382e7a414841818ed9b7b5d6b457.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "5_png.rf.618b33a2e136abb16bcd2dc3233095af.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-1187_png.rf.c4684a0016557f63844a4a652e30c39f.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0679_png.rf.af019f596e88a8e2c8d5552cfc42aa99.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0781-A_png.rf.bccb933524ecfbb304a40edf95e2549a.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "1_jpg.rf.5413e681da7b23f76bad3ff4678c45b8.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 2
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1077-A_png.rf.2b6fc5c8a30a5bf0c2b1572b693850de.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_-2024-1108_png.rf.53842a8d3a666dc15ca83e3192bb91ce.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-0321_png.rf.352c7930c9597339128b17d2b11b74b7.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-2318-A_png.rf.a6f04a6a6019b0cab20491d7c2821560.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0621-A_png.rf.3479ac1de8c1a249e6e11f30b36ed9d7.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-1036-A_png.rf.6c8f01c0f5f3e8ce0fe6c260ed22f3a6.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 6
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0619_png.rf.f352166b3d8aa6307ea07b882bcef12c.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1073_png.rf.bad4cb524aea5e037d9e6c40c8f9ed17.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "both1_jpg.rf.002c82d35afd6f340fa11f8c18778d92.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 2
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0272-1_png.rf.1c51e696e8dc9c12b9d511eff6869313.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 3
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1079_png.rf.5ffb1ec4bfd5e502c31a6e47de48d8d4.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1000_png.rf.a17e9a432bfdd6f75e4cb4fdbdbbb5fe.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2025-0116_png.rf.da94656a024eb2e60b7aa55b0a1f94ae.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "both2_jpg.rf.68842f346148de30575233a2cc91ffce.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 2
+      },
+      {
+        "image": "13_png.rf.8426d9a9e07aff8643f22cec6c12e218.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 5
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0785-A_png.rf.6c4d5b804482b7046c84beb557958d9e.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "3_png.rf.9a701c2dc85753e0d4b7177a1b2348e5.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-1615_png.rf.09e4db446ab1881f4c8e22d618114b25.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2021-3535-A-1-A_png.rf.ac2acd85a7bc4809cb2d65729916ed39.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "both11_jpg.rf.fe397dc35ce27fda81b0891f09b45a00.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 2
+      },
+      {
+        "image": "FDA-Advisory-No_2023-1931_png.rf.fc7390e36a2d097ddb9ed79dbfe6ad8b.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0785-1_png.rf.b015516db8c11bcd176f7c08dc87a452.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-1089_png.rf.608232e7d3f3aaf61cec9f0c49f02b4b.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-2022-0541-A_png.rf.432215f450de53d8fcca1a8af608aabb.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-2318_png.rf.e3e70d4e95a6d7efae411682796f8409.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "2_jpg.rf.1f27214df20cc357253317da41f67b6d.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 2
+      },
+      {
+        "image": "4_png.rf.b4ad8c607abc8f5d7e909a628a1f39bb.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0270-A-1_png.rf.d324f67cd9ae2a830dc4805440ade89a.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0480-A_png.rf.199c46bf099208e7b475b588c39c9ee2.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1075-A_png.rf.d3b91cadebbcf9855d97ff24a6c6df9f.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-2327-A_png.rf.b0462dea71b93d08f37c9ea87a7e52b3.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1229-A_png.rf.cea7ad5ccf3b1e0ad6381879a89883ef.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1077_png.rf.df99ca1198787c2f1e397402c528cd3a.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-1615-A_png.rf.3efad84dfcf2d76c8707de91dfa8af60.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "7_png.rf.db963579cd58e8b8b5a73644ad5301ef.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0620-A_png.rf.05a7ce79cf11e2fb50ee4434f08d11e6.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 3
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0678_png.rf.2005d1d8f8e4686914e75b379bfdae76.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-0763-A_png.rf.b0c37b4a630ed976060b596d65207256.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-2596_png.rf.197f94a6116d9605e9be06e5a6da423c.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-1843-A_png.rf.a4b828bcb209fcecee8247adc459d4d2.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1471-A_png.rf.bb1efc3850ee61e4ab81dce939aebf61.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2025-0228-A_png.rf.5ae585e6b2038fa5ba67cde71b8b29bb.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2021-3535_png.rf.3acee30f2a9cd59565065862f1400bad.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0645_png.rf.f9ba16aa5126526780f97c85236bc5ea.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-2526_png.rf.be9e0cc41ccda3c2bdf0c43e535d0188.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "2_jpg.rf.823f2585ca2cff925905eb7eaa9b0325.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 2
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1465-A_png.rf.3c852fa5b6bc9423ef86d11d938ebda6.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2025-1046_png.rf.0c9c4cd62630040351a1c314539bc806.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "17_png.rf.1976438bf0aa219b018add6096dde2c6.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "Untitled_design__9_-removebg-preview_png.rf.738e02a589941d08d1b5408a7f7190ed.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 2
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0277-A-7_png.rf.6d842357fd9a5dd6f79ec5ab502a172a.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "9_jpg.rf.92926db81a8bd5a06c66b1ea6a5f5d67.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 2
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1495-A_png.rf.78c2259d1b427ba3d2b189787c357ab3.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "both8_jpg.rf.ea392087c9a029bb2b4ac29d33b09faa.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 2
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0781_png.rf.45422d30520fd9bcbd61ffcb60ee23cb.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2025-0121_png.rf.3c5823f63061d2a5f315deb8611ec111.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0273-A_png.rf.dbbfea4bf8790f862cfff43ea03fba69.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "14_png.rf.380b67f96b3b745772300c80bbf46de5.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "3_jpg.rf.244a6ea8f25b48f6459dadf1d6af1fa5.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0477_png.rf.af264ddc349c4b11b1f09289e5aec3b9.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-0992-A_png.rf.9561a3bfd086b3081f4d04fb2944b3bb.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-1847_png.rf.c187b585b533171b6e8f879181011b3b.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2025-0508-A_png.rf.1a0ef44ea029103bff920e7c6f458451.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1078-A_png.rf.8912bf6083657b7b38b85af76cd823f9.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1112-A_png.rf.6031024608ff99c130238a6e4b45911f.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0618-A_png.rf.b940d6adcebbcc1255d22667fa36ad72.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "18_png.rf.de7058d8432f3904e840c897cb9c3714.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1307-A_png.rf.f89c49ecdfd9f400aae5c2ee389c7138.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1076-A_png.rf.f0cbec0d3e689a7acc352fa51c4d93b1.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1229_png.rf.102931f7ab56b0d699f1c3f55de3ee55.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0541-2_png.rf.aa5f23fdbd3797eeae2fad72953317de.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0272-A-1_png.rf.3791191d0d7b4d173f7f7c0548c57125.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "15_png.rf.d7c550a512f2ef2a63ddd25b5ef3b656.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0545-A_png.rf.f3a4b030e336f3acb91ce4d011e48f69.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_-2024-1108-A_png.rf.c7a9e105fd248e8f3e378cfdffa47937.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-1004_png.rf.f835b1f114a6b49c1520e654f7b40d39.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1711-A_png.rf.b4478f73f812726d9714387ebb28828f.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-0801_png.rf.6e7e32e83713fa3fb1c96cb307bcea06.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0678-A_png.rf.67960743521cc74599779096a3a5e38c.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-0764-A_png.rf.0952946725dd530c5b073bfa27c70a94.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "6_png.rf.68afae5fbd58e2f61aa962034d50551e.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1319-A_png.rf.c4934de5936ab0dbb84884cbac754d4a.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0545_png.rf.e088a95ceafb025e408f9d3221a72655.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1013-A_png.rf.e0bf10da04a580ca5fa65a1ebcc44ce5.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0621_png.rf.e9f98edf6b45b0251b5c61f168cc271f.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-1081_png.rf.e4f56be0dce602d3f7d29f0a96600430.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 5
+      },
+      {
+        "image": "9_png.rf.248dd62cb7b9a161ebff9d3cc8ddda8a.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      }
+    ],
+    "valid": [
+      {
+        "image": "both12_jpg.rf.77b15cd6807b49be0c3b5bd43608b8dc.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 2
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0480_png.rf.d77644ae851b1f83af3ce50a574b027a.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0413-A_png.rf.b2e8977e7762eeeaddf000993d839f82.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 6
+      },
+      {
+        "image": "FDA-Advisory-No_2022-1089-A_png.rf.616b7877ece12f42e4dc2149d3be373e.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-1838_png.rf.0cd01cd9bb24d06b3047d5c0ae2d1603.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-0831_png.rf.940c928e5cb1414f246f34a4fd1423bd.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-1874_png.rf.66034c831f40f24da73abc301b147807.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "10_png.rf.a4e11b404f2e5045668ed72948750821.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0618_png.rf.af87e80d04b40becbed56294e6fe1730.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "16_png.rf.a9e218890eace9b2605350e291d94fe5.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0784-A_png.rf.45df9c7bdc099d39f3b91aa08c7ad9b0.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1625-A_png.rf.9f59a1e89dad25b32fa43e3436520676.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1226-A-1_png.rf.d913f2830500eeda70334c082aee2910.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1307_png.rf.456eda3b986de4f5da7b76873329f1cc.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1112_png.rf.5708d97608de102bc5ff0d94869a8021.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1078_png.rf.d3f6af1d847ad72210fd558416d91755.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0780-A_png.rf.ecaf635f2c6a316ea9449cfaadc19480.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 6
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0679-A_png.rf.11d732cfe48d806b50ebcf913ae8e13c.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "1079-A_png.rf.0c02a8b15d992dd5dd59297395fcab87.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 3
+      },
+      {
+        "image": "FDA-Advisory-No_2022-1004-A_png.rf.5c56e680da36a33bceeb1831b16183e7.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_-2023-1846-A_png.rf.13e697549547ba505e8a78c1944ce48a.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 6
+      },
+      {
+        "image": "FDA-Advisory-No_2023-0763_png.rf.28c13bc698852c9095d9b4763f057b7f.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "both4_jpg.rf.10612eafe5f11ced9cae5f35bd359614.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 2
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1073-A_png.rf.1d46c5b56e2f6e1067feed54971277e0.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-0801-A_png.rf.2a0fc33c7e6a3a7bc9befaec73df8e9c.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1625_png.rf.093c69297466e64370439e3939ab0a1e.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-1843_png.rf.c191f019da846feb730e9ffd92988eaf.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_-2021-2263-A_png.rf.608911ef0dfe83a76ba773c6f533309f.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2025-0116-A_png.rf.da9304c59d4700b3d6d438c0d44b5cbd.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1711_png.rf.e1b8a33d872439a3f5d6af8573362c15.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0780_png.rf.5fb7ac8b0072b196cbfa69e9c1cb92ce.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 6
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1013_png.rf.c050516ab91f8f19d70b71545b3bc701.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-2527-A_png.rf.f490c6b0ab3c4261c9c3d958f238a95b.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-2527_png.rf.99b8390d63379f716ef84b551547f711.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1093-A_png.rf.4a10594638fd91093fc137309b795d5a.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_-2024-1110_png.rf.980f5bc4debe0b1b17d4ecd7fd17f46f.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2021-1624_png.rf.534a65fbd7543e02f23b519c29f6e7b9.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 3
+      },
+      {
+        "image": "FDA-Advisory-No_2021-1624-A_png.rf.56f11eb2ab8acfa009b7b3ea0f1e5afc.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0273_png.rf.36e366527525f68f7243fc08467ca946.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-0322_png.rf.2e783bc1c0636ea28468257a2f8956f2.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1469-A_png.rf.34fa01ad7654a5bbd72277d04d3381fd.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0483-A_png.rf.80cc0d21c8d8096ef3c155012c34b7a6.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2025-0121-A_png.rf.5175d59edccce71ba67da844d6a5d1e1.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 3
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0644-A_png.rf.a942542ccec82d2cb7645bf58d957d5a.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0483_png.rf.b2e29fb19bf2a4f00f0a952003844122.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "8_png.rf.4dd63ee80e9fce602062c53fc01d942f.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-1931-A_png.rf.afb0dc45119e1f7d2f08cd1f89cb8fdd.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "6_jpg.rf.b5b294b66b064070d6167b817dc0d0c7.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2024-1075_png.rf.99a9a190ce71d9274a5f4342218f2315.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      }
+    ],
+    "test": [
+      {
+        "image": "9_jpg.rf.fcb89a472d46e00f0819dad1f9ebf1f3.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 2
+      },
+      {
+        "image": "20_png.rf.780c2dd726e29da3b47c0dca6b1ded3a.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 10
+      },
+      {
+        "image": "1_jpg.rf.59cf99f1153c36fac76a66e7e3f2cabf.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 2
+      },
+      {
+        "image": "both7_jpg.rf.fde8c900aeb23cbf9b7c989c9fdd13c7.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 2
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0484-A_png.rf.e3aa492b3b9e737b1093366c6dd95a8e.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2025-1046-A_png.rf.946d01004a628b6e8d17c7f382ff9652.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-ADVISORY-No_2023-2594_png.rf.2b9f6cfe27a635d0149c6fc1fd0253a7.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2023-1874-A_png.rf.3676661a164584a87c83a1bed9169a60.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0644_png.rf.d5df545fdaccc1731a3001950118c9f3.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      },
+      {
+        "image": "FDA-Advisory-No_2022-0481_png.rf.2c1454878047f5158458cf43be7e8467.jpg",
+        "labels": [
+          "authentic",
+          "counterfeit"
+        ],
+        "annotation_count": 4
+      }
+    ]
+  },
+  "unannotated_images": {
+    "train": [
+      "119_jpg.rf.a308a10df95fb06d6bab2c5dc2496ed7.jpg",
+      "273202896_1018330969081322_7621548142374376636_n_jpg.rf.119b8843ef4c35ed968641cf86888730.jpg",
+      "IMG_0699_jpg.rf.8f63334c89ccc1616797ffb8b95e87ab.jpg",
+      "IMG_0700_jpg.rf.0c6fa5e456988c0c848271eb94c7fe89.jpg",
+      "IMG_0703_jpg.rf.6855578664f436fe20484020318f22c0.jpg",
+      "IMG_0722_jpg.rf.8b620d17e1af4e41c6a3e968b6e5dd4f.jpg",
+      "IMG_0747_jpg.rf.7f3ee8a130a928c3f73b66fad0b496e7.jpg",
+      "IMG_0748_jpg.rf.1a904c8fe2636ce256236ef6224b843a.jpg",
+      "IMG_0796_jpg.rf.1424c3e7daed920a584f1a94a7c2cf13.jpg"
+    ],
+    "valid": [
+      "67139699_401027090767052_7623841458939756544_n_720x_jpg.rf.96b2b7267478ea7e709fd1f0333fa861.jpg",
+      "IMG_0713_jpg.rf.5720e1a878c43ed64ad854b8ee524368.jpg",
+      "IMG_0717_jpg.rf.b9a98d528d5557dd40d731b22ddfc499.jpg"
+    ],
+    "test": [
+      "IMG_0750_jpg.rf.f0312ab64716b8afae5e9f185b49fe35.jpg",
+      "IMG_0752_jpg.rf.8d00a1acf04fc2d2c9387f6e37ea66b2.jpg",
+      "IMG_0774_jpg.rf.85449cb26931a1680b7bc6cd30ada44d.jpg",
+      "fake-80-_jpg.rf.7c0f9a547695a1a9c863e7954d60b7a5.jpg"
+    ]
+  },
+  "cross_split_content_duplicate_groups": [
+    [
+      [
+        "train",
+        "150_jpg.rf.3983e2dd765f12dc44bca905edc43780.jpg",
+        "counterfeit"
+      ],
+      [
+        "train",
+        "150_jpg.rf.6aeb22f4c7d734435d99c570edc35303.jpg",
+        "counterfeit"
+      ],
+      [
+        "valid",
+        "150_jpg.rf.21cb2cb4136be8d7f3769cdd35507716.jpg",
+        "counterfeit"
+      ]
+    ],
+    [
+      [
+        "train",
+        "f19_jpg.rf.65c86dcdb98b77491c8bfe9d9d4eca24.jpg",
+        "counterfeit"
+      ],
+      [
+        "valid",
+        "f19_jpg.rf.3424043dcee4d8eefbb43ca71bec0d82.jpg",
+        "counterfeit"
+      ]
+    ],
+    [
+      [
+        "train",
+        "160_jpg.rf.ea225b3e655ae1a174fbff13eb31f6cf.jpg",
+        "counterfeit"
+      ],
+      [
+        "valid",
+        "160_jpg.rf.73e15e306e931c14b176ddf87055d07e.jpg",
+        "counterfeit"
+      ]
+    ],
+    [
+      [
+        "train",
+        "IMG_20231220_222819_jpg.rf.3e204c797f1a5e87651fcf2eda7bea3c.jpg",
+        "authentic"
+      ],
+      [
+        "valid",
+        "IMG_20231220_222819_jpg.rf.f820fa81a3ee140de8fd5b662af1420d.jpg",
+        "authentic"
+      ]
+    ],
+    [
+      [
+        "train",
+        "152_jpg.rf.728434d24d4a512ed533ab74ddffb0e9.jpg",
+        "counterfeit"
+      ],
+      [
+        "test",
+        "152_jpg.rf.5564f58cf17aaf8f8a136850ef1f160f.jpg",
+        "counterfeit"
+      ]
+    ],
+    [
+      [
+        "train",
+        "IMG20231204183310_jpg.rf.49246831e733583ae15c7c2861e1f62b.jpg",
+        "authentic"
+      ],
+      [
+        "test",
+        "IMG20231204183310_jpg.rf.cc7b32760a18d6c3110210a7d99ba95c.jpg",
+        "authentic"
+      ]
+    ],
+    [
+      [
+        "train",
+        "67139699_401027090767052_7623841458939756544_n_720x_jpg.rf.ba7f405ebf023f535d621207e514dba2.jpg",
+        "authentic"
+      ],
+      [
+        "valid",
+        "67139699_401027090767052_7623841458939756544_n_720x_jpg.rf.96b2b7267478ea7e709fd1f0333fa861.jpg",
+        "unannotated"
+      ]
+    ],
+    [
+      [
+        "train",
+        "IMG_20231220_222819_jpg.rf.fb2817843d07c57b22c76bec8dcffb83.jpg",
+        "authentic"
+      ],
+      [
+        "valid",
+        "IMG_20231220_222819_jpg.rf.64eeaf2a6a44d0c812b83f6dd6d43755.jpg",
+        "authentic"
+      ]
+    ],
+    [
+      [
+        "train",
+        "PPCPNM_Bioflu_jpg.rf.ad084b37d3d4e370768ea660bfc6d35d.jpg",
+        "authentic"
+      ],
+      [
+        "test",
+        "PPCPNM_Bioflu_jpg.rf.10aee73054bb38ee416f7efa28737686.jpg",
+        "authentic"
+      ]
+    ],
+    [
+      [
+        "train",
+        "IMG_20231223_135302_jpg.rf.c0edf56d4eda7b90c7bff4fff2549155.jpg",
+        "authentic"
+      ],
+      [
+        "valid",
+        "IMG_20231223_135302_jpg.rf.1d5fde1f4d4b84dd98a2c3492c80a3e5.jpg",
+        "authentic"
+      ]
+    ],
+    [
+      [
+        "train",
+        "IMG_20231212_131440_jpg.rf.a69bc6e08b6d427ebcbfac01783b96b7.jpg",
+        "authentic"
+      ],
+      [
+        "test",
+        "IMG_20231212_131440_jpg.rf.d2979eec3859d0c0e8c56f8dec03d115.jpg",
+        "authentic"
+      ]
+    ],
+    [
+      [
+        "train",
+        "157_jpg.rf.4f6043c907b39e9171ff97cc8e4333cc.jpg",
+        "counterfeit"
+      ],
+      [
+        "valid",
+        "157_jpg.rf.8a02b9c62e76219af75cab8f916c337d.jpg",
+        "counterfeit"
+      ]
+    ],
+    [
+      [
+        "train",
+        "168_jpg.rf.320cb63d1674dace2f4338c3981ab082.jpg",
+        "counterfeit"
+      ],
+      [
+        "test",
+        "168_jpg.rf.1ea3f6e9fb10f3af17a6a90f17c838f2.jpg",
+        "counterfeit"
+      ]
+    ]
+  ],
+  "within_split_content_duplicate_groups": [
+    [
+      [
+        "train",
+        "67239469_684433185355456_8036052585850863616_n_720x_jpg.rf.b910ee51a151ec3094d1d14cec486b23.jpg",
+        "authentic"
+      ],
+      [
+        "train",
+        "67239469_684433185355456_8036052585850863616_n_720x-1-_jpg.rf.b055672bd5edd2792321c4beae311aa0.jpg",
+        "authentic"
+      ]
+    ],
+    [
+      [
+        "train",
+        "f32_jpg.rf.632a108265645333155307280fcb9002.jpg",
+        "counterfeit"
+      ],
+      [
+        "train",
+        "158_jpg.rf.d5a2442cdcb1da806fd71c9597909ff1.jpg",
+        "counterfeit"
+      ]
+    ],
+    [
+      [
+        "train",
+        "1-Counterfeit-_png-Copy_jpg.rf.921b768c2dca3fa58ab38be56f40720d.jpg",
+        "counterfeit"
+      ],
+      [
+        "train",
+        "1-Counterfeit-_png.rf.1b0237298b4ba4ece5471f5c6e2a2960.jpg",
+        "counterfeit"
+      ]
+    ],
+    [
+      [
+        "train",
+        "IMG_20231013_142110_jpg.rf.3959b5caff29d4d9a012ed1363e68086.jpg",
+        "authentic"
+      ],
+      [
+        "train",
+        "IMG_20231013_142110_jpg.rf.490df9e5863c00c608807a688081e72a.jpg",
+        "authentic"
+      ]
+    ],
+    [
+      [
+        "train",
+        "130_png.rf.bae60182dc182bb9c3443992847f4ba3.jpg",
+        "counterfeit"
+      ],
+      [
+        "train",
+        "130_png.rf.96e37b81525331f47b5d5b8d6604d7e9.jpg",
+        "authentic"
+      ]
+    ],
+    [
+      [
+        "train",
+        "155_jpg.rf.5bf4ea18152a9c769528ba956e221734.jpg",
+        "counterfeit"
+      ],
+      [
+        "train",
+        "155_jpg.rf.8b68a945b85336f92788b3b1953eacd1.jpg",
+        "counterfeit"
+      ]
+    ],
+    [
+      [
+        "train",
+        "154_jpg.rf.83992ff8ab2d7aaac47ea1f38f8fe28e.jpg",
+        "counterfeit"
+      ],
+      [
+        "train",
+        "154_jpg.rf.02e9c0d8fb1dee85f067dfa98b76c2cd.jpg",
+        "counterfeit"
+      ]
+    ],
+    [
+      [
+        "train",
+        "IMG_20231223_135211_jpg.rf.5ed095135799ae2865b429ab9804587e.jpg",
+        "authentic"
+      ],
+      [
+        "train",
+        "IMG_20231223_135211_jpg.rf.cf87d89e0dcb1fad866bb0c3342090b6.jpg",
+        "authentic"
+      ]
+    ],
+    [
+      [
+        "train",
+        "2_png_jpg.rf.a08c0eb130028ba28c0ea41af2ce3d67.jpg",
+        "counterfeit"
+      ],
+      [
+        "train",
+        "2_png.rf.77c64485c0b631ecda7be96e23e0d66c.jpg",
+        "counterfeit"
+      ]
+    ],
+    [
+      [
+        "train",
+        "259866231_1057204454837910_128508044688183610_n-1-_jpg.rf.45c8c5194292a015e14561533f43223a.jpg",
+        "authentic"
+      ],
+      [
+        "train",
+        "259866231_1057204454837910_128508044688183610_n_jpg.rf.39b8d79cda36e73ce4e8fed85274a793.jpg",
+        "authentic"
+      ]
+    ],
+    [
+      [
+        "train",
+        "159_jpg.rf.7a0f786c153c747d900f44bc7876d09f.jpg",
+        "counterfeit"
+      ],
+      [
+        "train",
+        "159_jpg.rf.2c307e8046080751e41bc48fccee28e9.jpg",
+        "counterfeit"
+      ]
+    ],
+    [
+      [
+        "train",
+        "IMG_20231220_222624_jpg.rf.ba5a1e49709ef3a67423c31141dbe70d.jpg",
+        "authentic"
+      ],
+      [
+        "train",
+        "IMG_20231220_222624_jpg.rf.008498702bf7b5ddb043e69c4ffe7b27.jpg",
+        "authentic"
+      ]
+    ],
+    [
+      [
+        "train",
+        "IMG_20231230_124640_jpg.rf.5b4d23f39d61edcb3c56499a65294764.jpg",
+        "authentic"
+      ],
+      [
+        "train",
+        "IMG_20231230_124640_jpg.rf.53da01cf6761cef965353be365158eb8.jpg",
+        "authentic"
+      ]
+    ],
+    [
+      [
+        "train",
+        "image_175_png.rf.dac21a75d5ec9d0f426ccb3aa313ee4c.jpg",
+        "counterfeit"
+      ],
+      [
+        "train",
+        "image_175_png_jpg.rf.2934b131f9dc7486b99099ab07c0eaf5.jpg",
+        "counterfeit"
+      ]
+    ],
+    [
+      [
+        "valid",
+        "1704277890698_jpg.rf.8d7d4c3ea2d9ba9a274d12b340d05af9.jpg",
+        "authentic"
+      ],
+      [
+        "valid",
+        "1704277890698_jpg.rf.0c4ca94ce658c8a46907db3722da5b4f.jpg",
+        "authentic"
+      ]
+    ],
+    [
+      [
+        "valid",
+        "164_jpg.rf.3f3ac713792d889dc16fe5e82179e15f.jpg",
+        "counterfeit"
+      ],
+      [
+        "valid",
+        "164_jpg.rf.7c2740c141b6be51149275d57f6516e3.jpg",
+        "counterfeit"
+      ]
+    ],
+    [
+      [
+        "test",
+        "124_jpg.rf.ecd43e04b36dd8a6639d812459828531.jpg",
+        "counterfeit"
+      ],
+      [
+        "test",
+        "f33_jpg.rf.c5f9a7a18d08582f8bee5c0afc6e4769.jpg",
+        "counterfeit"
+      ]
+    ],
+    [
+      [
+        "test",
+        "167_jpg.rf.3edf0911939baaff76cfa14a645b8033.jpg",
+        "counterfeit"
+      ],
+      [
+        "test",
+        "167_jpg.rf.76efbda1cfdb03d6801a1bccead10cc6.jpg",
+        "counterfeit"
+      ]
+    ],
+    [
+      [
+        "test",
+        "273179016_633554624600265_6070972546865336426_n-Copy_jpg.rf.ad7417dbcf49743674b7bc237f278497.jpg",
+        "authentic"
+      ],
+      [
+        "test",
+        "273179016_633554624600265_6070972546865336426_n-1-_jpg.rf.e5779048a3c5ec90d92310534fa2af4c.jpg",
+        "authentic"
+      ]
+    ]
+  ],
+  "policy": {
+    "included": "Only images whose annotations all have one supported label.",
+    "excluded": "Mixed-label images and image files without annotations.",
+    "split_preservation": "Original train/valid/test membership is preserved."
+  }
+}

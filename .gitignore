@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Local datasets and generated image copies
+data/counterfeit/
+data/pharmassist/
+data/pharmassist_splits/
+data/processed/train/
+data/processed/valid/
+data/processed/test/
+
+# Local model artifacts and training runs
+models/*.pth
+runs/
+
+# Local audit outputs that may contain machine-specific paths
+reports/*.json

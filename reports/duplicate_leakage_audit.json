@@ -1,0 +1,146 @@
+{
+  "audit_scope": {
+    "processed_root": "data/processed",
+    "manifest_files": [
+      "data/splits/train.csv",
+      "data/splits/validation.csv",
+      "data/splits/test.csv"
+    ],
+    "source_dataset_modified": false,
+    "checkpoint_modified": false
+  },
+  "summary": {
+    "total_manifest_images": 5544,
+    "unique_sha256_images": 5512,
+    "split_image_counts": {
+      "train": 3850,
+      "validation": 850,
+      "test": 844
+    },
+    "split_class_counts": {
+      "train": {"authentic": 2500, "counterfeit": 1350},
+      "validation": {"authentic": 558, "counterfeit": 292},
+      "test": {"authentic": 558, "counterfeit": 286}
+    },
+    "exact_duplicate_groups": 31,
+    "exact_duplicate_file_occurrences": 63,
+    "within_split_exact_duplicate_groups": 19,
+    "cross_split_exact_duplicate_groups": 12,
+    "cross_split_exact_duplicate_file_occurrences": 25,
+    "cross_split_exact_group_pairs": {
+      "train_to_validation": 7,
+      "train_to_test": 5,
+      "validation_to_test": 0
+    },
+    "manifest_errors": []
+  },
+  "exact_cross_split_duplicate_groups": [
+    {
+      "duplicate_group": "d8b8a44cc5530916f9ea4d1bd2ed6dcea788993fa12d4e5c7a2760052c426baf",
+      "files": [
+        {"split":"train","filename":"150_jpg.rf.3983e2dd765f12dc44bca905edc43780.jpg","class":"counterfeit","other_split":"validation"},
+        {"split":"train","filename":"150_jpg.rf.6aeb22f4c7d734435d99c570edc35303.jpg","class":"counterfeit","other_split":"validation"},
+        {"split":"validation","filename":"150_jpg.rf.21cb2cb4136be8d7f3769cdd35507716.jpg","class":"counterfeit","other_split":"train"}
+      ]
+    },
+    {
+      "duplicate_group": "80eeaf5fad00a82223e8d5ece574581f0f6937bdc2f5fc45ad509f62d7509bcf",
+      "files": [
+        {"split":"train","filename":"f19_jpg.rf.65c86dcdb98b77491c8bfe9d9d4eca24.jpg","class":"counterfeit","other_split":"validation"},
+        {"split":"validation","filename":"f19_jpg.rf.3424043dcee4d8eefbb43ca71bec0d82.jpg","class":"counterfeit","other_split":"train"}
+      ]
+    },
+    {
+      "duplicate_group": "bd563dd4d4b0b0efc0add2d83f24e1774530c213ca794bcce6801302750bfd4a",
+      "files": [
+        {"split":"train","filename":"160_jpg.rf.ea225b3e655ae1a174fbff13eb31f6cf.jpg","class":"counterfeit","other_split":"validation"},
+        {"split":"validation","filename":"160_jpg.rf.73e15e306e931c14b176ddf87055d07e.jpg","class":"counterfeit","other_split":"train"}
+      ]
+    },
+    {
+      "duplicate_group": "0edf7a45f8dcecb1e61453a17f2195d87d6c275776235d7f64ac64eb92e8b993",
+      "files": [
+        {"split":"train","filename":"IMG_20231220_222819_jpg.rf.3e204c797f1a5e87651fcf2eda7bea3c.jpg","class":"authentic","other_split":"validation"},
+        {"split":"validation","filename":"IMG_20231220_222819_jpg.rf.f820fa81a3ee140de8fd5b662af1420d.jpg","class":"authentic","other_split":"train"}
+      ]
+    },
+    {
+      "duplicate_group": "286235fa7d78b987458bba50564467321d891e6b70f259cb9c76f871370da7a9",
+      "files": [
+        {"split":"train","filename":"152_jpg.rf.728434d24d4a512ed533ab74ddffb0e9.jpg","class":"counterfeit","other_split":"test"},
+        {"split":"test","filename":"152_jpg.rf.5564f58cf17aaf8f8a136850ef1f160f.jpg","class":"counterfeit","other_split":"train"}
+      ]
+    },
+    {
+      "duplicate_group": "18d1f330c1a5b85e51a6a331f8d4cfb03f4b2e6b9851c2edadb3d7806c2f3c83",
+      "files": [
+        {"split":"train","filename":"IMG20231204183310_jpg.rf.49246831e733583ae15c7c2861e1f62b.jpg","class":"authentic","other_split":"test"},
+        {"split":"test","filename":"IMG20231204183310_jpg.rf.cc7b32760a18d6c3110210a7d99ba95c.jpg","class":"authentic","other_split":"train"}
+      ]
+    },
+    {
+      "duplicate_group": "118f0daf71ee0efe16950d95d05c27045c121ecb66584d37faa54524a8133a9a",
+      "files": [
+        {"split":"train","filename":"IMG_20231220_222819_jpg.rf.fb2817843d07c57b22c76bec8dcffb83.jpg","class":"authentic","other_split":"validation"},
+        {"split":"validation","filename":"IMG_20231220_222819_jpg.rf.64eeaf2a6a44d0c812b83f6dd6d43755.jpg","class":"authentic","other_split":"train"}
+      ]
+    },
+    {
+      "duplicate_group": "6a966948772ef2d6d5ac2f2eb0ba071173c67ebb096046efe695f9f8c7e45e54",
+      "files": [
+        {"split":"train","filename":"PPCPNM_Bioflu_jpg.rf.ad084b37d3d4e370768ea660bfc6d35d.jpg","class":"authentic","other_split":"test"},
+        {"split":"test","filename":"PPCPNM_Bioflu_jpg.rf.10aee73054bb38ee416f7efa28737686.jpg","class":"authentic","other_split":"train"}
+      ]
+    },
+    {
+      "duplicate_group": "22a7b322ff9407d3213055efbcd42ca63ce61ce04dfce6b25ce0bb788bb548de",
+      "files": [
+        {"split":"train","filename":"IMG_20231223_135302_jpg.rf.c0edf56d4eda7b90c7bff4fff2549155.jpg","class":"authentic","other_split":"validation"},
+        {"split":"validation","filename":"IMG_20231223_135302_jpg.rf.1d5fde1f4d4b84dd98a2c3492c80a3e5.jpg","class":"authentic","other_split":"train"}
+      ]
+    },
+    {
+      "duplicate_group": "2f8789d19d7b38d39bc17162c213660f037799ebd1ff14b435b6cf5afc5f3298",
+      "files": [
+        {"split":"train","filename":"IMG_20231212_131440_jpg.rf.a69bc6e08b6d427ebcbfac01783b96b7.jpg","class":"authentic","other_split":"test"},
+        {"split":"test","filename":"IMG_20231212_131440_jpg.rf.d2979eec3859d0c0e8c56f8dec03d115.jpg","class":"authentic","other_split":"train"}
+      ]
+    },
+    {
+      "duplicate_group": "f01eebc8f8a33b7d53a7d826484d4cd99409e29f4641aeaf0e7cf8dab568a843",
+      "files": [
+        {"split":"train","filename":"157_jpg.rf.4f6043c907b39e9171ff97cc8e4333cc.jpg","class":"counterfeit","other_split":"validation"},
+        {"split":"validation","filename":"157_jpg.rf.8a02b9c62e76219af75cab8f916c337d.jpg","class":"counterfeit","other_split":"train"}
+      ]
+    },
+    {
+      "duplicate_group": "0c53e3af15d13209e7db8ba64247863ce38c7e7c7fde06f6487c37681c75be1d",
+      "files": [
+        {"split":"train","filename":"168_jpg.rf.320cb63d1674dace2f4338c3981ab082.jpg","class":"counterfeit","other_split":"test"},
+        {"split":"test","filename":"168_jpg.rf.1ea3f6e9fb10f3af17a6a90f17c838f2.jpg","class":"counterfeit","other_split":"train"}
+      ]
+    }
+  ],
+  "perceptual_duplicate_audit": {
+    "method": "8x8 low-frequency DCT perceptual hash from a 32x32 grayscale image",
+    "candidate_threshold": "Hamming distance <= 4",
+    "candidate_cross_split_groups": 184,
+    "candidate_pair_counts": {"train_to_validation": 95,"train_to_test": 91,"validation_to_test": 34},
+    "interpretation": "These are conservative near-duplicate candidates, not confirmed duplicates. The threshold groups visually similar pharmaceutical images and requires manual/image-level review. No claim of resizing/compression identity is made from pHash alone.",
+    "resized_or_compressed_identity_confirmed": false
+  },
+  "trained_model": {
+    "checkpoint": "runs/mobilenet_v3_large/best.pt",
+    "test_accuracy": 0.9964454976303317,
+    "test_precision_macro": 0.995618013374286,
+    "test_recall_macro": 0.9964596335564078,
+    "test_macro_f1": 0.996036907473059,
+    "test_per_class_f1": {"authentic": 0.9973094170403587,"counterfeit": 0.9947643979057592},
+    "test_confusion_matrix": [[556,2],[1,285]]
+  },
+  "assessment": {
+    "could_test_accuracy_be_inflated": true,
+    "reason": "There are 5 exact cross-split duplicate groups involving test files, plus many perceptual candidates. Exact duplicates allow memorization or near-direct recognition of test content during training.",
+    "recommendation": "Do not treat 99.64% as leakage-free. Remove or group duplicate content before a final evaluation, then retrain and report the clean test metrics."
+  }
+}

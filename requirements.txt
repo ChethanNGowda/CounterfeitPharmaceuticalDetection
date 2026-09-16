@@ -9,3 +9,6 @@ Pillow
 joblib
 python-dotenv
 pytest
+scikit-image
+torch
+torchvision

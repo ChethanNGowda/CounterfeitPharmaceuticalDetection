@@ -6,6 +6,10 @@ The system captures an image of a tablet using a smartphone camera, extracts vis
 
 > ⚠️ **Note:** This is a student prototype for preliminary screening. It is not a replacement for certified laboratory testing and does not guarantee 100% detection accuracy.
 
+## Current ML Status
+
+The repository contains a two-class PyTorch transfer-learning pipeline for `authentic` and `counterfeit` images, using MobileNetV3-Large as the primary model and EfficientNet-B0 for comparison. The pipeline is ready for a real dataset under `data/raw/`, but no training results are claimed until real labeled images are added and evaluated.
+
 ---
 
 ## 🎯 Problem

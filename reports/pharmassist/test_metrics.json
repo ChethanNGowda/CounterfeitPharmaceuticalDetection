@@ -1,0 +1,13 @@
+{
+  "model": "MobileNetV3-Large",
+  "dataset": "Pharmassist",
+  "classes": 53,
+  "test_images": 308,
+  "correct_predictions": 307,
+  "incorrect_predictions": 1,
+  "top1_accuracy": 0.9967532467532467,
+  "top5_accuracy": 0.9967532467532467,
+  "macro_precision": 0.9979035639412998,
+  "macro_recall": 0.9976415094339622,
+  "macro_f1": 0.9976322604513503
+}

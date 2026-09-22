@@ -1,0 +1,54 @@
+class,precision,recall,f1,support
+Acemiz,1.0,1.0,1.0,4
+Allegra,1.0,1.0,1.0,5
+Alprax 0-25,1.0,1.0,1.0,8
+Amalong,1.0,1.0,1.0,8
+Atarax,1.0,1.0,1.0,4
+Becozinc,1.0,1.0,1.0,4
+Bifilac,1.0,1.0,1.0,7
+Canitiz,1.0,1.0,1.0,8
+Cetzine,1.0,1.0,1.0,5
+Ciplar 10,1.0,1.0,1.0,8
+Cofsils,1.0,1.0,1.0,4
+Cranmed,1.0,1.0,1.0,4
+Cyclopam,1.0,1.0,1.0,5
+D-Rise,1.0,1.0,1.0,5
+D-Well,1.0,1.0,1.0,4
+D3 More 2K,1.0,1.0,1.0,7
+Dolo-650,1.0,1.0,1.0,7
+Eldoper,1.0,1.0,1.0,4
+Emeset,1.0,1.0,1.0,4
+Etoshine 90,1.0,1.0,1.0,8
+Etoshine MR,1.0,1.0,1.0,8
+Folvite,1.0,1.0,1.0,8
+Gelusil,1.0,1.0,1.0,4
+Gestorab,1.0,1.0,1.0,7
+GlimiSave M 0-5,1.0,1.0,1.0,3
+Gluxit10,1.0,1.0,1.0,7
+M-Strong,1.0,1.0,1.0,3
+Meftal 250 DT,1.0,1.0,1.0,7
+Melecobalamine,1.0,1.0,1.0,8
+Menoease,1.0,1.0,1.0,5
+Metronidazole,1.0,1.0,1.0,8
+Montair,1.0,1.0,1.0,7
+Muvera,1.0,1.0,1.0,5
+Mysopas,1.0,1.0,1.0,5
+P-650,1.0,1.0,1.0,3
+Pacimol650,1.0,1.0,1.0,5
+Pan 20,1.0,1.0,1.0,8
+Pan-D,1.0,0.875,0.9333333333333333,8
+Paracip-650,1.0,1.0,1.0,3
+Redotil,1.0,1.0,1.0,8
+Shelcal 500,1.0,1.0,1.0,8
+Sibelium 10mg,1.0,1.0,1.0,8
+Sompraz,1.0,1.0,1.0,5
+Strepsils,1.0,1.0,1.0,8
+Tayo60k,1.0,1.0,1.0,6
+Tendonease,1.0,1.0,1.0,5
+Udapa-Trio,1.0,1.0,1.0,3
+Unienzyme,1.0,1.0,1.0,5
+Velgut,1.0,1.0,1.0,5
+Vitamin E,1.0,1.0,1.0,3
+Vomikind,1.0,1.0,1.0,6
+Zincovit,0.8888888888888888,1.0,0.9411764705882353,8
+Zofer,1.0,1.0,1.0,5

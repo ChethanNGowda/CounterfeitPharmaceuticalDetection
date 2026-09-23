@@ -1,0 +1,5 @@
+Model,Parameters,Input Size,Model Size (MB),Accuracy,Precision,Recall,F1,Specificity,Sensitivity,ROC-AUC,Inference Time (ms)
+efficientnet_b0,"4,010,110",224x224,15.6,99.88%,99.65%,100.00%,99.82%,99.82%,100.00%,0.9993,35.18
+mobilenet_v3_large,"4,204,594",224x224,16.2,99.40%,99.29%,98.93%,99.11%,99.63%,98.93%,0.9993,22.15
+goldformer,"54,297,277",224x224,207.8,99.27%,97.91%,100.00%,98.94%,98.90%,100.00%,0.9993,146.13
+baseline_cnn,"93,954",224x224,0.4,86.58%,74.57%,91.81%,82.30%,83.88%,91.81%,0.9456,20.76

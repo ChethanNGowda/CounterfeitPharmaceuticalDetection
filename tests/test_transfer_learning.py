@@ -109,6 +109,7 @@ def test_zero_worker_dataloader_loads_a_batch(tmp_path):
 def test_inference_returns_probabilities_and_manual_review(tmp_path):
     from pathlib import Path
 
+    # Build a fresh mobilenetv3 model and save a temporary checkpoint
     model = build_model("mobilenet_v3_large", Path("models/mobilenet_v3_large.pth"))
     checkpoint_path = tmp_path / "checkpoint.pt"
     torch.save(
@@ -121,12 +122,13 @@ def test_inference_returns_probabilities_and_manual_review(tmp_path):
     image_path = tmp_path / "image.png"
     Image.new("RGB", (224, 224), (128, 128, 128)).save(image_path)
 
+    # Use the new API: pass the already-loaded model object and device kwarg
     result = predict(
-        image_path,
-        checkpoint_path,
-        Path("models/mobilenet_v3_large.pth"),
-        threshold=1.01,
-        cpu=True,
+        image_input=image_path,
+        model=model,
+        threshold=1.01,               # Always below 1.0 confidence -> NEEDS MANUAL REVIEW
+        quality_check=False,           # Skip quality gate so we test the threshold path
+        device=torch.device("cpu"),
     )
 
     assert set(result["probabilities"]) == set(CLASS_NAMES)

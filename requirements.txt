@@ -9,6 +9,8 @@ Pillow
 joblib
 python-dotenv
 pytest
+httpx2
 scikit-image
 torch
 torchvision
+pydantic

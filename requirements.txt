@@ -1,16 +1,25 @@
+# Core API & Web Server
 fastapi
 uvicorn
 python-multipart
+pydantic
+
+# Computer Vision, Data Science & Machine Learning
 numpy
 opencv-python
 pandas
 scikit-learn
 Pillow
-joblib
-python-dotenv
-pytest
-httpx2
 scikit-image
+joblib
 torch
 torchvision
-pydantic
+
+# Utilities, Testing & AI Integration
+python-dotenv
+pytest
+httpx
+ollama>=0.5.0
+
+# NOTE: Ollama is also an external system runtime daemon (https://ollama.com)
+# required for secondary Qwen Vision verification (e.g., qwen3-vl:8b).

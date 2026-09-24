@@ -1,4 +1,4 @@
-"""FastAPI route for pharmaceutical image prediction."""
+"""FastAPI route for pharmaceutical image prediction and secondary AI review."""
 
 from __future__ import annotations
 
@@ -21,15 +21,20 @@ ALLOWED_MIME_TYPES = {
 
 
 @router.post("/predict", response_model=PredictionResponse, status_code=status.HTTP_200_OK)
+@router.post("/verify", response_model=PredictionResponse, status_code=status.HTTP_200_OK)
 async def predict_pharmaceutical(
     file: UploadFile = File(..., description="Multipart tablet image file"),
     threshold: float = Form(DEFAULT_CONFIDENCE_THRESHOLD, description="Confidence threshold between 0.0 and 1.0"),
     model: Optional[str] = Form(DEFAULT_MODEL, description=f"Model name ({', '.join(SUPPORTED_MODELS)})"),
+    enable_qwen: bool = Form(True, description="Enable secondary AI reasoning review via local Ollama qwen3:8b"),
+    enable_vision: Optional[bool] = Form(None, description="Alias for enable_qwen for backward compatibility"),
 ):
-    """Screen an uploaded pharmaceutical tablet image.
+    """Screen an uploaded pharmaceutical tablet image using dual-model pipeline.
 
-    Returns binary screening result (AUTHENTIC or COUNTERFEIT), confidence,
-    class probabilities, and status (or NEEDS MANUAL REVIEW for low confidence or poor image quality).
+    - Primary Model: EfficientNet-B0 visual classifier (99.88% test accuracy).
+    - Secondary Review: qwen3:8b (via local Ollama) reasoning over structured classifier evidence.
+    - Decision Engine: Conservative synthesis yielding LIKELY AUTHENTIC, LIKELY COUNTERFEIT,
+      or SUSPICIOUS / NEEDS VERIFICATION.
     """
     if file.content_type and file.content_type.lower() not in ALLOWED_MIME_TYPES:
         raise HTTPException(
@@ -51,6 +56,9 @@ async def predict_pharmaceutical(
             detail="Uploaded file is empty (0 bytes).",
         )
 
+    # Use enable_vision if explicitly provided, otherwise enable_qwen
+    run_qwen = enable_vision if enable_vision is not None else enable_qwen
+
     service = ClassifierService.get_instance()
     try:
         result = service.predict_image_bytes(
@@ -58,6 +66,7 @@ async def predict_pharmaceutical(
             filename=file.filename or "upload.jpg",
             model_name=model or DEFAULT_MODEL,
             threshold=threshold,
+            enable_qwen=run_qwen,
         )
     except ValueError as val_err:
         raise HTTPException(
@@ -71,13 +80,21 @@ async def predict_pharmaceutical(
         )
 
     return PredictionResponse(
+        # Multi-model core fields
+        primary_model=result["primary_model"],
         prediction=result["prediction"],
-        authentic_probability=result["authentic_probability"],
-        counterfeit_probability=result["counterfeit_probability"],
         confidence=result["confidence"],
+        qwen=result["qwen"],
+        final_result=result["final_result"],
+        needs_human_verification=result["needs_human_verification"],
+        warning=result.get("warning"),
+        disclaimer=result.get("disclaimer"),
+        # Backward-compatible fields
         status=result["status"],
         reason=result.get("reason"),
         model_name=result["model_name"],
         threshold=result["threshold"],
+        authentic_probability=result["authentic_probability"],
+        counterfeit_probability=result["counterfeit_probability"],
         quality=result.get("quality"),
     )

@@ -45,12 +45,15 @@ app.include_router(predict_router, prefix="", tags=["Screening"])
 @app.get("/", response_model=HealthResponse, tags=["Health"])
 def health_check():
     dev = get_device()
+    service = ClassifierService.get_instance()
     return HealthResponse(
         status="ok",
         version="1.0.0",
         device=str(dev),
         default_model=DEFAULT_MODEL,
         available_models=SUPPORTED_MODELS,
+        secondary_ai_model=service.qwen_reviewer.model_name,
+        secondary_ai_endpoint=service.qwen_reviewer.base_url,
     )
 
 

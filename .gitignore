@@ -2,6 +2,12 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
+.env
+
+# Coverage and test artifacts
+.coverage
+htmlcov/
+*.log
 
 # Local datasets and generated image copies
 data/counterfeit/
@@ -14,6 +20,8 @@ data/processed/test/
 # Local model artifacts and training runs
 models/*.pth
 runs/
+outputs/checkpoints/
+outputs/raw_training/
 
 # Local audit outputs that may contain machine-specific paths
 reports/*.json

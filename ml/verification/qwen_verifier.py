@@ -24,7 +24,7 @@ from PIL import Image
 
 DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
 DEFAULT_OLLAMA_VISION_MODEL = "qwen3-vl:4b"
-DEFAULT_OLLAMA_TIMEOUT = 240.0
+DEFAULT_OLLAMA_TIMEOUT = 180.0
 
 # Ordered preference list: first available installed model wins
 _VISION_MODEL_PREFERENCE = [
@@ -35,7 +35,7 @@ _VISION_MODEL_PREFERENCE = [
 ]
 
 # Max image dimension (px) before sending to vision model — keeps token count within VRAM budget
-_MAX_IMAGE_DIMENSION = 448
+_MAX_IMAGE_DIMENSION = 384
 
 
 def _detect_vision_model(base_url: str = DEFAULT_OLLAMA_BASE_URL) -> str:
@@ -101,8 +101,8 @@ Final Explanation:
 def parse_qwen_vision_output(raw_text: str) -> dict[str, Any]:
     """Parse structured fields from Qwen Vision text response.
 
-    Uses the LAST match for each field so that intermediate thinking chain
-    occurrences don't override the model's final structured answer.
+    Strips markdown symbols (*, #, _) and uses the LAST match for each field
+    so that intermediate thinking chain occurrences don't override the final answer.
     """
     result: dict[str, Any] = {
         "assessment": "UNCERTAIN",
@@ -112,20 +112,23 @@ def parse_qwen_vision_output(raw_text: str) -> dict[str, Any]:
         "raw_text": raw_text.strip(),
     }
 
+    # Normalize by stripping markdown bold/heading characters
+    clean_text = re.sub(r"[*#_]", "", raw_text)
+
     # Use last match for each field (thinking trace may contain earlier occurrences)
-    assessments = re.findall(r"Assessment:\s*(AUTHENTIC|COUNTERFEIT|UNCERTAIN)", raw_text, re.IGNORECASE)
+    assessments = re.findall(r"Assessment:\s*(AUTHENTIC|COUNTERFEIT|UNCERTAIN)", clean_text, re.IGNORECASE)
     if assessments:
         result["assessment"] = assessments[-1].upper()
 
-    confidences = re.findall(r"Visual Confidence:\s*(LOW|MEDIUM|HIGH)", raw_text, re.IGNORECASE)
+    confidences = re.findall(r"Visual Confidence:\s*(LOW|MEDIUM|HIGH)", clean_text, re.IGNORECASE)
     if confidences:
         result["confidence"] = confidences[-1].upper()
 
-    qualities = re.findall(r"Image Quality:\s*(GOOD|FAIR|POOR)", raw_text, re.IGNORECASE)
+    qualities = re.findall(r"Image Quality:\s*(GOOD|FAIR|POOR)", clean_text, re.IGNORECASE)
     if qualities:
         result["image_quality"] = qualities[-1].upper()
 
-    recs = re.findall(r"Recommendation:\s*(AUTOMATED SCREENING|MANUAL REVIEW)", raw_text, re.IGNORECASE)
+    recs = re.findall(r"Recommendation:\s*(AUTOMATED SCREENING|MANUAL REVIEW)", clean_text, re.IGNORECASE)
     if recs:
         result["recommendation"] = recs[-1].upper()
 
@@ -237,7 +240,7 @@ class QwenVisionVerifier:
                 prompt=QWEN_VISION_PROMPT,
                 system=sys_directive,
                 images=[b64_img],
-                options={"temperature": 0.1, "num_predict": 2000},
+                options={"temperature": 0.1, "num_predict": 750},
             )
             raw_text = (resp.response or "").strip()
             if not raw_text and hasattr(resp, "thinking") and resp.thinking:
@@ -471,9 +474,9 @@ class QwenVisionVerifier:
 
         raw = verification.get("raw_text", "").strip()
 
-        # Try to match the final structured report starting at "Assessment:" followed by "Visual Confidence:"
+        # Try to match the final structured report starting at the last "Assessment: [AUTHENTIC/COUNTERFEIT/UNCERTAIN]"
         pattern = re.compile(
-            r"Assessment:\s*(?:AUTHENTIC|COUNTERFEIT|UNCERTAIN)\s*\n+\s*Visual Confidence:\s*(?:LOW|MEDIUM|HIGH)",
+            r"Assessment:\s*(?:AUTHENTIC|COUNTERFEIT|UNCERTAIN)",
             re.IGNORECASE,
         )
         matches = list(pattern.finditer(raw))

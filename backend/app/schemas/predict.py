@@ -148,3 +148,40 @@ class HealthResponse(BaseModel):
     available_models: list[str] = Field(default_factory=lambda: AVAILABLE_MODELS)
     secondary_ai_model: str = "qwen3-vl:4b"
     secondary_ai_endpoint: str = "http://localhost:11434"
+
+
+class ApiInfoResponse(BaseModel):
+    name: str = "Counterfeit Pharmaceutical Detection API"
+    version: str = "1.0.0"
+    status: str = "ok"
+    description: str = (
+        "AI-assisted preliminary screening system for detecting counterfeit pharmaceutical tablets. "
+        "Intended for preliminary smartphone triage, not certified chemical laboratory testing."
+    )
+    docs_url: str = "/docs"
+    endpoints: dict[str, str] = Field(
+        default_factory=lambda: {
+            "root": "GET /",
+            "health": "GET /health",
+            "predict": "POST /predict",
+            "verify": "POST /verify (alias for /predict)",
+        }
+    )
+    supported_models: list[str] = Field(default_factory=lambda: AVAILABLE_MODELS)
+    default_model: str = "efficientnet_b0"
+    thresholds: dict[str, float] = Field(
+        default_factory=lambda: {
+            "screening_threshold": 0.70,
+            "high_confidence_threshold": 0.90,
+        }
+    )
+    usage: str = (
+        "Submit a multipart/form-data POST request to /predict or /verify with an image 'file'. "
+        "Optional parameters: 'threshold' (0.0-1.0), 'model' (model name), 'vision_mode' ('auto'|'always'|'never'), "
+        "'enable_qwen' (bool)."
+    )
+    disclaimer: str = (
+        "AI-assisted preliminary screening only. Visual and convolutional appearance analysis CANNOT "
+        "certify chemical purity, active pharmaceutical ingredients (API), or bioequivalence. "
+        "Laboratory chemical testing remains the sole definitive standard."
+    )

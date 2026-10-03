@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import io
 from typing import Optional
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from PIL import Image
 
 from ml.config import DEFAULT_CONFIDENCE_THRESHOLD, DEFAULT_MODEL, SUPPORTED_MODELS
+from ml.models.transfer_learning import CheckpointUnavailableError
 from backend.app.schemas.predict import PredictionResponse
 from backend.app.services.classifier import ClassifierService
 
@@ -18,6 +21,8 @@ ALLOWED_MIME_TYPES = {
     "image/webp",
     "image/bmp",
 }
+ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP", "BMP"}
+MAX_UPLOAD_SIZE = 15 * 1024 * 1024  # 15 MB
 
 
 @router.post("/predict", response_model=PredictionResponse, status_code=status.HTTP_200_OK)
@@ -57,6 +62,29 @@ async def predict_pharmaceutical(
             detail="Uploaded file is empty (0 bytes).",
         )
 
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Image upload exceeds maximum allowed size of 15MB ({len(content) / (1024 * 1024):.1f}MB uploaded).",
+        )
+
+    # Validate image readability and real format (do not trust content_type header alone)
+    try:
+        with Image.open(io.BytesIO(content)) as probe_img:
+            img_format = (probe_img.format or "").upper()
+            if img_format not in ALLOWED_IMAGE_FORMATS:
+                raise HTTPException(
+                    status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                    detail=f"Unsupported image format '{img_format}'. Allowed formats: JPEG, PNG, WEBP, BMP.",
+                )
+    except HTTPException:
+        raise
+    except Exception as img_err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Corrupted or invalid image data: {img_err}",
+        )
+
     # Use enable_vision if explicitly provided, otherwise enable_qwen
     run_qwen = enable_vision if enable_vision is not None else enable_qwen
 
@@ -74,6 +102,11 @@ async def predict_pharmaceutical(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(val_err),
+        )
+    except CheckpointUnavailableError as ckpt_err:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Requested model checkpoint is unavailable: {ckpt_err}",
         )
     except Exception as exc:
         raise HTTPException(

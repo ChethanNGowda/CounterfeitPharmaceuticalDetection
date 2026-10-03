@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from ml.config import DEFAULT_MODEL, SUPPORTED_MODELS, get_device
 from backend.app.routes.predict import router as predict_router
-from backend.app.schemas.predict import HealthResponse
+from backend.app.schemas.predict import ApiInfoResponse, HealthResponse
 from backend.app.services.classifier import ClassifierService
 
 
@@ -41,9 +41,15 @@ app.add_middleware(
 app.include_router(predict_router, prefix="", tags=["Screening"])
 
 
+@app.get("/", response_model=ApiInfoResponse, tags=["Information"])
+def api_info():
+    """Basic API information, usage guidance, and supported endpoints."""
+    return ApiInfoResponse()
+
+
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
-@app.get("/", response_model=HealthResponse, tags=["Health"])
 def health_check():
+    """Lightweight operational health check."""
     dev = get_device()
     service = ClassifierService.get_instance()
     return HealthResponse(

@@ -100,9 +100,10 @@ def test_synthesize_final_result_disagreement():
         "recommendation": "AUTOMATED SCREENING",
     }
     synth = synthesize_final_result(primary, qwen)
-    assert synth["final_status"] == "NEEDS MANUAL REVIEW"
+    assert synth["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+    assert synth["needs_human_verification"] is True
     assert synth["disagreement"] is True
-    assert "disagreement" in synth["reason"].lower()
+    assert "conflicting" in synth["reason"].lower() or "disagreement" in synth["reason"].lower()
 
 
 def test_synthesize_final_result_corroborated_authentic():
@@ -119,7 +120,8 @@ def test_synthesize_final_result_corroborated_authentic():
         "recommendation": "AUTOMATED SCREENING",
     }
     synth = synthesize_final_result(primary, qwen)
-    assert synth["final_status"] == "LIKELY AUTHENTIC"
+    assert synth["final_result"] == "LIKELY AUTHENTIC"
+    assert synth["needs_human_verification"] is False
     assert synth["disagreement"] is False
 
 
@@ -137,7 +139,8 @@ def test_synthesize_final_result_corroborated_counterfeit():
         "recommendation": "MANUAL REVIEW",
     }
     synth = synthesize_final_result(primary, qwen)
-    assert synth["final_status"] == "LIKELY COUNTERFEIT"
+    assert synth["final_result"] == "LIKELY COUNTERFEIT"
+    assert synth["needs_human_verification"] is True
     assert synth["disagreement"] is False
 
 
@@ -154,7 +157,64 @@ def test_synthesize_final_result_low_confidence_triggers_review():
         "confidence": "HIGH",
     }
     synth = synthesize_final_result(primary, qwen)
-    assert synth["final_status"] == "NEEDS MANUAL REVIEW"
+    assert synth["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+    assert synth["needs_human_verification"] is True
+
+
+def test_synthesize_final_result_qwen_uncertain_high_confidence_counterfeit():
+    """High-confidence primary counterfeit (>= 90%) is preserved when Qwen is merely uncertain."""
+    primary = {
+        "prediction": "COUNTERFEIT",
+        "confidence": 0.9981,
+        "status": "COUNTERFEIT",
+        "quality": {"is_valid": True},
+    }
+    qwen = {
+        "available": True,
+        "assessment": "UNCERTAIN",
+        "confidence": "LOW",
+        "recommendation": "MANUAL REVIEW",
+    }
+    synth = synthesize_final_result(primary, qwen)
+    assert synth["final_result"] == "LIKELY COUNTERFEIT"
+    assert synth["needs_human_verification"] is True
+    assert "uncertain" in synth["reason"].lower()
+
+
+def test_synthesize_final_result_qwen_uncertain_high_confidence_authentic():
+    """High-confidence primary authentic (>= 90%) is preserved when Qwen is merely uncertain."""
+    primary = {
+        "prediction": "AUTHENTIC",
+        "confidence": 0.94,
+        "status": "AUTHENTIC",
+        "quality": {"is_valid": True},
+    }
+    qwen = {
+        "available": True,
+        "assessment": "UNCERTAIN",
+        "confidence": "LOW",
+    }
+    synth = synthesize_final_result(primary, qwen)
+    assert synth["final_result"] == "LIKELY AUTHENTIC"
+    assert synth["needs_human_verification"] is False
+
+
+def test_synthesize_final_result_qwen_uncertain_moderate_confidence_escalates():
+    """Moderate primary confidence (70% - 89.9%) escalates to verification when Qwen is uncertain."""
+    primary = {
+        "prediction": "COUNTERFEIT",
+        "confidence": 0.78,
+        "status": "COUNTERFEIT",
+        "quality": {"is_valid": True},
+    }
+    qwen = {
+        "available": True,
+        "assessment": "UNCERTAIN",
+        "confidence": "LOW",
+    }
+    synth = synthesize_final_result(primary, qwen)
+    assert synth["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+    assert synth["needs_human_verification"] is True
 
 
 def test_synthesize_final_result_unavailable_fallback():
@@ -169,7 +229,8 @@ def test_synthesize_final_result_unavailable_fallback():
         "status": "UNAVAILABLE",
     }
     synth = synthesize_final_result(primary, qwen)
-    assert synth["final_status"] == "LIKELY AUTHENTIC"
+    assert synth["final_result"] == "LIKELY AUTHENTIC"
+    assert synth["needs_human_verification"] is False
     assert "unavailable" in synth["reason"].lower()
 
 
@@ -189,4 +250,4 @@ def test_format_final_screening_result():
     assert "Primary ML Prediction: COUNTERFEIT" in formatted
     assert "Primary ML Confidence: 54.46%" in formatted
     assert "Qwen Visual Assessment: UNCERTAIN" in formatted
-    assert "Final Status: NEEDS MANUAL REVIEW" in formatted
+    assert "Final Result: SUSPICIOUS / NEEDS VERIFICATION" in formatted

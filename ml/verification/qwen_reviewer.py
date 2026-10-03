@@ -1,7 +1,19 @@
-"""Secondary AI Reasoning and Review Layer using local Ollama model qwen3:8b.
+"""LEGACY SECONDARY REVIEWER — superseded by QwenVisionVerifier (qwen_verifier.py).
 
-This module sends structured classifier evidence and quality metrics to qwen3:8b
-for secondary reasoning and review.
+This module was the original secondary AI layer. It sent *structured JSON evidence*
+(classifier probabilities, quality flags) to qwen3:8b for text-based reasoning.
+
+**Production pipeline** (Phase 2+) uses ml/verification/qwen_verifier.py instead:
+  - Model: qwen3-vl:4b (vision-language model)
+  - Input: actual pharmaceutical image encoded as base64
+  - Invocation: QwenVisionVerifier.verify_image()
+
+This file is retained for:
+  - tests/test_qwen_verifier.py — 20+ unit tests covering QwenReviewer logic
+  - ml/verification/__init__.py — backward-compat public exports
+  - ml/verification/decision_engine.py — docstring reference
+
+Do NOT use QwenReviewer for new inference code. Use QwenVisionVerifier instead.
 
 IMPORTANT SAFETY NOTICE:
 qwen3:8b is an LLM reasoning layer over statistical evidence, NOT an image classifier

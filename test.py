@@ -29,8 +29,13 @@ from ml.config import (
     SUPPORTED_MODELS,
     get_device,
 )
-from ml.inference.predict import predict
-from ml.models.transfer_learning import load_classifier, normalize_model_name
+from ml.inference.predict import predict, predict_pipeline
+from ml.models.transfer_learning import (
+    get_model_status,
+    is_model_available,
+    load_classifier,
+    normalize_model_name,
+)
 from ml.verification.qwen_verifier import (
     DEFAULT_OLLAMA_BASE_URL,
     DEFAULT_OLLAMA_TIMEOUT,
@@ -48,12 +53,16 @@ def run_single_image(
     threshold: float,
     device: torch.device,
     loaded_model=None,
+    vision_mode: str = "auto",
+    verifier: Optional[QwenVisionVerifier] = None,
 ) -> dict:
-    """Run screening on one image using the primary ML classifier."""
-    return predict(
+    """Run screening on one image using the unified detection pipeline."""
+    return predict_pipeline(
         image_input=image_path,
         model=loaded_model if loaded_model else model_name,
         threshold=threshold,
+        vision_mode=vision_mode,
+        vision_verifier=verifier,
         device=device,
         quality_check=True,
     )
@@ -64,14 +73,17 @@ def format_single_image_output(
     qwen_verification: dict | None = None,
     verifier: QwenVisionVerifier | None = None,
 ) -> str:
-    """Format single image prediction with Primary ML Classifier, Qwen Vision, and Final Result."""
+    """Format single image prediction with Primary ML Classifier, Secondary Verification, and Final Result."""
     img_name = Path(result["image_path"]).name
-    pred = result["prediction"]
-    auth_prob = result["authentic_probability"] * 100
-    fake_prob = result["counterfeit_probability"] * 100
-    conf = result["confidence"] * 100
-    status = result["status"]
+    pred = result.get("primary_prediction") or result.get("prediction", "UNKNOWN")
+    auth_prob = float(result.get("authentic_probability", 0.0)) * 100
+    fake_prob = float(result.get("counterfeit_probability", 0.0)) * 100
+    conf = float(result.get("confidence", 0.0)) * 100
+    status = result.get("status", "UNKNOWN")
     reason = result.get("reason")
+    sec_executed = result.get("secondary_executed", False)
+    sec_reason = result.get("secondary_reason")
+    qwen_data = qwen_verification if qwen_verification is not None else result.get("qwen")
 
     lines = [
         "=" * 50,
@@ -94,16 +106,54 @@ def format_single_image_output(
         lines.append("Reason:")
         lines.append(f"{reason}")
 
-    if qwen_verification is not None:
-        lines.append("")
+    # Secondary Verification Section
+    lines.append("")
+    lines.append("=" * 50)
+    lines.append("SECONDARY VERIFICATION")
+    lines.append("=" * 22)
+    lines.append("")
+
+    if sec_executed and qwen_data:
         if verifier is None:
             verifier = QwenVisionVerifier()
-        lines.append(verifier.format_vision_section(qwen_verification))
-        lines.append("")
-        lines.append(format_final_screening_result(result, qwen_verification))
+        lines.append(verifier.format_vision_section(qwen_data))
     else:
+        lines.append("Status: NOT RUN")
+        if sec_reason:
+            lines.append("")
+            lines.append("Reason:")
+            lines.append(f"{sec_reason}")
+
+    # Final Result Section
+    lines.append("")
+    lines.append("=" * 50)
+    lines.append("FINAL SCREENING RESULT")
+    lines.append("=" * 22)
+    lines.append("")
+    lines.append(f"Primary ML Prediction: {pred}")
+    lines.append(f"Primary ML Confidence: {conf:.2f}%")
+    lines.append("")
+
+    if sec_executed and qwen_data and qwen_data.get("available", False):
+        lines.append(f"Qwen Visual Assessment: {qwen_data.get('assessment', 'UNCERTAIN')}")
+    elif sec_executed and qwen_data:
+        lines.append("Qwen Visual Assessment: UNAVAILABLE")
+    else:
+        lines.append("Qwen Visual Assessment: NOT RUN")
+
+    lines.append("")
+    final_res = result.get("final_result", result.get("final_status", "SUSPICIOUS / NEEDS VERIFICATION"))
+    lines.append(f"Final Result: {final_res}")
+
+    if result.get("warning"):
         lines.append("")
-        lines.append("Note: AI-assisted preliminary screening only; does not replace laboratory authentication.")
+        lines.append(f"Warning: {result['warning']}")
+    elif result.get("reason") and status == "NEEDS MANUAL REVIEW":
+        lines.append("")
+        lines.append(f"Reason: {result['reason']}")
+
+    lines.append("")
+    lines.append("Note: AI-assisted preliminary screening only; does not replace laboratory authentication.")
 
     return "\n".join(lines)
 
@@ -198,7 +248,13 @@ def main() -> None:
     parser.add_argument("--threshold", type=float, default=DEFAULT_CONFIDENCE_THRESHOLD, help="Confidence threshold (default: 0.70)")
     parser.add_argument("--output", default=None, help="Output CSV path for batch testing")
     parser.add_argument("--cpu", action="store_true", help="Force CPU inference for primary ML model")
-    parser.add_argument("--no-vision", action="store_true", help="Disable secondary Qwen Vision verification")
+    parser.add_argument(
+        "--vision-mode",
+        choices=["auto", "always", "never"],
+        default="auto",
+        help="Vision verification mode: 'auto' (conditional gating [0.70, 0.90)), 'always' (force Qwen), 'never' (skip Qwen)",
+    )
+    parser.add_argument("--no-vision", action="store_true", help="Disable secondary Qwen Vision verification (alias for --vision-mode never)")
     parser.add_argument("--vision-model", default=None, help="Ollama vision model (default: auto-detected, e.g. qwen3-vl:4b)")
     parser.add_argument("--ollama-url", default=DEFAULT_OLLAMA_BASE_URL, help=f"Ollama base URL (default: {DEFAULT_OLLAMA_BASE_URL})")
     parser.add_argument("--timeout", type=float, default=DEFAULT_OLLAMA_TIMEOUT, help=f"Ollama timeout in seconds (default: {DEFAULT_OLLAMA_TIMEOUT})")
@@ -210,6 +266,7 @@ def main() -> None:
         sys.exit(1)
 
     device = torch.device("cpu") if args.cpu else get_device()
+    vision_mode = "never" if args.no_vision else args.vision_mode
 
     # Batch directory mode (primary classifier only)
     if target_path.is_dir():
@@ -224,26 +281,43 @@ def main() -> None:
 
     # Single image mode
     verifier = None
-    qwen_res = None
-    if not args.no_vision:
+    if vision_mode != "never":
         verifier = QwenVisionVerifier(
             base_url=args.ollama_url,
             model_name=args.vision_model,
             timeout=args.timeout,
         )
-        qwen_res = verifier.verify_image(target_path)
 
     if args.model.lower() == "all":
         print(f"=== Comparative Multi-Model Evaluation on {target_path.name} ===\n")
         for m in SUPPORTED_MODELS:
             print(f"--- Model: {m} ---")
-            res = run_single_image(target_path, m, args.threshold, device)
-            print(format_single_image_output(res, qwen_verification=qwen_res, verifier=verifier))
+            if not is_model_available(m):
+                status_info = get_model_status(m)
+                print(f"Status: UNAVAILABLE ({status_info['status']})")
+                print("Skipping inference: Fine-tuned pharmaceutical checkpoint not found on disk.\n")
+                continue
+            res = run_single_image(
+                target_path,
+                m,
+                args.threshold,
+                device,
+                vision_mode=vision_mode,
+                verifier=verifier,
+            )
+            print(format_single_image_output(res, verifier=verifier))
             print()
     else:
         norm_name = normalize_model_name(args.model)
-        res = run_single_image(target_path, norm_name, args.threshold, device)
-        print(format_single_image_output(res, qwen_verification=qwen_res, verifier=verifier))
+        res = run_single_image(
+            target_path,
+            norm_name,
+            args.threshold,
+            device,
+            vision_mode=vision_mode,
+            verifier=verifier,
+        )
+        print(format_single_image_output(res, verifier=verifier))
 
 
 if __name__ == "__main__":

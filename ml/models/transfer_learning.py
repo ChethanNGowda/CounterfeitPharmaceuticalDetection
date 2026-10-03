@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 import sys
-from typing import Optional
+from typing import Any, Optional
 
 import torch
 from torch import nn
@@ -132,6 +132,62 @@ def build_model(
     raise ValueError(f"Unsupported model: {model_name} (normalized: {norm_name})")
 
 
+class CheckpointUnavailableError(FileNotFoundError):
+    """Raised when an architecture is defined but its trained pharmaceutical checkpoint is unavailable."""
+    pass
+
+
+def is_model_available(model_name: str) -> bool:
+    """Return True if a verified fine-tuned pharmaceutical checkpoint exists for the model."""
+    norm_name = normalize_model_name(model_name)
+    reg = CHECKPOINT_REGISTRY.get(norm_name, {})
+    ckpt = reg.get("checkpoint")
+    return bool(ckpt and Path(ckpt).is_file())
+
+
+def get_model_status(model_name: str) -> dict[str, Any]:
+    """Return explicit availability status and path details for a given model.
+
+    Distinguishes between:
+    - 'Fine-tuned classifier available'
+    - 'Architecture available, but fine-tuned pharmaceutical checkpoint unavailable'
+    - 'Architecture supported, but neither fine-tuned checkpoint nor pretrained weights are available'
+    """
+    norm_name = normalize_model_name(model_name)
+    if norm_name not in CHECKPOINT_REGISTRY:
+        return {
+            "model_name": norm_name,
+            "architecture_supported": False,
+            "finetuned_available": False,
+            "pretrained_available": False,
+            "status": f"Unsupported model: '{model_name}'",
+        }
+
+    reg = CHECKPOINT_REGISTRY[norm_name]
+    ckpt_file = reg.get("checkpoint")
+    has_ckpt = bool(ckpt_file and Path(ckpt_file).is_file())
+    pre_file = reg.get("pretrained")
+    has_pre = bool(pre_file and Path(pre_file).is_file())
+
+    if has_ckpt:
+        status_msg = "Fine-tuned classifier available"
+    elif has_pre:
+        status_msg = "Architecture available, but fine-tuned pharmaceutical checkpoint unavailable"
+    else:
+        status_msg = "Architecture supported, but neither fine-tuned checkpoint nor pretrained weights are available"
+
+    return {
+        "model_name": norm_name,
+        "architecture_supported": True,
+        "finetuned_available": has_ckpt,
+        "pretrained_available": has_pre,
+        "checkpoint_path": str(ckpt_file) if ckpt_file else None,
+        "expected_checkpoint": str(reg.get("expected_checkpoint", "")),
+        "pretrained_path": str(pre_file) if pre_file else None,
+        "status": status_msg,
+    }
+
+
 def load_classifier(
     model_name: Optional[str] = None,
     checkpoint_path: Optional[Path | str] = None,
@@ -139,7 +195,12 @@ def load_classifier(
     device: Optional[torch.device] = None,
     num_classes: int = 2,
 ) -> nn.Module:
-    """Unified checkpoint loader that handles all formats, registries, and architectures."""
+    """Unified checkpoint loader that handles all formats, registries, and architectures.
+
+    Raises CheckpointUnavailableError if the requested fine-tuned pharmaceutical
+    checkpoint does not exist on disk, explicitly refusing to silently substitute
+    generic ImageNet pretrained weights as pharmaceutical classifiers.
+    """
     dev = device or torch.device("cpu")
 
     # 1. Resolve model name and paths from registry if not explicitly provided
@@ -163,8 +224,22 @@ def load_classifier(
     ckpt_file = Path(checkpoint_path) if checkpoint_path else reg.get("checkpoint")
     pre_file = Path(pretrained_path) if pretrained_path else reg.get("pretrained")
 
-    if not ckpt_file or not ckpt_file.is_file():
-        raise FileNotFoundError(f"Checkpoint file not found: {ckpt_file}")
+    if not ckpt_file or not Path(ckpt_file).is_file():
+        status_info = get_model_status(norm_name)
+        expected = reg.get("expected_checkpoint", ckpt_file)
+        if status_info.get("pretrained_available"):
+            msg = (
+                f"Model '{norm_name}': Architecture available, but fine-tuned pharmaceutical "
+                f"checkpoint unavailable (expected: {expected}). Generic pretrained weights exist at "
+                f"'{status_info['pretrained_path']}', but will NOT be silently loaded as a counterfeit "
+                f"pharmaceutical classifier."
+            )
+        else:
+            msg = (
+                f"Model '{norm_name}': Fine-tuned pharmaceutical checkpoint unavailable "
+                f"(expected: {expected})."
+            )
+        raise CheckpointUnavailableError(msg)
 
     # 2. Build model architecture
     model = build_model(norm_name, pretrained_path=pre_file, num_classes=num_classes)
@@ -175,6 +250,7 @@ def load_classifier(
     state = {k.removeprefix("module."): v for k, v in state.items()}
 
     model.load_state_dict(state, strict=True)
+    model.model_name = norm_name
     model.to(dev)
     model.eval()
     return model

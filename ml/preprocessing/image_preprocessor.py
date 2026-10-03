@@ -1,3 +1,23 @@
+"""LEGACY PREPROCESSING MODULE — NOT USED IN PRODUCTION INFERENCE.
+
+This module implements a 512×512 CLAHE + denoising OpenCV pipeline that was
+used during early dataset exploration and feature-engineering experiments.
+
+**Production EfficientNet-B0 pipeline** (ml/inference/predict.py) uses:
+  - Input size: 224 × 224
+  - Colour space: RGB
+  - Normalization: ImageNet (mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225])
+  - Implemented via torchvision.transforms in ml/models/transfer_learning.py
+
+Do NOT use ImagePreprocessor for EfficientNet-B0 inference — it will produce
+mismatched statistics that degrade model performance.
+
+This file is retained for:
+  - scripts/build_dataset.py (legacy dataset construction script)
+  - tests/test_preprocessing.py (tests that verify this class in isolation)
+  - Historical reference
+"""
+
 import cv2
 import numpy as np
 import os

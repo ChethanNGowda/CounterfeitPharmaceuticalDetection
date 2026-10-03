@@ -63,6 +63,20 @@ def check_image_quality(
                 width=0,
                 height=0,
             )
+    elif isinstance(image_input, (bytes, bytearray)):
+        try:
+            import io
+            pil_img = Image.open(io.BytesIO(image_input)).convert("RGB")
+            cv_img = np.array(pil_img)[:, :, ::-1]
+        except Exception as err:
+            return QualityCheckResult(
+                is_valid=False,
+                reason=f"Failed to read image bytes or corrupted data: {err}",
+                blur_score=0.0,
+                brightness_mean=0.0,
+                width=0,
+                height=0,
+            )
     elif isinstance(image_input, Image.Image):
         pil_img = image_input.convert("RGB")
         cv_img = np.array(pil_img)[:, :, ::-1]

@@ -170,57 +170,76 @@ class QwenVisionVerifier:
         else:
             self.timeout = DEFAULT_OLLAMA_TIMEOUT
 
-    def _encode_image_b64(self, image_path: Path) -> str:
+    def _encode_image_b64(self, image_input: Union[str, Path, Image.Image, bytes, bytearray]) -> str:
         """Encode image to base64 JPEG string, resizing if larger than _MAX_IMAGE_DIMENSION."""
-        with Image.open(image_path) as img:
+        if isinstance(image_input, Image.Image):
+            rgb_img = image_input.convert("RGB")
+        elif isinstance(image_input, (bytes, bytearray)):
+            img = Image.open(io.BytesIO(image_input))
             rgb_img = img.convert("RGB")
-            w, h = rgb_img.size
-            if max(w, h) > _MAX_IMAGE_DIMENSION:
-                scale = _MAX_IMAGE_DIMENSION / max(w, h)
-                rgb_img = rgb_img.resize(
-                    (int(w * scale), int(h * scale)),
-                    Image.LANCZOS,
-                )
-            buf = io.BytesIO()
-            rgb_img.save(buf, format="JPEG", quality=88)
-            return base64.b64encode(buf.getvalue()).decode("utf-8")
+        else:
+            with Image.open(Path(image_input)) as img:
+                rgb_img = img.convert("RGB")
 
+        w, h = rgb_img.size
+        if max(w, h) > _MAX_IMAGE_DIMENSION:
+            scale = _MAX_IMAGE_DIMENSION / max(w, h)
+            rgb_img = rgb_img.resize(
+                (int(w * scale), int(h * scale)),
+                Image.LANCZOS,
+            )
+        buf = io.BytesIO()
+        rgb_img.save(buf, format="JPEG", quality=88)
+        return base64.b64encode(buf.getvalue()).decode("utf-8")
 
-    def verify_image(self, image_path: Union[str, Path]) -> dict[str, Any]:
+    def _make_unavailable_response(self, reason: str, raw_text: str = "") -> dict[str, Any]:
+        """Construct a standardized unavailable secondary AI payload."""
+        return {
+            "available": False,
+            "status": "UNAVAILABLE",
+            "assessment": "UNCERTAIN",
+            "confidence": "LOW",
+            "image_quality": "POOR",
+            "recommendation": "MANUAL REVIEW",
+            "reason": reason,
+            "reasoning": [reason],
+            "needs_human_verification": True,
+            "warning": "Secondary AI verification unavailable — result based on primary classifier.",
+            "model_name": self.model_name,
+            "raw_text": raw_text,
+        }
+
+    def verify_image(self, image_input: Union[str, Path, Image.Image, bytes, bytearray]) -> dict[str, Any]:
         """Send the actual image to the Qwen Vision model via Ollama.
 
+        Accepts a file path (str or Path), a PIL Image, or raw image bytes.
         Returns structured verification results or a safe fallback if unavailable.
         """
-        path = Path(image_path)
-        if not path.is_file():
-            return {
-                "available": False,
-                "status": "UNAVAILABLE",
-                "assessment": "UNCERTAIN",
-                "confidence": "LOW",
-                "image_quality": "POOR",
-                "recommendation": "MANUAL REVIEW",
-                "reason": f"Image file not found: {path}",
-                "model_name": self.model_name,
-                "raw_text": "",
-            }
+        # Validate image input
+        if isinstance(image_input, (str, Path)):
+            path = Path(image_input)
+            if not path.is_file():
+                return self._make_unavailable_response(f"Image file not found: {path}")
+            try:
+                with Image.open(path) as test_img:
+                    test_img.verify()
+            except Exception as img_err:
+                return self._make_unavailable_response(f"Invalid or unreadable image file: {img_err}")
+        elif isinstance(image_input, (bytes, bytearray)):
+            try:
+                with Image.open(io.BytesIO(image_input)) as test_img:
+                    test_img.verify()
+            except Exception as img_err:
+                return self._make_unavailable_response(f"Invalid or unreadable image bytes: {img_err}")
+        elif isinstance(image_input, Image.Image):
+            pass
+        else:
+            return self._make_unavailable_response(f"Unsupported image input type: {type(image_input).__name__}")
 
         try:
-            # Validate image can be opened
-            with Image.open(path) as test_img:
-                test_img.verify()
-        except Exception as img_err:
-            return {
-                "available": False,
-                "status": "UNAVAILABLE",
-                "assessment": "UNCERTAIN",
-                "confidence": "LOW",
-                "image_quality": "POOR",
-                "recommendation": "MANUAL REVIEW",
-                "reason": f"Invalid or unreadable image file: {img_err}",
-                "model_name": self.model_name,
-                "raw_text": "",
-            }
+            b64_img = self._encode_image_b64(image_input)
+        except Exception as enc_err:
+            return self._make_unavailable_response(f"Failed to encode image: {enc_err}")
 
         # Attempt 1: Try python ollama library if installed
         raw_text = None
@@ -229,7 +248,6 @@ class QwenVisionVerifier:
             import ollama
 
             client = ollama.Client(host=self.base_url, timeout=self.timeout)
-            b64_img = self._encode_image_b64(path)
             sys_directive = (
                 "You are a pharmaceutical image analysis system. "
                 "Output ONLY the structured report in the exact format requested. "
@@ -251,73 +269,36 @@ class QwenVisionVerifier:
             err_str = str(client_err)
             # Detect model not found (404)
             if "not found" in err_str.lower() or "404" in err_str:
-                return {
-                    "available": False,
-                    "status": "UNAVAILABLE",
-                    "assessment": "UNCERTAIN",
-                    "confidence": "LOW",
-                    "image_quality": "POOR",
-                    "recommendation": "MANUAL REVIEW",
-                    "reason": (
-                        f"Model '{self.model_name}' is not installed in Ollama.\n"
-                        f"To install this model, run:\n"
-                        f"  ollama pull {self.model_name}\n\n"
-                        f"(Note: {self.model_name} is in the ~8B class. On an RTX 3050 4GB GPU, "
-                        f"Ollama will offload layers across VRAM and 16GB system RAM.)"
-                    ),
-                    "model_name": self.model_name,
-                    "raw_text": "",
-                }
+                return self._make_unavailable_response(
+                    f"Model '{self.model_name}' is not installed in Ollama.\n"
+                    f"To install this model, run:\n"
+                    f"  ollama pull {self.model_name}\n\n"
+                    f"(Note: {self.model_name} is in the ~8B class. On an RTX 3050 4GB GPU, "
+                    f"Ollama will offload layers across VRAM and 16GB system RAM.)"
+                )
             # Detect multimodal unsupported
             if "multimodal" in err_str.lower():
-                return {
-                    "available": False,
-                    "status": "UNAVAILABLE",
-                    "assessment": "UNCERTAIN",
-                    "confidence": "LOW",
-                    "image_quality": "POOR",
-                    "recommendation": "MANUAL REVIEW",
-                    "reason": (
-                        f"Model '{self.model_name}' does not support visual/image inputs.\n"
-                        f"Please pull an official Qwen Vision model:\n"
-                        f"  ollama pull {DEFAULT_OLLAMA_VISION_MODEL}"
-                    ),
-                    "model_name": self.model_name,
-                    "raw_text": "",
-                }
+                return self._make_unavailable_response(
+                    f"Model '{self.model_name}' does not support visual/image inputs.\n"
+                    f"Please pull an official Qwen Vision model:\n"
+                    f"  ollama pull {DEFAULT_OLLAMA_VISION_MODEL}"
+                )
             # Detect connection refused / offline
             if "connection refused" in err_str.lower() or "connect" in err_str.lower():
-                return {
-                    "available": False,
-                    "status": "UNAVAILABLE",
-                    "assessment": "UNCERTAIN",
-                    "confidence": "LOW",
-                    "image_quality": "POOR",
-                    "recommendation": "MANUAL REVIEW",
-                    "reason": f"Ollama is not running (connection refused at {self.base_url}).",
-                    "model_name": self.model_name,
-                    "raw_text": "",
-                }
+                return self._make_unavailable_response(
+                    f"Ollama is not running (connection refused at {self.base_url})."
+                )
             # Detect timeout
             if "timed out" in err_str.lower():
-                return {
-                    "available": False,
-                    "status": "UNAVAILABLE",
-                    "assessment": "UNCERTAIN",
-                    "confidence": "LOW",
-                    "image_quality": "POOR",
-                    "recommendation": "MANUAL REVIEW",
-                    "reason": f"Vision verification timed out after {self.timeout}s.",
-                    "model_name": self.model_name,
-                    "raw_text": "",
-                }
+                return self._make_unavailable_response(
+                    f"Vision verification timed out after {self.timeout}s."
+                )
             # Fall back to HTTP urllib call in case client syntax issue
             ollama_pkg_error = err_str
 
         # Attempt 2: Direct HTTP API via urllib
         if raw_text is None:
             try:
-                b64_img = self._encode_image_b64(path)
                 payload = {
                     "model": self.model_name,
                     "messages": [
@@ -349,102 +330,53 @@ class QwenVisionVerifier:
                         raw_text = msg_obj.get("thinking", "").strip()
             except urllib.error.HTTPError as http_err:
                 if http_err.code == 404:
-                    return {
-                        "available": False,
-                        "status": "UNAVAILABLE",
-                        "assessment": "UNCERTAIN",
-                        "confidence": "LOW",
-                        "image_quality": "POOR",
-                        "recommendation": "MANUAL REVIEW",
-                        "reason": (
-                            f"Model '{self.model_name}' is not installed in Ollama.\n"
-                            f"To install this model, run:\n"
-                            f"  ollama pull {self.model_name}\n\n"
-                            f"(Note: {self.model_name} is in the ~8B class. On an RTX 3050 4GB GPU, "
-                            f"Ollama will offload layers across VRAM and 16GB system RAM.)"
-                        ),
-                        "model_name": self.model_name,
-                        "raw_text": "",
-                    }
+                    return self._make_unavailable_response(
+                        f"Model '{self.model_name}' is not installed in Ollama.\n"
+                        f"To install this model, run:\n"
+                        f"  ollama pull {self.model_name}\n\n"
+                        f"(Note: {self.model_name} is in the ~8B class. On an RTX 3050 4GB GPU, "
+                        f"Ollama will offload layers across VRAM and 16GB system RAM.)"
+                    )
                 error_body = ""
                 try:
                     error_body = http_err.read().decode("utf-8")
                 except Exception:
                     pass
                 if "multimodal" in error_body.lower():
-                    return {
-                        "available": False,
-                        "status": "UNAVAILABLE",
-                        "assessment": "UNCERTAIN",
-                        "confidence": "LOW",
-                        "image_quality": "POOR",
-                        "recommendation": "MANUAL REVIEW",
-                        "reason": f"Model '{self.model_name}' does not support vision inputs.",
-                        "model_name": self.model_name,
-                        "raw_text": "",
-                    }
-                return {
-                    "available": False,
-                    "status": "UNAVAILABLE",
-                    "assessment": "UNCERTAIN",
-                    "confidence": "LOW",
-                    "image_quality": "POOR",
-                    "recommendation": "MANUAL REVIEW",
-                    "reason": f"Ollama HTTP error {http_err.code}: {http_err.reason}. {error_body}".strip(),
-                    "model_name": self.model_name,
-                    "raw_text": "",
-                }
+                    return self._make_unavailable_response(
+                        f"Model '{self.model_name}' does not support vision inputs."
+                    )
+                return self._make_unavailable_response(
+                    f"Ollama HTTP error {http_err.code}: {http_err.reason}. {error_body}".strip()
+                )
             except urllib.error.URLError as url_err:
-                return {
-                    "available": False,
-                    "status": "UNAVAILABLE",
-                    "assessment": "UNCERTAIN",
-                    "confidence": "LOW",
-                    "image_quality": "POOR",
-                    "recommendation": "MANUAL REVIEW",
-                    "reason": f"Ollama is not running (connection refused at {self.base_url}).",
-                    "model_name": self.model_name,
-                    "raw_text": "",
-                }
+                return self._make_unavailable_response(
+                    f"Ollama is not running (connection refused at {self.base_url})."
+                )
             except (TimeoutError, OSError) as to_err:
-                return {
-                    "available": False,
-                    "status": "UNAVAILABLE",
-                    "assessment": "UNCERTAIN",
-                    "confidence": "LOW",
-                    "image_quality": "POOR",
-                    "recommendation": "MANUAL REVIEW",
-                    "reason": f"Vision verification timed out after {self.timeout}s: {to_err}",
-                    "model_name": self.model_name,
-                    "raw_text": "",
-                }
+                return self._make_unavailable_response(
+                    f"Vision verification timed out after {self.timeout}s: {to_err}"
+                )
             except Exception as final_err:
-                return {
-                    "available": False,
-                    "status": "UNAVAILABLE",
-                    "assessment": "UNCERTAIN",
-                    "confidence": "LOW",
-                    "image_quality": "POOR",
-                    "recommendation": "MANUAL REVIEW",
-                    "reason": f"Vision verification error: {final_err} (prior: {ollama_pkg_error})",
-                    "model_name": self.model_name,
-                    "raw_text": "",
-                }
+                return self._make_unavailable_response(
+                    f"Vision verification error: {final_err} (prior: {ollama_pkg_error})"
+                )
 
         if not raw_text:
-            return {
-                "available": False,
-                "status": "UNAVAILABLE",
-                "assessment": "UNCERTAIN",
-                "confidence": "LOW",
-                "image_quality": "POOR",
-                "recommendation": "MANUAL REVIEW",
-                "reason": "Empty response received from Qwen Vision model.",
-                "model_name": self.model_name,
-                "raw_text": "",
-            }
+            return self._make_unavailable_response(
+                "Empty response received from Qwen Vision model."
+            )
 
         parsed = parse_qwen_vision_output(raw_text)
+        reasoning_list = []
+        if parsed.get("recommendation"):
+            reasoning_list.append(f"Recommendation: {parsed['recommendation']}")
+        obs_matches = re.findall(r"[*•-]\s*(.+)", raw_text)
+        if obs_matches:
+            reasoning_list.extend([m.strip() for m in obs_matches[:4]])
+        if not reasoning_list:
+            reasoning_list = ["Qwen Vision secondary visual inspection completed."]
+
         return {
             "available": True,
             "status": "AVAILABLE",
@@ -454,6 +386,9 @@ class QwenVisionVerifier:
             "recommendation": parsed["recommendation"],
             "raw_text": raw_text,
             "reason": None,
+            "reasoning": reasoning_list,
+            "needs_human_verification": parsed["assessment"] != "AUTHENTIC",
+            "warning": "Visual screening cannot establish chemical authenticity.",
             "model_name": self.model_name,
         }
 
@@ -523,82 +458,11 @@ def synthesize_final_result(
     primary_result: dict[str, Any],
     qwen_result: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
-    """Conservative synthesis of Primary ML Classifier and Qwen Vision Verification."""
-    pred = primary_result.get("prediction", "UNKNOWN").upper()
-    conf = float(primary_result.get("confidence", 0.0))
-    status = primary_result.get("status", "NEEDS MANUAL REVIEW")
-    quality = primary_result.get("quality") or {}
-    quality_valid = quality.get("is_valid", True)
+    """Authoritative synthesis delegating directly to the unified DecisionEngine."""
+    from ml.verification.decision_engine import DecisionEngine
 
-    qwen_avail = bool(qwen_result and qwen_result.get("available", False))
-    qwen_assess = (qwen_result.get("assessment", "UNCERTAIN") if qwen_result else "UNAVAILABLE").upper()
-    qwen_rec = (qwen_result.get("recommendation", "MANUAL REVIEW") if qwen_result else "MANUAL REVIEW").upper()
-
-    # Rule 1: Quality check failed
-    if not quality_valid:
-        return {
-            "final_status": "NEEDS MANUAL REVIEW",
-            "reason": f"Image quality check failed: {quality.get('reason', 'Poor quality')}",
-            "disagreement": False,
-        }
-
-    # Rule 2: Primary confidence below threshold
-    if status == "NEEDS MANUAL REVIEW" or conf < 0.70 or pred == "UNKNOWN":
-        return {
-            "final_status": "NEEDS MANUAL REVIEW",
-            "reason": f"Primary classifier confidence ({conf*100:.1f}%) is below screening threshold 70.0%",
-            "disagreement": False,
-        }
-
-    # Rule 3: High primary confidence + Qwen Vision Available
-    if qwen_avail:
-        # Corroboration: Authentic
-        if pred == "AUTHENTIC" and qwen_assess == "AUTHENTIC":
-            return {
-                "final_status": "LIKELY AUTHENTIC",
-                "reason": "Both primary ML classifier and secondary AI visual verification corroborate authentic characteristics.",
-                "disagreement": False,
-            }
-
-        # Corroboration: Counterfeit
-        if pred == "COUNTERFEIT" and qwen_assess == "COUNTERFEIT":
-            return {
-                "final_status": "LIKELY COUNTERFEIT",
-                "reason": "Both primary ML classifier and secondary AI visual verification indicate counterfeit characteristics.",
-                "disagreement": False,
-            }
-
-        # Disagreement
-        if (pred == "COUNTERFEIT" and qwen_assess == "AUTHENTIC") or (pred == "AUTHENTIC" and qwen_assess == "COUNTERFEIT"):
-            return {
-                "final_status": "NEEDS MANUAL REVIEW",
-                "reason": (
-                    f"Disagreement between primary ML classifier ({pred}) and secondary "
-                    f"AI visual assessment ({qwen_assess}). Mandatory physical inspection required."
-                ),
-                "disagreement": True,
-            }
-
-        # Qwen Uncertain or Recommends Manual Review
-        return {
-            "final_status": "NEEDS MANUAL REVIEW",
-            "reason": f"Secondary AI visual assessment is {qwen_assess} (recommends {qwen_rec}).",
-            "disagreement": False,
-        }
-
-    # Rule 4: Qwen Vision Unavailable Fallback
-    if pred == "AUTHENTIC":
-        return {
-            "final_status": "LIKELY AUTHENTIC",
-            "reason": f"Primary classifier indicates authentic ({conf*100:.1f}% confidence); secondary visual verification unavailable.",
-            "disagreement": False,
-        }
-    else:
-        return {
-            "final_status": "LIKELY COUNTERFEIT",
-            "reason": f"Primary classifier indicates counterfeit ({conf*100:.1f}% confidence); secondary visual verification unavailable.",
-            "disagreement": False,
-        }
+    engine = DecisionEngine()
+    return engine.evaluate(primary_result, qwen_result)
 
 
 def format_final_screening_result(
@@ -615,7 +479,7 @@ def format_final_screening_result(
         qwen_assess = "UNAVAILABLE"
 
     synthesis = synthesize_final_result(primary_result, qwen_result)
-    final_status = synthesis["final_status"]
+    final_res = synthesis.get("final_result", synthesis.get("final_status", "SUSPICIOUS / NEEDS VERIFICATION"))
 
     lines = [
         "=" * 50,
@@ -627,7 +491,7 @@ def format_final_screening_result(
         "",
         f"Qwen Visual Assessment: {qwen_assess}",
         "",
-        f"Final Status: {final_status}",
+        f"Final Result: {final_res}",
     ]
 
     if synthesis.get("reason"):

@@ -52,8 +52,8 @@ def health_check():
         device=str(dev),
         default_model=DEFAULT_MODEL,
         available_models=SUPPORTED_MODELS,
-        secondary_ai_model=service.qwen_reviewer.model_name,
-        secondary_ai_endpoint=service.qwen_reviewer.base_url,
+        secondary_ai_model=service.vision_verifier.model_name,
+        secondary_ai_endpoint=service.vision_verifier.base_url,
     )
 
 

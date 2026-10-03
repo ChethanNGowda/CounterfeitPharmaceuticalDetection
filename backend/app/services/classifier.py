@@ -1,4 +1,4 @@
-"""Inference and secondary AI reasoning review service for FastAPI backend."""
+"""Inference and secondary AI vision verification service for FastAPI backend."""
 
 from __future__ import annotations
 
@@ -9,28 +9,27 @@ import torch
 
 from ml.config import (
     DEFAULT_CONFIDENCE_THRESHOLD,
+    DEFAULT_HIGH_CONFIDENCE_THRESHOLD,
     DEFAULT_MODEL,
     SUPPORTED_MODELS,
     get_device,
 )
-from ml.inference.predict import predict
+from ml.inference.predict import predict_pipeline
 from ml.models.transfer_learning import load_classifier, normalize_model_name
-from ml.verification.decision_engine import make_decision
-from ml.verification.qwen_reviewer import (
-    QwenReviewer,
-    build_evidence_payload,
-)
+from ml.verification.qwen_verifier import QwenVisionVerifier
 
 
 class ClassifierService:
-    """Manages loaded neural models and coordinates inference and Qwen review."""
+    """Manages loaded neural models and coordinates inference and Qwen Vision verification."""
 
     _instance: Optional[ClassifierService] = None
 
     def __init__(self):
         self.device = get_device()
         self.models = {}
-        self.qwen_reviewer = QwenReviewer()
+        self.vision_verifier = QwenVisionVerifier()
+        # Backward-compatibility alias
+        self.qwen_reviewer = self.vision_verifier
         # Pre-load default model
         self.load_model(DEFAULT_MODEL)
 
@@ -52,6 +51,8 @@ class ClassifierService:
         filename: str = "upload.jpg",
         model_name: str = DEFAULT_MODEL,
         threshold: float = DEFAULT_CONFIDENCE_THRESHOLD,
+        high_threshold: float = DEFAULT_HIGH_CONFIDENCE_THRESHOLD,
+        vision_mode: Optional[str] = None,
         enable_qwen: bool = True,
     ) -> dict:
         norm_name = normalize_model_name(model_name)
@@ -62,64 +63,31 @@ class ClassifierService:
 
         # 1. Read and validate PIL image
         try:
-            pil_image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+            with Image.open(io.BytesIO(image_bytes)) as pil_image:
+                pil_image.verify()
         except Exception as e:
             raise ValueError(f"Corrupted or invalid image data: {e}")
 
-        # 2. Run primary deep convolutional inference
-        primary_res = predict(
-            image_input=pil_image,
+        # 2. Determine effective vision mode
+        if not enable_qwen:
+            effective_vision_mode = "never"
+        elif vision_mode:
+            effective_vision_mode = vision_mode.lower().strip()
+        else:
+            effective_vision_mode = "auto"
+
+        # 3. Execute authoritative end-to-end pipeline
+        result = predict_pipeline(
+            image_input=image_bytes,
             model=model,
             threshold=threshold,
+            high_threshold=high_threshold,
+            vision_mode=effective_vision_mode,
+            vision_verifier=self.vision_verifier,
             device=self.device,
             quality_check=True,
         )
-        primary_res["image_path"] = filename
-        primary_res["model_name"] = norm_name
-
-        # 3. Run secondary AI reasoning review if requested and quality passed
-        if enable_qwen:
-            evidence = build_evidence_payload(primary_res, primary_res.get("quality"))
-            try:
-                qwen_review = self.qwen_reviewer.review_evidence(evidence)
-            except Exception as qwen_exc:
-                qwen_review = {
-                    "available": False,
-                    "assessment": "SUSPICIOUS",
-                    "confidence": 0.0,
-                    "reasoning": [f"Secondary reviewer error: {qwen_exc}"],
-                    "needs_human_verification": True,
-                    "warning": "Secondary AI verification unavailable — result based on primary classifier.",
-                    "error": str(qwen_exc),
-                }
-        else:
-            qwen_review = {
-                "available": False,
-                "assessment": "SUSPICIOUS",
-                "confidence": 0.0,
-                "reasoning": ["Secondary AI verification disabled by request."],
-                "needs_human_verification": False,
-                "warning": "Secondary AI verification unavailable.",
-            }
-
-        # 4. Synthesize through conservative Decision Engine
-        decision = make_decision(
-            primary_result=primary_res,
-            qwen_review=qwen_review,
-            confidence_threshold=threshold,
-        )
-
-        # 5. Assemble unified output
-        result = dict(primary_res)
-        result.update({
-            "primary_model": decision["primary_model"],
-            "prediction": decision["prediction"],
-            "confidence": decision["confidence"],
-            "qwen": decision["qwen"],
-            "final_result": decision["final_result"],
-            "needs_human_verification": decision["needs_human_verification"],
-            "warning": decision["warning"],
-            "disclaimer": decision["disclaimer"],
-        })
+        result["image_path"] = filename
+        result["model_name"] = norm_name
 
         return result

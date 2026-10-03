@@ -257,3 +257,38 @@ def test_make_decision_no_qwen():
     result = make_decision(primary)
     assert result["final_result"] == "LIKELY COUNTERFEIT"
     assert result["qwen"]["available"] is False
+
+
+# ---------------------------------------------------------------------------
+# Qwen UNCERTAIN Handling: Calibrated Rule 3D
+# ---------------------------------------------------------------------------
+
+def test_rule3d_qwen_uncertain_high_confidence_counterfeit_preserved(engine):
+    """High-confidence primary counterfeit (>= 90%) preserved when Qwen is merely uncertain."""
+    primary = _primary(predicted_class="counterfeit", confidence=0.96)
+    qwen = _qwen(available=True, assessment="UNCERTAIN")
+    result = engine.evaluate(primary, qwen)
+    assert result["final_result"] == "LIKELY COUNTERFEIT"
+    assert result["needs_human_verification"] is True
+    assert "uncertain" in result["reason"].lower()
+
+
+def test_rule3d_qwen_uncertain_high_confidence_authentic_preserved(engine):
+    """High-confidence primary authentic (>= 90%) preserved when Qwen is merely uncertain."""
+    primary = _primary(predicted_class="authentic", confidence=0.93)
+    qwen = _qwen(available=True, assessment="UNCERTAIN")
+    result = engine.evaluate(primary, qwen)
+    assert result["final_result"] == "LIKELY AUTHENTIC"
+    assert result["needs_human_verification"] is False
+    assert "uncertain" in result["reason"].lower()
+
+
+def test_rule3d_qwen_uncertain_moderate_confidence_escalates(engine):
+    """Moderate primary confidence (< 90%) escalates to verification when Qwen is uncertain."""
+    primary = _primary(predicted_class="counterfeit", confidence=0.78)
+    qwen = _qwen(available=True, assessment="UNCERTAIN")
+    result = engine.evaluate(primary, qwen)
+    assert result["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+    assert result["needs_human_verification"] is True
+    assert "moderate" in result["reason"].lower()
+

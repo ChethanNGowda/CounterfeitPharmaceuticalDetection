@@ -48,7 +48,8 @@ def test_health_includes_secondary_ai_fields():
     data = response.json()
     assert "secondary_ai_model" in data
     assert "secondary_ai_endpoint" in data
-    assert "qwen3" in data["secondary_ai_model"]
+    assert "qwen3-vl" in data["secondary_ai_model"]
+    assert data["secondary_ai_model"] == "qwen3-vl:4b"
     assert "11434" in data["secondary_ai_endpoint"]
 
 
@@ -61,7 +62,7 @@ def test_predict_endpoint_valid_image():
     response = client.post(
         "/predict",
         files={"file": ("tablet.jpg", buf, "image/jpeg")},
-        data={"threshold": 0.50, "model": "efficientnet_b0"},
+        data={"threshold": 0.50, "model": "efficientnet_b0", "enable_qwen": "false"},
     )
     assert response.status_code == 200
     data = response.json()
@@ -184,3 +185,245 @@ def test_verify_endpoint_bad_image_returns_400():
         files={"file": ("broken.jpg", buf, "image/jpeg")},
     )
     assert response.status_code == 400
+
+
+def test_predict_endpoint_quality_gate_rejection():
+    """Sub-resolution image must be rejected by OpenCV quality gate before inference."""
+    arr = np.random.randint(50, 200, (10, 10, 3), dtype=np.uint8)
+    img = Image.fromarray(arr)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    buf.seek(0)
+
+    response = client.post(
+        "/predict",
+        files={"file": ("tiny.jpg", buf, "image/jpeg")},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["quality"] is not None
+    assert data["quality"]["is_valid"] is False
+    assert data["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+    assert data["needs_human_verification"] is True
+    assert data["secondary_executed"] is False
+
+
+def test_predict_endpoint_high_confidence_auto_mode_skips_qwen(monkeypatch):
+    """Primary confidence >= 0.90 must skip Qwen in auto mode (fast path)."""
+    from backend.app.services.classifier import ClassifierService
+
+    service = ClassifierService.get_instance()
+
+    def fake_predict(*args, **kwargs):
+        return {
+            "image_path": "fake.jpg",
+            "prediction": "AUTHENTIC",
+            "predicted_class": "authentic",
+            "authentic_probability": 0.95,
+            "counterfeit_probability": 0.05,
+            "confidence": 0.95,
+            "status": "AUTHENTIC",
+            "reason": None,
+            "probabilities": {"authentic": 0.95, "counterfeit": 0.05},
+            "model_name": "efficientnet_b0",
+            "threshold": 0.70,
+            "quality": {"is_valid": True, "reason": None, "blur_score": 100.0, "brightness_mean": 128.0, "dimensions": [224, 224]},
+        }
+
+    monkeypatch.setattr("ml.inference.predict.predict", fake_predict)
+
+    buf = _make_synthetic_image_buf()
+    response = client.post(
+        "/predict",
+        files={"file": ("tablet.jpg", buf, "image/jpeg")},
+        data={"vision_mode": "auto"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["confidence"] == 0.95
+    assert data["secondary_executed"] is False
+    assert "high-confidence" in data["secondary_reason"]
+    assert data["final_result"] == "LIKELY AUTHENTIC"
+    assert data["needs_human_verification"] is False
+
+
+def test_predict_endpoint_borderline_confidence_auto_mode_executes_qwen(monkeypatch):
+    """Primary confidence in [0.70, 0.90) must automatically invoke Qwen3-VL."""
+    def fake_predict(*args, **kwargs):
+        return {
+            "image_path": "fake.jpg",
+            "prediction": "AUTHENTIC",
+            "predicted_class": "authentic",
+            "authentic_probability": 0.82,
+            "counterfeit_probability": 0.18,
+            "confidence": 0.82,
+            "status": "AUTHENTIC",
+            "reason": None,
+            "probabilities": {"authentic": 0.82, "counterfeit": 0.18},
+            "model_name": "efficientnet_b0",
+            "threshold": 0.70,
+            "quality": {"is_valid": True, "reason": None, "blur_score": 100.0, "brightness_mean": 128.0, "dimensions": [224, 224]},
+        }
+
+    def fake_verify(*args, **kwargs):
+        return {
+            "available": True,
+            "status": "AVAILABLE",
+            "assessment": "AUTHENTIC",
+            "confidence": "HIGH",
+            "image_quality": "GOOD",
+            "recommendation": "AUTOMATED SCREENING",
+            "raw_text": "Assessment: AUTHENTIC\nVisual Confidence: HIGH",
+            "reason": None,
+            "reasoning": ["Tablet features match authentic baseline."],
+            "needs_human_verification": False,
+            "warning": "Visual screening cannot establish chemical authenticity.",
+            "model_name": "qwen3-vl:4b",
+        }
+
+    monkeypatch.setattr("ml.inference.predict.predict", fake_predict)
+    from backend.app.services.classifier import ClassifierService
+    service = ClassifierService.get_instance()
+    monkeypatch.setattr(service.vision_verifier, "verify_image", fake_verify)
+
+    buf = _make_synthetic_image_buf()
+    response = client.post(
+        "/predict",
+        files={"file": ("tablet.jpg", buf, "image/jpeg")},
+        data={"vision_mode": "auto"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["confidence"] == 0.82
+    assert data["secondary_executed"] is True
+    assert data["qwen"]["available"] is True
+    assert data["qwen"]["assessment"] == "AUTHENTIC"
+    assert data["final_result"] == "LIKELY AUTHENTIC"
+    assert data["needs_human_verification"] is False
+
+
+def test_predict_endpoint_qwen_unavailable_graceful_fallback(monkeypatch):
+    """When Qwen is unavailable, endpoint must not crash and fallback gracefully."""
+    def fake_predict(*args, **kwargs):
+        return {
+            "image_path": "fake.jpg",
+            "prediction": "AUTHENTIC",
+            "predicted_class": "authentic",
+            "authentic_probability": 0.85,
+            "counterfeit_probability": 0.15,
+            "confidence": 0.85,
+            "status": "AUTHENTIC",
+            "reason": None,
+            "probabilities": {"authentic": 0.85, "counterfeit": 0.15},
+            "model_name": "efficientnet_b0",
+            "threshold": 0.70,
+            "quality": {"is_valid": True, "reason": None, "blur_score": 100.0, "brightness_mean": 128.0, "dimensions": [224, 224]},
+        }
+
+    def fake_verify(*args, **kwargs):
+        return {
+            "available": False,
+            "status": "UNAVAILABLE",
+            "assessment": "UNCERTAIN",
+            "confidence": "LOW",
+            "image_quality": "POOR",
+            "recommendation": "MANUAL REVIEW",
+            "reason": "Ollama connection refused",
+            "reasoning": ["Ollama connection refused"],
+            "needs_human_verification": True,
+            "warning": "Secondary AI verification unavailable — result based on primary classifier.",
+            "model_name": "qwen3-vl:4b",
+            "raw_text": "",
+        }
+
+    monkeypatch.setattr("ml.inference.predict.predict", fake_predict)
+    from backend.app.services.classifier import ClassifierService
+    service = ClassifierService.get_instance()
+    monkeypatch.setattr(service.vision_verifier, "verify_image", fake_verify)
+
+    buf = _make_synthetic_image_buf()
+    response = client.post(
+        "/predict",
+        files={"file": ("tablet.jpg", buf, "image/jpeg")},
+        data={"vision_mode": "auto"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["secondary_executed"] is True
+    assert data["qwen"]["available"] is False
+    assert data["final_result"] == "LIKELY AUTHENTIC"
+    assert "unavailable" in data["warning"].lower()
+
+
+def test_predict_endpoint_qwen_exception_handled_gracefully(monkeypatch):
+    """When Qwen raises an exception, the request must not crash."""
+    def fake_predict(*args, **kwargs):
+        return {
+            "image_path": "fake.jpg",
+            "prediction": "AUTHENTIC",
+            "predicted_class": "authentic",
+            "authentic_probability": 0.85,
+            "counterfeit_probability": 0.15,
+            "confidence": 0.85,
+            "status": "AUTHENTIC",
+            "reason": None,
+            "probabilities": {"authentic": 0.85, "counterfeit": 0.15},
+            "model_name": "efficientnet_b0",
+            "threshold": 0.70,
+            "quality": {"is_valid": True, "reason": None, "blur_score": 100.0, "brightness_mean": 128.0, "dimensions": [224, 224]},
+        }
+
+    def broken_verify(*args, **kwargs):
+        raise ConnectionResetError("Remote server closed connection")
+
+    monkeypatch.setattr("ml.inference.predict.predict", fake_predict)
+    from backend.app.services.classifier import ClassifierService
+    service = ClassifierService.get_instance()
+    monkeypatch.setattr(service.vision_verifier, "verify_image", broken_verify)
+
+    buf = _make_synthetic_image_buf()
+    response = client.post(
+        "/predict",
+        files={"file": ("tablet.jpg", buf, "image/jpeg")},
+        data={"vision_mode": "auto"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["secondary_executed"] is True
+    assert data["qwen"]["available"] is False
+    assert data["final_result"] == "LIKELY AUTHENTIC"
+
+
+def test_predict_endpoint_low_confidence_skips_qwen_and_requires_review(monkeypatch):
+    """Primary confidence < 0.70 must skip Qwen in auto mode and mark for review."""
+    def fake_predict(*args, **kwargs):
+        return {
+            "image_path": "fake.jpg",
+            "prediction": "COUNTERFEIT",
+            "predicted_class": "counterfeit",
+            "authentic_probability": 0.45,
+            "counterfeit_probability": 0.55,
+            "confidence": 0.55,
+            "status": "NEEDS MANUAL REVIEW",
+            "reason": "Confidence 55.0% is below screening threshold 70.0%",
+            "probabilities": {"authentic": 0.45, "counterfeit": 0.55},
+            "model_name": "efficientnet_b0",
+            "threshold": 0.70,
+            "quality": {"is_valid": True, "reason": None, "blur_score": 100.0, "brightness_mean": 128.0, "dimensions": [224, 224]},
+        }
+
+    monkeypatch.setattr("ml.inference.predict.predict", fake_predict)
+
+    buf = _make_synthetic_image_buf()
+    response = client.post(
+        "/predict",
+        files={"file": ("tablet.jpg", buf, "image/jpeg")},
+        data={"vision_mode": "auto"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["secondary_executed"] is False
+    assert "low primary confidence" in data["secondary_reason"]
+    assert data["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+    assert data["needs_human_verification"] is True
+

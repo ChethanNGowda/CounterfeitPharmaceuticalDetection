@@ -427,3 +427,34 @@ def test_predict_endpoint_low_confidence_skips_qwen_and_requires_review(monkeypa
     assert data["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
     assert data["needs_human_verification"] is True
 
+
+def test_predict_endpoint_includes_visual_analysis():
+    """Verify /predict returns visual_analysis and enhanced quality metrics."""
+    buf = _make_synthetic_image_buf()
+    response = client.post(
+        "/predict",
+        files={"file": ("tablet.jpg", buf, "image/jpeg")},
+        data={"vision_mode": "never"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "visual_analysis" in data
+    va = data["visual_analysis"]
+    assert va is not None
+    assert "color" in va
+    assert "shape" in va
+    assert "size" in va
+    assert "surface" in va
+    assert "markings" in va
+    assert "edges" in va
+    assert "packaging" in va
+
+    # Verify enhanced quality fields
+    quality = data["quality"]
+    assert "aspect_ratio" in quality
+    assert "contrast" in quality
+    assert "color_mode" in quality
+    assert "exposure_status" in quality
+    assert "sharpness_status" in quality
+    assert "suitability" in quality
+

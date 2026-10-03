@@ -68,94 +68,240 @@ def run_single_image(
     )
 
 
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
+
+def _bar(value_pct: float, width: int = 28) -> str:
+    """Render a filled/empty progress bar for a probability percentage."""
+    filled = int(round(value_pct / 100 * width))
+    empty = width - filled
+    return "#" * filled + "-" * empty
+
+
 def format_single_image_output(
     result: dict,
     qwen_verification: dict | None = None,
     verifier: QwenVisionVerifier | None = None,
 ) -> str:
-    """Format single image prediction with Primary ML Classifier, Secondary Verification, and Final Result."""
+    """Format single image prediction as a professional pharmaceutical screening report."""
     img_name = Path(result["image_path"]).name
     pred = result.get("primary_prediction") or result.get("prediction", "UNKNOWN")
     auth_prob = float(result.get("authentic_probability", 0.0)) * 100
     fake_prob = float(result.get("counterfeit_probability", 0.0)) * 100
     conf = float(result.get("confidence", 0.0)) * 100
     status = result.get("status", "UNKNOWN")
-    reason = result.get("reason")
     sec_executed = result.get("secondary_executed", False)
     sec_reason = result.get("secondary_reason")
-    qwen_data = qwen_verification if qwen_verification is not None else result.get("qwen")
-
-    lines = [
-        "=" * 50,
-        "PHARMACEUTICAL ML CLASSIFIER",
-        "=" * 28,
-        "",
-        f"Image: {img_name}",
-        "",
-        f"Prediction: {pred}",
-        "",
-        f"Authentic probability: {auth_prob:.2f}%",
-        f"Counterfeit probability: {fake_prob:.2f}%",
-        f"Confidence: {conf:.2f}%",
-        "",
-        "Status:",
-        f"{status}",
-    ]
-    if reason and status == "NEEDS MANUAL REVIEW":
-        lines.append("")
-        lines.append("Reason:")
-        lines.append(f"{reason}")
-
-    # Secondary Verification Section
-    lines.append("")
-    lines.append("=" * 50)
-    lines.append("SECONDARY VERIFICATION")
-    lines.append("=" * 22)
-    lines.append("")
-
-    if sec_executed and qwen_data:
-        if verifier is None:
-            verifier = QwenVisionVerifier()
-        lines.append(verifier.format_vision_section(qwen_data))
-    else:
-        lines.append("Status: NOT RUN")
-        if sec_reason:
-            lines.append("")
-            lines.append("Reason:")
-            lines.append(f"{sec_reason}")
-
-    # Final Result Section
-    lines.append("")
-    lines.append("=" * 50)
-    lines.append("FINAL SCREENING RESULT")
-    lines.append("=" * 22)
-    lines.append("")
-    lines.append(f"Primary ML Prediction: {pred}")
-    lines.append(f"Primary ML Confidence: {conf:.2f}%")
-    lines.append("")
-
-    if sec_executed and qwen_data and qwen_data.get("available", False):
-        lines.append(f"Qwen Visual Assessment: {qwen_data.get('assessment', 'UNCERTAIN')}")
-    elif sec_executed and qwen_data:
-        lines.append("Qwen Visual Assessment: UNAVAILABLE")
-    else:
-        lines.append("Qwen Visual Assessment: NOT RUN")
-
-    lines.append("")
+    qwen_data = qwen_verification if qwen_verification is not None else result.get("qwen") or {}
+    quality = result.get("quality") or {}
+    va = result.get("visual_analysis") or {}
     final_res = result.get("final_result", result.get("final_status", "SUSPICIOUS / NEEDS VERIFICATION"))
-    lines.append(f"Final Result: {final_res}")
 
-    if result.get("warning"):
-        lines.append("")
-        lines.append(f"Warning: {result['warning']}")
-    elif result.get("reason") and status == "NEEDS MANUAL REVIEW":
-        lines.append("")
-        lines.append(f"Reason: {result['reason']}")
+    W = 60
+    sep = "=" * W
 
+    lines = []
+
+    # ─── Header ───────────────────────────────────────────────────
+    lines.append("+" + "=" * (W - 2) + "+")
+    title = "COUNTERFEIT PHARMACEUTICAL SCREENING REPORT"
+    lines.append("|" + title.center(W - 2) + "|")
+    lines.append("+" + "=" * (W - 2) + "+")
     lines.append("")
-    lines.append("Note: AI-assisted preliminary screening only; does not replace laboratory authentication.")
+
+    # ─── Section helper ───────────────────────────────────────────
+    def section(heading: str) -> None:
+        lines.append(heading)
+        lines.append("-" * W)
+
+    def field(label: str, value: str, width: int = 26) -> None:
+        lines.append(f"   {label:<{width}} {value}")
+
+    # ─── IMAGE ────────────────────────────────────────────────────
+    section("IMAGE")
+    lines.append(f"   Image: {img_name}")
+    if quality.get("dimensions"):
+        dims = quality["dimensions"]
+        field("Dimensions:", f"{dims[0]} x {dims[1]} px")
+        ar = quality.get("aspect_ratio", round(dims[0] / max(dims[1], 1), 2))
+        field("Aspect Ratio:", f"{ar}")
+    field("Color Mode:", quality.get("color_mode", "RGB"))
+    field("Brightness:", f"{quality.get('brightness_mean', 0.0):.1f} / 255")
+    field("Contrast (std):", f"{quality.get('contrast', 0.0):.1f}")
+    field("Sharpness:", f"Laplacian var {quality.get('blur_score', 0.0):.1f}")
+    field("Exposure:", quality.get("exposure_status", "-"))
+    field("Image Quality:", quality.get("sharpness_status", "-"))
+    suitability = quality.get("suitability", "SUITABLE FOR ANALYSIS") if quality.get("is_valid", True) else quality.get("suitability", "UNSUITABLE")
+    field("Suitability:", suitability)
+    lines.append("")
+
+    # ─── PRIMARY AI ───────────────────────────────────────────────
+    section("PRIMARY AI - EfficientNet-B0")
+    field("Prediction:", pred)
+    field("Confidence:", f"{conf:.2f}%")
+    field("Status:", status)
+    lines.append("")
+    lines.append(f"   Authentic   {_bar(auth_prob)} {auth_prob:.2f}%")
+    lines.append(f"   Counterfeit {_bar(fake_prob)} {fake_prob:.2f}%")
+    lines.append("")
+
+    # ─── VISUAL FEATURE ANALYSIS ──────────────────────────────────
+    section("VISUAL FEATURE ANALYSIS")
+    if va and not va.get("error"):
+        color = va.get("color", {})
+        field("Dominant Color:", color.get("dominant_color", "-"))
+        rgb = color.get("average_rgb", [])
+        if rgb:
+            field("Average RGB:", f"R={rgb[0]:.0f}  G={rgb[1]:.0f}  B={rgb[2]:.0f}")
+        field("Color Consistency:", color.get("consistency", "-"))
+        field("Color Variation:", color.get("visible_variation", "-"))
+        lines.append("")
+        shape = va.get("shape", {})
+        field("Object Detected:", shape.get("object_detected", "-"))
+        field("Shape:", shape.get("shape_type", "-"))
+        field("Circularity:", str(shape.get("circularity", "-")))
+        field("Symmetry:", shape.get("symmetry", "-"))
+        lines.append("")
+        size = va.get("size", {})
+        field("Bounding Box:", size.get("bounding_box", "-"))
+        field("Pixel Area:", size.get("pixel_area", "-"))
+        field("Physical Size:", "Not measurable without scale reference")
+        lines.append("")
+        surf = va.get("surface", {})
+        field("Texture Variation:", surf.get("texture_variation", "-"))
+        field("Surface Uniformity:", surf.get("surface_uniformity", "-"))
+        field("Visible Spots:", surf.get("visible_spots", "Not detected"))
+        field("Irregularities:", surf.get("surface_irregularities", "Not detected"))
+        lines.append("")
+        mrk = va.get("markings", {})
+        field("Markings Visible:", mrk.get("markings_visible", "-"))
+        field("Imprint Type:", mrk.get("imprint_type", "-"))
+        field("Text Recognition:", mrk.get("text_recognition", "-"))
+        field("Legibility:", mrk.get("legibility", "-"))
+        lines.append("")
+        edges = va.get("edges", {})
+        field("Edge Integrity:", edges.get("edge_integrity", "-"))
+        field("Cracks:", edges.get("cracks", "Not detected"))
+        field("Chipping:", edges.get("chipping", "Not detected"))
+        field("Contour:", edges.get("contour", "-"))
+        lines.append("")
+        pkg = va.get("packaging", {})
+        field("Packaging:", pkg.get("status", "NOT VISIBLE"))
+        if pkg.get("status", "") != "NOT VISIBLE":
+            field("Packaging Type:", pkg.get("packaging_type", "-"))
+    else:
+        lines.append("   Visual feature analysis unavailable.")
+        if va.get("error"):
+            lines.append(f"   Reason: {va['error']}")
+    lines.append("")
+
+    # ─── SECONDARY AI — QWEN3-VL ──────────────────────────────────
+    section("SECONDARY AI - Qwen3-VL:4b")
+    if sec_executed and qwen_data:
+        qwen_avail = qwen_data.get("available", False)
+        if qwen_avail:
+            field("Status:", "EXECUTED")
+            field("Assessment:", qwen_data.get("assessment", "UNCERTAIN"))
+            field("Visual Confidence:", qwen_data.get("confidence", "-"))
+            field("Image Quality (Qwen):", qwen_data.get("image_quality", "-"))
+            # Tablet analysis sub-fields from Qwen
+            tablet_shape = qwen_data.get("tablet_shape", "")
+            tablet_color = qwen_data.get("tablet_color", "")
+            tablet_surface = qwen_data.get("tablet_surface", "")
+            tablet_markings = qwen_data.get("tablet_markings", "")
+            tablet_edges = qwen_data.get("tablet_edges", "")
+            if any([tablet_shape, tablet_color, tablet_surface, tablet_markings, tablet_edges]):
+                lines.append("")
+                lines.append("   Qwen Tablet Observations:")
+                if tablet_shape:
+                    lines.append(f"     Shape    : {tablet_shape}")
+                if tablet_color:
+                    lines.append(f"     Color    : {tablet_color}")
+                if tablet_surface:
+                    lines.append(f"     Surface  : {tablet_surface}")
+                if tablet_markings:
+                    lines.append(f"     Markings : {tablet_markings}")
+                if tablet_edges:
+                    lines.append(f"     Edges    : {tablet_edges}")
+            obs_list = qwen_data.get("observations_list", [])
+            if obs_list:
+                lines.append("")
+                lines.append("   Observations:")
+                for obs in obs_list:
+                    lines.append(f"     * {obs}")
+            concerns_list = qwen_data.get("concerns_list", [])
+            if concerns_list:
+                lines.append("")
+                lines.append("   Potential Visual Concerns:")
+                for c in concerns_list:
+                    lines.append(f"     * {c}")
+            fe = qwen_data.get("final_explanation", "")
+            if fe:
+                lines.append("")
+                lines.append(f"   Final Explanation: {fe}")
+        else:
+            lines.append("   Status: UNAVAILABLE")
+            lines.append(f"   Reason: {qwen_data.get('reason', 'Ollama service unreachable or timed out.')}")
+    else:
+        lines.append("   Status: NOT RUN")
+        if sec_reason:
+            lines.append(f"   Reason: {sec_reason}")
+    lines.append("")
+
+    # ─── DECISION ENGINE ──────────────────────────────────────────
+    section("DECISION ENGINE")
+    field("Primary Prediction:", pred)
+    field("Primary Confidence:", f"{conf:.2f}%")
+    if sec_executed and qwen_data:
+        qwen_avail = qwen_data.get("available", False)
+        field("Secondary Assessment:", qwen_data.get("assessment", "UNCERTAIN") if qwen_avail else "UNAVAILABLE")
+    else:
+        field("Secondary Assessment:", "NOT RUN")
+    disagree = result.get("disagreement", False)
+    field("Models Agree:", "YES" if not disagree else "NO - CONFLICT DETECTED")
+    field("Human Verification Required:", "YES" if result.get("needs_human_verification") else "NO")
+    lines.append("")
+
+    # ─── FINAL RESULT ─────────────────────────────────────────────
+    section("FINAL SCREENING RESULT")
+    lines.append("")
+    # Prominent result display
+    if "AUTHENTIC" in final_res and "SUSPICIOUS" not in final_res:
+        marker = "[AUTHENTIC]"
+    elif "COUNTERFEIT" in final_res:
+        marker = "[!] ALERT: LIKELY COUNTERFEIT"
+    else:
+        marker = "[?] SUSPICIOUS / NEEDS VERIFICATION"
+    lines.append(f"   {marker}")
+    lines.append("")
+    if result.get("warning") and result.get("warning") != result.get("reason"):
+        lines.append(f"   Warning: {result['warning']}")
+    reason_text = result.get("reason") or (result.get("reasons", [None])[0] if result.get("reasons") else None)
+    if reason_text:
+        lines.append("")
+        lines.append("   Reason:")
+        for rline in (reason_text.split(". ") if len(reason_text) > 80 else [reason_text]):
+            lines.append(f"     {rline.strip()}")
+    lines.append("")
+
+    # ─── DISCLAIMER ───────────────────────────────────────────────
+    section("IMPORTANT")
+    lines.append("   AI-assisted visual screening only.")
+    lines.append("   Visual inspection cannot establish chemical composition,")
+    lines.append("   bioequivalence, or laboratory-grade authenticity.")
+    lines.append("   Laboratory verification is required for confirmation.")
 
     return "\n".join(lines)
+
 
 
 def run_batch_directory(

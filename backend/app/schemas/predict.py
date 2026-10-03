@@ -14,6 +14,72 @@ class QualityMetrics(BaseModel):
     blur_score: float
     brightness_mean: float
     dimensions: list[int]
+    aspect_ratio: Optional[float] = None
+    contrast: Optional[float] = None
+    color_mode: Optional[str] = "RGB"
+    exposure_status: Optional[str] = None
+    sharpness_status: Optional[str] = None
+    suitability: Optional[str] = None
+
+
+class VisualColorAnalysis(BaseModel):
+    dominant_color: Optional[str] = None
+    average_rgb: Optional[list[float]] = None
+    consistency: Optional[str] = None
+    visible_variation: Optional[str] = None
+
+
+class VisualShapeAnalysis(BaseModel):
+    object_detected: Optional[str] = None
+    shape_type: Optional[str] = None
+    circularity: Optional[float] = None
+    aspect_ratio: Optional[float] = None
+    symmetry: Optional[str] = None
+
+
+class VisualSizeAnalysis(BaseModel):
+    bounding_box: Optional[str] = None
+    pixel_area: Optional[str] = None
+    aspect_ratio: Optional[float] = None
+    physical_scale_note: Optional[str] = None
+
+
+class VisualSurfaceAnalysis(BaseModel):
+    texture_variation: Optional[str] = None
+    surface_uniformity: Optional[str] = None
+    visible_spots: Optional[str] = None
+    surface_irregularities: Optional[str] = None
+
+
+class VisualMarkingsAnalysis(BaseModel):
+    markings_visible: Optional[str] = None
+    imprint_type: Optional[str] = None
+    text_recognition: Optional[str] = None
+    legibility: Optional[str] = None
+
+
+class VisualEdgeAnalysis(BaseModel):
+    edge_integrity: Optional[str] = None
+    cracks: Optional[str] = None
+    chipping: Optional[str] = None
+    contour: Optional[str] = None
+
+
+class VisualPackagingAnalysis(BaseModel):
+    status: Optional[str] = None
+    packaging_type: Optional[str] = None
+    condition: Optional[str] = None
+
+
+class VisualAnalysisReport(BaseModel):
+    color: Optional[VisualColorAnalysis] = None
+    shape: Optional[VisualShapeAnalysis] = None
+    size: Optional[VisualSizeAnalysis] = None
+    surface: Optional[VisualSurfaceAnalysis] = None
+    markings: Optional[VisualMarkingsAnalysis] = None
+    edges: Optional[VisualEdgeAnalysis] = None
+    packaging: Optional[VisualPackagingAnalysis] = None
+    error: Optional[str] = None
 
 
 class QwenReviewDetails(BaseModel):
@@ -29,6 +95,14 @@ class QwenReviewDetails(BaseModel):
     recommendation: Optional[str] = None
     model_name: Optional[str] = None
     raw_text: Optional[str] = None
+    tablet_shape: Optional[str] = None
+    tablet_color: Optional[str] = None
+    tablet_surface: Optional[str] = None
+    tablet_markings: Optional[str] = None
+    tablet_edges: Optional[str] = None
+    observations_list: list[str] = Field(default_factory=list)
+    concerns_list: list[str] = Field(default_factory=list)
+    final_explanation: Optional[str] = None
 
 
 class PredictionResponse(BaseModel):
@@ -52,6 +126,9 @@ class PredictionResponse(BaseModel):
     disagreement: bool = Field(False, description="Whether primary classifier and secondary AI disagreed")
     primary_prediction: Optional[str] = Field(None, description="Primary prediction: AUTHENTIC, COUNTERFEIT, or UNKNOWN")
     primary_confidence: Optional[float] = Field(None, description="Confidence of primary model")
+
+    # Visual feature inspection report
+    visual_analysis: Optional[VisualAnalysisReport] = Field(None, description="Deterministic visual feature analysis of the tablet/packaging")
 
     # Backward-compatible fields
     status: str = Field(..., description="AUTHENTIC, COUNTERFEIT, or NEEDS MANUAL REVIEW")

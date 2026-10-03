@@ -98,11 +98,34 @@ Final Explanation:
 
 
 
+def _parse_list_block(text: str, header: str, stop_headers: list[str]) -> list[str]:
+    """Extract bullet-list items from a named block in Qwen raw output."""
+    stop_pattern = "|".join(re.escape(h) for h in stop_headers)
+    pattern = rf"{re.escape(header)}:?\s*(.*?)(?=(?:{stop_pattern}):|$)"
+    m = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+    if not m:
+        return []
+    block = m.group(1).strip()
+    items = []
+    for line in block.split("\n"):
+        line = re.sub(r"^[*\-•#\s]+", "", line).strip()
+        if line:
+            items.append(line)
+    return items
+
+
+def _parse_inline_field(text: str, field: str) -> str:
+    """Extract a single-line value for a named field."""
+    m = re.search(rf"(?:[*#\s]*){re.escape(field)}:\s*([^\n]+)", text, re.IGNORECASE)
+    return m.group(1).strip() if m else ""
+
+
 def parse_qwen_vision_output(raw_text: str) -> dict[str, Any]:
     """Parse structured fields from Qwen Vision text response.
 
     Strips markdown symbols (*, #, _) and uses the LAST match for each field
     so that intermediate thinking chain occurrences don't override the final answer.
+    Also extracts structured tablet analysis sub-fields, observations, and concerns.
     """
     result: dict[str, Any] = {
         "assessment": "UNCERTAIN",
@@ -132,7 +155,32 @@ def parse_qwen_vision_output(raw_text: str) -> dict[str, Any]:
     if recs:
         result["recommendation"] = recs[-1].upper()
 
+    # Extract tablet-specific sub-fields from the Tablet Analysis block
+    result["tablet_shape"] = _parse_inline_field(clean_text, "Shape") or ""
+    result["tablet_color"] = _parse_inline_field(clean_text, "Color") or ""
+    result["tablet_surface"] = _parse_inline_field(clean_text, "Surface") or ""
+    result["tablet_markings"] = _parse_inline_field(clean_text, "Markings") or ""
+    result["tablet_edges"] = _parse_inline_field(clean_text, "Edges") or ""
+    result["tablet_other"] = _parse_inline_field(clean_text, "Other visible characteristics") or ""
+
+    # Extract packaging analysis
+    pkg_m = re.search(r"Packaging Analysis:\s*(.*?)(?=Observations:|Potential Concerns:|Recommendation:|Final Explanation:|$)",
+                      clean_text, re.DOTALL | re.IGNORECASE)
+    result["packaging_analysis"] = pkg_m.group(1).strip() if pkg_m else ""
+
+    # Extract observations and concerns as lists
+    stop_list = ["Potential Concerns", "Recommendation", "Final Explanation"]
+    result["observations_list"] = _parse_list_block(clean_text, "Observations", stop_list)
+
+    stop_list2 = ["Recommendation", "Final Explanation"]
+    result["concerns_list"] = _parse_list_block(clean_text, "Potential Concerns", stop_list2)
+
+    # Extract final explanation
+    fe_m = re.search(r"Final Explanation:\s*(.*?)$", clean_text, re.DOTALL | re.IGNORECASE)
+    result["final_explanation"] = fe_m.group(1).strip() if fe_m else ""
+
     return result
+
 
 
 class QwenVisionVerifier:

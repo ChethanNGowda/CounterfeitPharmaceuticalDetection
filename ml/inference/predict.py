@@ -242,7 +242,14 @@ def predict_pipeline(
     )
     decision = engine.evaluate(primary_result=primary_res, qwen_review=qwen_review)
 
-    # 5. Assemble unified pipeline output
+    # 5. Run visual feature analysis (always, independent of quality gate / vision mode)
+    try:
+        from ml.inference.visual_inspector import analyze_visual_features
+        visual_analysis = analyze_visual_features(image_input)
+    except Exception as vis_exc:
+        visual_analysis = {"error": f"Visual analysis unavailable: {vis_exc}"}
+
+    # 6. Assemble unified pipeline output
     result = dict(primary_res)
     result.update({
         "final_result": decision["final_result"],
@@ -262,6 +269,7 @@ def predict_pipeline(
         "reason": decision.get("reason"),
         "reasons": decision.get("reasons", []),
         "disclaimer": decision.get("disclaimer"),
+        "visual_analysis": visual_analysis,
     })
     return result
 

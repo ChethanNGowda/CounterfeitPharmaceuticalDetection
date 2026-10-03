@@ -98,6 +98,8 @@ async def predict_pharmaceutical(
         disagreement=result.get("disagreement", False),
         primary_prediction=result.get("primary_prediction"),
         primary_confidence=result.get("primary_confidence"),
+        # Visual feature inspection report
+        visual_analysis=result.get("visual_analysis"),
         # Backward-compatible fields
         status=result["status"],
         reason=result.get("reason"),

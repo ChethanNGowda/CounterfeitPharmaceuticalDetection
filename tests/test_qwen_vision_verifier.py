@@ -218,6 +218,8 @@ def test_synthesize_final_result_qwen_uncertain_moderate_confidence_escalates():
 
 
 def test_synthesize_final_result_unavailable_fallback():
+    """Qwen available=False dict (secondary was invoked but failed) → Rule 4a → needs_human=True.
+    Per README §Qwen3-VL graceful degradation: when Qwen times out or fails, needs_human=True."""
     primary = {
         "prediction": "AUTHENTIC",
         "confidence": 0.88,
@@ -230,7 +232,7 @@ def test_synthesize_final_result_unavailable_fallback():
     }
     synth = synthesize_final_result(primary, qwen)
     assert synth["final_result"] == "LIKELY AUTHENTIC"
-    assert synth["needs_human_verification"] is False
+    assert synth["needs_human_verification"] is True
     assert "unavailable" in synth["reason"].lower()
 
 

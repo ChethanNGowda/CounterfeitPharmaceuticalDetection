@@ -35,8 +35,12 @@ Decision Rules:
    - 3E. Secondary SUSPICIOUS (explicit concern flagged by secondary reviewer):
      final_result = 'SUSPICIOUS / NEEDS VERIFICATION', needs_human_verification = True.
 4. Secondary AI Unavailable / Fallback:
-   - Primary AUTHENTIC (>= 0.70) -> final_result = 'LIKELY AUTHENTIC', needs_human_verification = False.
-   - Primary COUNTERFEIT (>= 0.70) -> final_result = 'LIKELY COUNTERFEIT', needs_human_verification = True.
+   4a. Secondary was invoked but failed (connection refused, timeout, error) — README §Qwen3-VL graceful degradation:
+       - Primary AUTHENTIC  (>= 0.70) -> final_result = 'LIKELY AUTHENTIC',   needs_human_verification = True.
+       - Primary COUNTERFEIT(>= 0.70) -> final_result = 'LIKELY COUNTERFEIT', needs_human_verification = True.
+   4b. Secondary was never invoked (vision_mode='never' or high-confidence auto skip):
+       - Primary AUTHENTIC  (>= 0.70) -> final_result = 'LIKELY AUTHENTIC',   needs_human_verification = False.
+       - Primary COUNTERFEIT(>= 0.70) -> final_result = 'LIKELY COUNTERFEIT', needs_human_verification = True.
 """
 
 from __future__ import annotations
@@ -260,15 +264,48 @@ class DecisionEngine:
 
         else:
             # Rule 4: Secondary AI Unavailable / Fallback
-            warning = "Secondary AI verification unavailable — result based on primary classifier."
-            if primary_pred == "AUTHENTIC":
-                final_result = "LIKELY AUTHENTIC"
-                needs_human = False
-                reason = f"Primary classifier indicates authentic ({primary_conf*100:.1f}% confidence); secondary review unavailable."
+            #
+            # Two distinct sub-cases per README §Qwen3-VL graceful degradation (line 298):
+            #   4a. secondary_executed=True  (Qwen was invoked but failed — conn refused, timeout, error):
+            #       needs_human_verification = True for ALL primary predictions, because secondary
+            #       verification was expected and could not be completed.
+            #   4b. secondary_executed=False (Qwen never invoked — vision_mode='never' or
+            #       high-confidence auto skip by design):
+            #       AUTHENTIC → needs_human = False  (README example JSON: secondary_executed=false,
+            #       needs_human_verification=false)
+            #       COUNTERFEIT → needs_human = True  (always conservative for counterfeit outcomes)
+            if secondary_executed:
+                # 4a: Attempted but failed
+                warning = (
+                    "Secondary AI verification was requested but failed (connection refused, "
+                    "timeout, or error) — result based on primary classifier only. "
+                    "Physical verification recommended."
+                )
+                if primary_pred == "AUTHENTIC":
+                    final_result = "LIKELY AUTHENTIC"
+                    needs_human = True
+                    reason = (
+                        f"Primary classifier indicates authentic ({primary_conf*100:.1f}% confidence); "
+                        f"secondary verification was attempted but unavailable — manual review advised."
+                    )
+                else:
+                    final_result = "LIKELY COUNTERFEIT"
+                    needs_human = True
+                    reason = (
+                        f"Primary classifier indicates counterfeit ({primary_conf*100:.1f}% confidence); "
+                        f"secondary verification unavailable. Quarantine sample for laboratory inspection."
+                    )
             else:
-                final_result = "LIKELY COUNTERFEIT"
-                needs_human = True
-                reason = f"Primary classifier indicates counterfeit ({primary_conf*100:.1f}% confidence); secondary review unavailable."
+                # 4b: Never invoked (by design — vision_mode='never' or high-confidence auto skip)
+                warning = "Secondary AI verification unavailable — result based on primary classifier."
+                if primary_pred == "AUTHENTIC":
+                    final_result = "LIKELY AUTHENTIC"
+                    needs_human = False
+                    reason = f"Primary classifier indicates authentic ({primary_conf*100:.1f}% confidence); secondary review unavailable."
+                else:
+                    final_result = "LIKELY COUNTERFEIT"
+                    needs_human = True
+                    reason = f"Primary classifier indicates counterfeit ({primary_conf*100:.1f}% confidence); secondary review unavailable."
 
         return {
             "final_result": final_result,

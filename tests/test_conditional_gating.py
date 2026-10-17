@@ -249,7 +249,8 @@ def test_borderline_contradiction_yields_suspicious(monkeypatch):
 
 
 def test_qwen_unavailable_borderline_preserves_primary_with_warning(monkeypatch):
-    """Borderline confidence with Qwen unavailable preserves primary verdict with warning."""
+    """Borderline confidence with Qwen unavailable (attempted but failed) preserves primary
+    verdict with warning and requires manual review per README §Qwen3-VL graceful degradation."""
     monkeypatch.setattr(
         "ml.inference.predict.predict",
         lambda *args, **kwargs: _mock_primary(confidence=0.84, predicted_class="authentic"),
@@ -264,4 +265,9 @@ def test_qwen_unavailable_borderline_preserves_primary_with_warning(monkeypatch)
     assert result["secondary_executed"] is True
     assert result["secondary_available"] is False
     assert result["final_result"] == "LIKELY AUTHENTIC"
-    assert "unavailable" in result["warning"].lower()
+    # Rule 4a: secondary was invoked but returned available=False → needs_human=True
+    assert result["needs_human_verification"] is True
+    # Warning text explains the failure (may say 'failed' or 'unavailable')
+    assert result["warning"] is not None
+    warning_lower = result["warning"].lower()
+    assert "failed" in warning_lower or "unavailable" in warning_lower

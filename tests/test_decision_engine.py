@@ -178,12 +178,14 @@ def test_rule3_conflict_counterfeit_vs_authentic_qwen(engine):
 # ---------------------------------------------------------------------------
 
 def test_rule4_unavailable_qwen_authentic_fallback(engine):
-    """Qwen unavailable + primary AUTHENTIC → LIKELY AUTHENTIC with warning."""
+    """Qwen attempted but failed (Rule 4a) + primary AUTHENTIC → LIKELY AUTHENTIC, needs_human=True.
+    Per README §Qwen3-VL graceful degradation: when secondary was invoked but failed,
+    needs_human_verification must be True even for AUTHENTIC outcomes."""
     primary = _primary(predicted_class="authentic", confidence=0.91)
     qwen = _unavailable_qwen("Ollama service unreachable.")
     result = engine.evaluate(primary, qwen)
     assert result["final_result"] == "LIKELY AUTHENTIC"
-    assert result["needs_human_verification"] is False
+    assert result["needs_human_verification"] is True
     assert "unavailable" in result["reason"].lower()
     assert result["warning"] is not None
 
@@ -346,17 +348,31 @@ def test_reg_rule3d_intermediate_authentic_uncertain_escalates(engine):
     assert result["needs_human_verification"] is True
 
 
-def test_reg_rule4_qwen_unavailable_authentic_no_manual(engine):
-    """REG-06: Qwen unavailable, high-confidence AUTHENTIC -> fallback, needs_human=False."""
+def test_reg_rule4b_secondary_never_invoked_authentic_no_manual(engine):
+    """REG-06: Rule 4b — secondary never invoked (qwen_review=None), high-confidence AUTHENTIC
+    → LIKELY AUTHENTIC, needs_human=False (per README example JSON: secondary_executed=false,
+    needs_human_verification=false)."""
     primary = _primary(predicted_class="authentic", confidence=0.97)
-    qwen = _unavailable_qwen()
-    result = engine.evaluate(primary, qwen)
+    result = engine.evaluate(primary, None)   # None = never invoked (vision_mode='never' / high-conf skip)
     assert result["final_result"] == "LIKELY AUTHENTIC"
     assert result["needs_human_verification"] is False
+    assert result["secondary_executed"] is False
+
+
+def test_reg_rule4a_qwen_failed_authentic_needs_human(engine):
+    """REG-06b: Rule 4a — secondary was invoked but failed (available=False dict), AUTHENTIC
+    → LIKELY AUTHENTIC, needs_human=True (per README §Qwen3-VL graceful degradation)."""
+    primary = _primary(predicted_class="authentic", confidence=0.97)
+    qwen = _unavailable_qwen()  # real dict → secondary_executed=True
+    result = engine.evaluate(primary, qwen)
+    assert result["final_result"] == "LIKELY AUTHENTIC"
+    assert result["needs_human_verification"] is True
+    assert result["secondary_executed"] is True
 
 
 def test_reg_rule4_qwen_unavailable_counterfeit_needs_human(engine):
-    """REG-07: Qwen unavailable, high-confidence COUNTERFEIT -> fallback, needs_human=True."""
+    """REG-07: Rule 4a — secondary invoked but failed, high-confidence COUNTERFEIT
+    → LIKELY COUNTERFEIT, needs_human=True (conservative quarantine)."""
     primary = _primary(predicted_class="counterfeit", confidence=0.97)
     qwen = _unavailable_qwen()
     result = engine.evaluate(primary, qwen)

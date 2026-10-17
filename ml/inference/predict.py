@@ -250,8 +250,16 @@ def predict_pipeline(
         visual_analysis = {"error": f"Visual analysis unavailable: {vis_exc}"}
 
     # 6. Assemble unified pipeline output
+    # Synchronize legacy status: if final_result is SUSPICIOUS / NEEDS VERIFICATION,
+    # status must be "NEEDS MANUAL REVIEW". Otherwise preserve primary classifier status.
+    if decision["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION":
+        effective_status = "NEEDS MANUAL REVIEW"
+    else:
+        effective_status = primary_res.get("status", primary_res.get("prediction", "AUTHENTIC"))
+
     result = dict(primary_res)
     result.update({
+        "status": effective_status,
         "final_result": decision["final_result"],
         "needs_human_verification": decision["needs_human_verification"],
         "final_status": decision["final_status"],

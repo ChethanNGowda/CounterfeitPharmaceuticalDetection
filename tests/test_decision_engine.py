@@ -274,12 +274,13 @@ def test_rule3d_qwen_uncertain_high_confidence_counterfeit_preserved(engine):
 
 
 def test_rule3d_qwen_uncertain_high_confidence_authentic_preserved(engine):
-    """High-confidence primary authentic (>= 90%) preserved when Qwen is merely uncertain."""
+    """High-confidence primary authentic (>= 90%) preserved when Qwen is merely uncertain,
+    but manual verification is required because secondary verifier could not confirm."""
     primary = _primary(predicted_class="authentic", confidence=0.93)
     qwen = _qwen(available=True, assessment="UNCERTAIN")
     result = engine.evaluate(primary, qwen)
     assert result["final_result"] == "LIKELY AUTHENTIC"
-    assert result["needs_human_verification"] is False
+    assert result["needs_human_verification"] is True
     assert "uncertain" in result["reason"].lower()
 
 
@@ -292,3 +293,104 @@ def test_rule3d_qwen_uncertain_moderate_confidence_escalates(engine):
     assert result["needs_human_verification"] is True
     assert "moderate" in result["reason"].lower()
 
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 Regression Tests -- Rule 3D + consistency invariants
+# ---------------------------------------------------------------------------
+
+def test_reg_rule3d_authentic_uncertain_needs_human(engine):
+    """REG-01: High-confidence AUTHENTIC + Qwen UNCERTAIN -> LIKELY AUTHENTIC, needs_human=True."""
+    primary = _primary(predicted_class="authentic", confidence=0.92)
+    qwen = _qwen(available=True, assessment="UNCERTAIN")
+    result = engine.evaluate(primary, qwen)
+    assert result["final_result"] == "LIKELY AUTHENTIC"
+    assert result["needs_human_verification"] is True
+
+
+def test_reg_rule3d_authentic_inconclusive_needs_human(engine):
+    """REG-02: High-confidence AUTHENTIC + Qwen INCONCLUSIVE -> LIKELY AUTHENTIC, needs_human=True."""
+    primary = _primary(predicted_class="authentic", confidence=0.95)
+    qwen = _qwen(available=True, assessment="INCONCLUSIVE")
+    result = engine.evaluate(primary, qwen)
+    assert result["final_result"] == "LIKELY AUTHENTIC"
+    assert result["needs_human_verification"] is True
+
+
+def test_reg_rule3c_authentic_vs_counterfeit_disagreement(engine):
+    """REG-03: AUTHENTIC (EfficientNet) vs COUNTERFEIT (Qwen) -> disagreement=True."""
+    primary = _primary(predicted_class="authentic", confidence=0.91)
+    qwen = _qwen(available=True, assessment="COUNTERFEIT")
+    result = engine.evaluate(primary, qwen)
+    assert result["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+    assert result["needs_human_verification"] is True
+    assert result.get("disagreement") is True
+
+
+def test_reg_rule3c_counterfeit_vs_authentic_disagreement(engine):
+    """REG-04: COUNTERFEIT (EfficientNet) vs AUTHENTIC (Qwen) -> disagreement=True."""
+    primary = _primary(predicted_class="counterfeit", confidence=0.91)
+    qwen = _qwen(available=True, assessment="AUTHENTIC")
+    result = engine.evaluate(primary, qwen)
+    assert result["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+    assert result["needs_human_verification"] is True
+    assert result.get("disagreement") is True
+
+
+def test_reg_rule3d_intermediate_authentic_uncertain_escalates(engine):
+    """REG-05: Intermediate (0.78) AUTHENTIC + Qwen UNCERTAIN -> SUSPICIOUS."""
+    primary = _primary(predicted_class="authentic", confidence=0.78)
+    qwen = _qwen(available=True, assessment="UNCERTAIN")
+    result = engine.evaluate(primary, qwen)
+    assert result["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+    assert result["needs_human_verification"] is True
+
+
+def test_reg_rule4_qwen_unavailable_authentic_no_manual(engine):
+    """REG-06: Qwen unavailable, high-confidence AUTHENTIC -> fallback, needs_human=False."""
+    primary = _primary(predicted_class="authentic", confidence=0.97)
+    qwen = _unavailable_qwen()
+    result = engine.evaluate(primary, qwen)
+    assert result["final_result"] == "LIKELY AUTHENTIC"
+    assert result["needs_human_verification"] is False
+
+
+def test_reg_rule4_qwen_unavailable_counterfeit_needs_human(engine):
+    """REG-07: Qwen unavailable, high-confidence COUNTERFEIT -> fallback, needs_human=True."""
+    primary = _primary(predicted_class="counterfeit", confidence=0.97)
+    qwen = _unavailable_qwen()
+    result = engine.evaluate(primary, qwen)
+    assert result["final_result"] == "LIKELY COUNTERFEIT"
+    assert result["needs_human_verification"] is True
+
+
+def test_reg_rule1_quality_gate_failure(engine):
+    """REG-08: Quality gate failure -> SUSPICIOUS / NEEDS VERIFICATION regardless of predictions."""
+    primary = _primary(predicted_class="authentic", confidence=0.99,
+                       quality_valid=False, quality_reason="Laplacian 12.3")
+    qwen = _qwen(available=True, assessment="AUTHENTIC")
+    result = engine.evaluate(primary, qwen)
+    assert result["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+    assert result["needs_human_verification"] is True
+
+
+def test_reg_response_consistency_authentic_both_agree(engine):
+    """REG-09: Both models agree AUTHENTIC -> required keys present and coherent."""
+    primary = _primary(predicted_class="authentic", confidence=0.93)
+    qwen = _qwen(available=True, assessment="AUTHENTIC")
+    result = engine.evaluate(primary, qwen)
+    assert result["final_result"] == "LIKELY AUTHENTIC"
+    assert result["needs_human_verification"] is False
+    for key in ("final_result", "needs_human_verification", "reason", "warning"):
+        assert key in result, f"Missing required key: {key}"
+
+
+def test_reg_make_decision_convenience_wrapper():
+    """REG-10: make_decision() is consistent with DecisionEngine.evaluate()."""
+    primary = _primary(predicted_class="authentic", confidence=0.93)
+    qwen = _qwen(available=True, assessment="UNCERTAIN")
+    eng = DecisionEngine(confidence_threshold=0.70)
+    direct = eng.evaluate(primary, qwen)
+    via_wrapper = make_decision(primary, qwen)
+    assert direct["final_result"] == via_wrapper["final_result"]
+    assert direct["needs_human_verification"] == via_wrapper["needs_human_verification"]

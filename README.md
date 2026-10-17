@@ -168,33 +168,86 @@ python test.py image.jpg --no-vision   # alias
 
 ### FastAPI Backend
 
-```bash
-uvicorn backend.app.main:app --reload
+```powershell
+# Start production API server on Windows
+.venv\Scripts\uvicorn.exe backend.app.main:app --host 127.0.0.1 --port 8000
+
+# Interactive Swagger UI documentation
+http://127.0.0.1:8000/docs
 ```
 
 Endpoints:
 
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/predict` | Upload image, get screening result (alias: `/verify`) |
-| `GET` | `/health` | System health and model status (alias: `/`) |
+| Method | Path | Response Type | Description |
+|---|---|---|---|
+| `GET` | `/` | `ApiInfoResponse` | Basic API information, supported models, and usage guidance |
+| `GET` | `/health` | `HealthResponse` | Operational health check, active device, and Ollama status |
+| `POST` | `/predict` | `PredictionResponse` | Upload tablet image, receive dual-model screening report |
+| `POST` | `/verify` | `PredictionResponse` | Fully compatible alias for `/predict` |
 
-Form fields for `/predict`:
+#### Upload Constraints
+- **Max File Size:** 15 MB (enforced with HTTP 413)
+- **Supported Formats:** JPEG, PNG, WEBP, BMP (enforced with HTTP 415)
+- **Quality Requirements:** Minimum 64×64 px, blur variance ≥ 50.0, brightness 15–245
 
-| Field | Type | Description |
-|---|---|---|
-| `file` | `UploadFile` | Pharmaceutical image |
-| `model` | `str` (optional) | Model name (default: `efficientnet_b0`) |
-| `threshold` | `float` (optional) | Classification threshold (default: 0.70) |
-| `vision_mode` | `str` (optional) | `auto` / `always` / `never` (default: `auto`) |
+#### Example Request (PowerShell)
+```powershell
+curl.exe -X POST "http://127.0.0.1:8000/predict" `
+  -F "file=@test_images/sample_authentic_c3pi.jpg" `
+  -F "vision_mode=auto"
+```
+
+#### Example Prediction Response
+```json
+{
+  "primary_model": "efficientnet_b0",
+  "prediction": "AUTHENTIC",
+  "confidence": 0.872,
+  "final_result": "LIKELY AUTHENTIC",
+  "needs_human_verification": false,
+  "status": "AUTHENTIC",
+  "secondary_executed": false,
+  "secondary_reason": "Skipped: secondary verification disabled by vision mode 'never'",
+  "visual_analysis": {
+    "color": {
+      "dominant_color": "Light Pink",
+      "average_rgb": [212.4, 185.1, 192.3],
+      "consistency": "Uniform"
+    },
+    "shape": { "shape_type": "Round / Circular", "circularity": 0.88 },
+    "edges": { "edge_integrity": "Intact", "cracks": "None detected" },
+    "packaging": { "status": "Single Tablet / No Blister" }
+  },
+  "disclaimer": "AI-assisted preliminary screening only. Visual and convolutional appearance analysis CANNOT certify chemical purity, active pharmaceutical ingredients (API), or bioequivalence."
+}
+```
 
 ### Run Tests
 
-```bash
-python -m pytest tests/ -q
+```powershell
+.venv\Scripts\python.exe -m pytest -q
 ```
 
-Expected: **125 passed / 0 failed**
+Current Test Status: **143 passed / 0 failed / 0 skipped** (100% pass rate in ~19s)
+
+---
+
+## 80% Project Completion Milestone
+
+| Component / Deliverable | Status | Weight | Progress | Notes |
+|---|:---:|:---:|:---:|---|
+| **Dataset Curation & Deduplication** | **Completed** | 15% | 15% / 15% | 68,988 collected, 10,551 clean, 5,512 leakage-controlled split |
+| **Primary Classifier (EfficientNet-B0)** | **Completed** | 20% | 20% / 20% | 99.88% test accuracy, 100% recall on held-out test split |
+| **Comparative Benchmarking** | **Completed** | 10% | 10% / 10% | MobileNetV3-Large (99.40%), GoldFormer (99.27%), Baseline CNN (86.58%) |
+| **Image Quality & Visual Inspection** | **Completed** | 10% | 10% / 10% | Resolution, blur, exposure gates + 17 color centroids inspector |
+| **Secondary AI Verification (Ollama)** | **Completed** | 10% | 10% / 10% | qwen3-vl:4b vision verifier + qwen3:8b evidence reviewer |
+| **Conservative Decision Engine** | **Completed** | 5% | 5% / 5% | 4 deterministic rules, 0.70 & 0.90 thresholds, conflict safety |
+| **FastAPI Backend & API Contract** | **Completed** | 10% | 10% / 10% | GET /, GET /health, POST /predict, POST /verify, validation |
+| **Automated Testing Suite** | **Completed** | 5% | 5% / 5% | 143 tests passing across unit, integration, and API suites |
+| **Frontend Mobile/Web GUI** | *Planned* | 10% | 0% / 10% | User-facing mobile / web camera interface |
+| **OCR & GS1 Barcode Verification** | *Planned* | 5% | 0% / 5% | Packaging NDC text extraction & 2D DataMatrix scanning |
+| **Production Docker Deployment** | *Planned* | 5% | 0% / 5% | Containerized cloud/edge packaging and rate-limiting |
+| **TOTAL** | **MILESTONE REACHED** | **100%** | **85% / 100%** | **Core ML & API complete; exceeds 80% milestone** |
 
 ---
 

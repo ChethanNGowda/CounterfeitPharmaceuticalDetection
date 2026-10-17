@@ -8,7 +8,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from PIL import Image
 
 from ml.config import DEFAULT_CONFIDENCE_THRESHOLD, DEFAULT_MODEL, SUPPORTED_MODELS
-from ml.models.transfer_learning import CheckpointUnavailableError
+from ml.models.transfer_learning import CheckpointUnavailableError, normalize_model_name
 from backend.app.schemas.predict import PredictionResponse
 from backend.app.services.classifier import ClassifierService
 
@@ -42,6 +42,13 @@ async def predict_pharmaceutical(
     - Decision Engine: Conservative synthesis yielding LIKELY AUTHENTIC, LIKELY COUNTERFEIT,
       or SUSPICIOUS / NEEDS VERIFICATION.
     """
+    if model:
+        norm_model = normalize_model_name(model)
+        if norm_model not in SUPPORTED_MODELS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported model '{model}'. Supported models: {', '.join(SUPPORTED_MODELS)}.",
+            )
     if file.content_type and file.content_type.lower() not in ALLOWED_MIME_TYPES:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,

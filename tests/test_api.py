@@ -458,3 +458,168 @@ def test_predict_endpoint_includes_visual_analysis():
     assert "sharpness_status" in quality
     assert "suitability" in quality
 
+
+# ---------------------------------------------------------------------------
+# Additional Stabilization & Milestone Tests
+# ---------------------------------------------------------------------------
+
+def test_root_info_endpoint():
+    """GET / must return API information, usage guidance, and endpoints."""
+    response = client.get("/")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ok"
+    assert "name" in data
+    assert "endpoints" in data
+    assert "predict" in data["endpoints"]
+    assert "verify" in data["endpoints"]
+    assert "usage" in data
+    assert "disclaimer" in data
+    assert "supported_models" in data
+    assert "default_model" in data
+
+
+def test_predict_endpoint_empty_upload():
+    """POST /predict with 0-byte upload must return 400 Bad Request."""
+    buf = io.BytesIO(b"")
+    response = client.post(
+        "/predict",
+        files={"file": ("empty.jpg", buf, "image/jpeg")},
+    )
+    assert response.status_code == 400
+    assert "empty" in response.json()["detail"].lower()
+
+
+def test_predict_endpoint_oversized_upload():
+    """POST /predict exceeding 15MB limit must return 413 Payload Too Large."""
+    # 16 MB dummy buffer
+    oversized = io.BytesIO(b"\x00" * (16 * 1024 * 1024))
+    response = client.post(
+        "/predict",
+        files={"file": ("huge.jpg", oversized, "image/jpeg")},
+    )
+    assert response.status_code == 413
+    assert "exceeds" in response.json()["detail"].lower()
+
+
+def test_predict_endpoint_unsupported_image_format():
+    """POST /predict with GIF image format must return 415 Unsupported Media Type."""
+    arr = np.zeros((100, 100, 3), dtype=np.uint8)
+    gif_img = Image.fromarray(arr)
+    buf = io.BytesIO()
+    gif_img.save(buf, format="GIF")
+    buf.seek(0)
+
+    response = client.post(
+        "/predict",
+        files={"file": ("animation.gif", buf, "image/gif")},
+    )
+    assert response.status_code == 415
+
+
+def test_predict_endpoint_unsupported_model_returns_400():
+    """POST /predict with unrecognized model name must return 400."""
+    buf = _make_synthetic_image_buf()
+    response = client.post(
+        "/predict",
+        files={"file": ("tablet.jpg", buf, "image/jpeg")},
+        data={"model": "nonexistent_model_xyz", "enable_qwen": "false"},
+    )
+    assert response.status_code == 400
+    assert "unsupported" in response.json()["detail"].lower()
+
+
+def test_predict_endpoint_missing_checkpoint_returns_503(monkeypatch):
+    """POST /predict when model checkpoint is missing must return 503."""
+    from ml.models.transfer_learning import CheckpointUnavailableError
+    from backend.app.services.classifier import ClassifierService
+
+    service = ClassifierService.get_instance()
+
+    def fake_load(*args, **kwargs):
+        raise CheckpointUnavailableError("Fine-tuned checkpoint not found on disk")
+
+    monkeypatch.setattr(service, "load_model", fake_load)
+
+    buf = _make_synthetic_image_buf()
+    response = client.post(
+        "/predict",
+        files={"file": ("tablet.jpg", buf, "image/jpeg")},
+        data={"model": "mobilenet_v3_large", "enable_qwen": "false"},
+    )
+    assert response.status_code == 503
+    assert "unavailable" in response.json()["detail"].lower()
+
+
+def test_predict_endpoint_blurry_image_triggers_quality_gate():
+    """Blurry image (Laplacian variance < 50.0) must be flagged for manual review."""
+    # Flat image with minimal variation produces Laplacian var near 0
+    arr = np.ones((224, 224, 3), dtype=np.uint8) * 128
+    img = Image.fromarray(arr)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    buf.seek(0)
+
+    response = client.post(
+        "/predict",
+        files={"file": ("blurry.jpg", buf, "image/jpeg")},
+        data={"enable_qwen": "false"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["quality"]["is_valid"] is False
+    assert "blur" in data["quality"]["reason"].lower()
+    assert data["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+    assert data["needs_human_verification"] is True
+
+
+def test_predict_endpoint_extreme_dark_image_triggers_quality_gate():
+    """Extreme dark image (mean brightness < 15) must fail quality check."""
+    arr = np.ones((224, 224, 3), dtype=np.uint8) * 5
+    img = Image.fromarray(arr)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    buf.seek(0)
+
+    response = client.post(
+        "/predict",
+        files={"file": ("dark.jpg", buf, "image/jpeg")},
+        data={"enable_qwen": "false"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["quality"]["is_valid"] is False
+    assert "underexposure" in data["quality"]["reason"].lower() or "dark" in data["quality"]["reason"].lower()
+    assert data["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+
+
+def test_predict_endpoint_extreme_bright_image_triggers_quality_gate():
+    """Extreme bright image (mean brightness > 245) must fail quality check."""
+    arr = np.ones((224, 224, 3), dtype=np.uint8) * 250
+    img = Image.fromarray(arr)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    buf.seek(0)
+
+    response = client.post(
+        "/predict",
+        files={"file": ("bright.jpg", buf, "image/jpeg")},
+        data={"enable_qwen": "false"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["quality"]["is_valid"] is False
+    assert "overexposure" in data["quality"]["reason"].lower() or "washed" in data["quality"]["reason"].lower()
+    assert data["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+
+
+def test_app_startup_and_import():
+    """Verify application title, version, and router configuration."""
+    assert app.title == "Counterfeit Pharmaceutical Detection API"
+    assert app.version == "1.0.0"
+    paths = list(app.openapi()["paths"].keys())
+    assert "/" in paths
+    assert "/health" in paths
+    assert "/predict" in paths
+    assert "/verify" in paths
+

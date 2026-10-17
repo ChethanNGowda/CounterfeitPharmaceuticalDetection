@@ -24,10 +24,10 @@ Decision Rules:
      final_result = 'LIKELY COUNTERFEIT', needs_human_verification = True (quarantine).
    - 3C. Explicit Conflict (AUTHENTIC vs COUNTERFEIT or vice versa):
      final_result = 'SUSPICIOUS / NEEDS VERIFICATION', needs_human_verification = True.
-   - 3D. Secondary UNCERTAIN:
+   - 3D. Secondary UNCERTAIN / INCONCLUSIVE:
      * If primary confidence >= high_confidence_threshold (default 0.90):
-       Preserve primary classification: secondary AI is non-contradictory.
-       - Primary AUTHENTIC -> final_result = 'LIKELY AUTHENTIC', needs_human_verification = False.
+       Preserve primary classification label, but flag for manual review because secondary AI could not confirm:
+       - Primary AUTHENTIC -> final_result = 'LIKELY AUTHENTIC', needs_human_verification = True.
        - Primary COUNTERFEIT -> final_result = 'LIKELY COUNTERFEIT', needs_human_verification = True.
      * If primary confidence < high_confidence_threshold (0.70 to 0.899):
        Uncorroborated moderate prediction -> final_result = 'SUSPICIOUS / NEEDS VERIFICATION',
@@ -207,26 +207,27 @@ class DecisionEngine:
             # 3D: Secondary AI is UNCERTAIN (Non-contradictory visual uncertainty)
             elif qwen_assessment in ("UNCERTAIN", "INCONCLUSIVE"):
                 if primary_conf >= self.high_threshold:
-                    # High primary confidence (>= 90%) preserved when secondary AI is merely uncertain
+                    # High primary confidence (>= 90%) preserved as primary classification label,
+                    # but requires manual verification because secondary AI could not confirm authenticity
                     if primary_pred == "AUTHENTIC":
                         final_result = "LIKELY AUTHENTIC"
-                        needs_human = False
+                        needs_human = True
                         reason = (
                             f"Primary classifier has high confidence ({primary_conf*100:.1f}%) "
-                            f"indicating authentic; secondary AI visual assessment is uncertain "
-                            f"(no contradictory evidence observed)."
+                            f"indicating authentic, but secondary AI visual assessment was uncertain "
+                            f"and recommended manual review. Physical verification required."
                         )
                         warning = (
-                            "Secondary AI visual assessment was uncertain; classification "
-                            "supported by high primary model confidence."
+                            "Secondary AI visual assessment was uncertain; manual review required "
+                            "to confirm authenticity despite high primary model confidence."
                         )
                     else:
                         final_result = "LIKELY COUNTERFEIT"
                         needs_human = True
                         reason = (
                             f"Primary classifier has high confidence ({primary_conf*100:.1f}%) "
-                            f"indicating counterfeit; secondary AI visual assessment is uncertain "
-                            f"(no contradictory evidence observed)."
+                            f"indicating counterfeit; secondary AI visual assessment was uncertain "
+                            f"(no contradictory evidence observed). Quarantine sample for verification."
                         )
                         warning = (
                             "Potential counterfeit identified with high primary confidence; "

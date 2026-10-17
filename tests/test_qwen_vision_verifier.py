@@ -196,7 +196,7 @@ def test_synthesize_final_result_qwen_uncertain_high_confidence_authentic():
     }
     synth = synthesize_final_result(primary, qwen)
     assert synth["final_result"] == "LIKELY AUTHENTIC"
-    assert synth["needs_human_verification"] is False
+    assert synth["needs_human_verification"] is True
 
 
 def test_synthesize_final_result_qwen_uncertain_moderate_confidence_escalates():

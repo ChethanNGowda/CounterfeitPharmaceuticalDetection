@@ -23,11 +23,12 @@ import urllib.request
 from PIL import Image
 
 DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
-DEFAULT_OLLAMA_VISION_MODEL = "qwen3-vl:4b"
+DEFAULT_OLLAMA_VISION_MODEL = "qwen3.5:4b"
 DEFAULT_OLLAMA_TIMEOUT = 180.0
 
 # Ordered preference list: first available installed model wins
 _VISION_MODEL_PREFERENCE = [
+    "qwen3.5:4b",
     "qwen3-vl:8b",
     "qwen3-vl:4b",
     "qwen3-vl:2b",
@@ -58,41 +59,36 @@ def _detect_vision_model(base_url: str = DEFAULT_OLLAMA_BASE_URL) -> str:
     return DEFAULT_OLLAMA_VISION_MODEL
 
 QWEN_VISION_PROMPT = """/no_think
-Analyze the attached medicine/tablet image for counterfeit detection. Examine tablet shape, color, surface, markings, packaging (if visible), and any irregularities.
+Inspect only tablet and packaging features actually visible in the attached image. Never infer
+authenticity from a brand name or packaging alone. If visual evidence is insufficient, choose
+UNCERTAIN and MANUAL REVIEW. Do not include hidden reasoning. Return brief values for the JSON fields."""
 
-Do NOT invent information. Only report what is actually visible. Do not make definitive authenticity claims without clear evidence.
-
-Respond ONLY in this exact format (no other text before or after):
-
-Assessment: AUTHENTIC / COUNTERFEIT / UNCERTAIN
-
-Visual Confidence: LOW / MEDIUM / HIGH
-
-Image Quality: GOOD / FAIR / POOR
-
-Tablet Analysis:
-* Shape: 
-* Color: 
-* Surface: 
-* Markings: 
-* Edges: 
-* Other visible characteristics: 
-
-Packaging Analysis:
-Not visible.
-
-Observations:
-* 
-* 
-
-Potential Concerns:
-* 
-
-Recommendation:
-AUTOMATED SCREENING / MANUAL REVIEW
-
-Final Explanation:
-"""
+_QWEN_RESPONSE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "assessment": {"type": "string", "enum": ["AUTHENTIC", "COUNTERFEIT", "UNCERTAIN"]},
+        "confidence": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH"]},
+        "image_quality": {"type": "string", "enum": ["GOOD", "FAIR", "POOR"]},
+        "recommendation": {"type": "string", "enum": ["AUTOMATED SCREENING", "MANUAL REVIEW"]},
+        "tablet_shape": {"type": "string"},
+        "tablet_color": {"type": "string"},
+        "tablet_surface": {"type": "string"},
+        "tablet_markings": {"type": "string"},
+        "tablet_edges": {"type": "string"},
+        "tablet_other": {"type": "string"},
+        "packaging_analysis": {"type": "string"},
+        "observations_list": {"type": "array", "items": {"type": "string"}},
+        "concerns_list": {"type": "array", "items": {"type": "string"}},
+        "final_explanation": {"type": "string"},
+    },
+    "required": [
+        "assessment", "confidence", "image_quality", "recommendation",
+        "tablet_shape", "tablet_color", "tablet_surface", "tablet_markings",
+        "tablet_edges", "tablet_other", "packaging_analysis",
+        "observations_list", "concerns_list", "final_explanation",
+    ],
+    "additionalProperties": False,
+}
 
 
 
@@ -199,19 +195,37 @@ def parse_qwen_vision_output(raw_text: str) -> dict[str, Any]:
     clean_text = re.sub(r"[*#_]", "", raw_text)
 
     # Use last match for each field (thinking trace may contain earlier occurrences)
-    assessments = re.findall(r"Assessment:\s*(AUTHENTIC|COUNTERFEIT|UNCERTAIN)", clean_text, re.IGNORECASE)
+    # Match completed answer lines only. The old prefix match also parsed the
+    # prompt's choice list ("AUTHENTIC / COUNTERFEIT / UNCERTAIN") as AUTHENTIC.
+    assessments = re.findall(
+        r"(?m)^\s*Assessment:\s*(AUTHENTIC|COUNTERFEIT|UNCERTAIN)\s*$",
+        clean_text,
+        re.IGNORECASE,
+    )
     if assessments:
         result["assessment"] = assessments[-1].upper()
 
-    confidences = re.findall(r"Visual Confidence:\s*(LOW|MEDIUM|HIGH)", clean_text, re.IGNORECASE)
+    confidences = re.findall(
+        r"(?m)^\s*Visual Confidence:\s*(LOW|MEDIUM|HIGH)\s*$",
+        clean_text,
+        re.IGNORECASE,
+    )
     if confidences:
         result["confidence"] = confidences[-1].upper()
 
-    qualities = re.findall(r"Image Quality:\s*(GOOD|FAIR|POOR)", clean_text, re.IGNORECASE)
+    qualities = re.findall(
+        r"(?m)^\s*Image Quality:\s*(GOOD|FAIR|POOR)\s*$",
+        clean_text,
+        re.IGNORECASE,
+    )
     if qualities:
         result["image_quality"] = qualities[-1].upper()
 
-    recs = re.findall(r"Recommendation:\s*(AUTOMATED SCREENING|MANUAL REVIEW)", clean_text, re.IGNORECASE)
+    recs = re.findall(
+        r"(?m)^\s*Recommendation:\s*(AUTOMATED SCREENING|MANUAL REVIEW)\s*$",
+        clean_text,
+        re.IGNORECASE,
+    )
     if recs:
         result["recommendation"] = recs[-1].upper()
 
@@ -258,8 +272,10 @@ class QwenVisionVerifier:
             or DEFAULT_OLLAMA_BASE_URL
         ).rstrip("/")
 
-        # Auto-detect best installed vision model if not explicitly provided
-        env_model = os.environ.get("OLLAMA_VISION_MODEL") or os.environ.get("OLLAMA_MODEL")
+        # Prefer the dedicated setting. Ignore the legacy OLLAMA_MODEL value
+        # during discovery because old configs can pin the qwen3-vl renderer
+        # that returns reasoning without a user-facing answer.
+        env_model = os.environ.get("OLLAMA_VISION_MODEL")
         if model_name:
             self.model_name = model_name
         elif env_model:
@@ -272,7 +288,10 @@ class QwenVisionVerifier:
             self.timeout = float(timeout)
         elif env_timeout:
             try:
-                self.timeout = float(env_timeout)
+                # Older example configs used a 12-second timeout, too short
+                # for a cold vision-model load. Honor longer overrides but
+                # keep the minimum aligned with model startup/inference time.
+                self.timeout = max(float(env_timeout), DEFAULT_OLLAMA_TIMEOUT)
             except ValueError:
                 self.timeout = DEFAULT_OLLAMA_TIMEOUT
         else:
@@ -359,139 +378,86 @@ class QwenVisionVerifier:
         except Exception as enc_err:
             return self._make_unavailable_response(f"Failed to encode image: {enc_err}")
 
-        # Attempt 1: Try python ollama library if installed
-        raw_text = None
-        ollama_pkg_error = None
+        # Use Ollama's schema-constrained chat API. The qwen3-vl renderer in
+        # some Ollama versions can spend its full token budget in `thinking`
+        # without producing user-facing content. Never parse that private field.
         try:
-            import ollama
-
-            client = ollama.Client(host=self.base_url, timeout=self.timeout)
-            sys_directive = (
-                "You are a pharmaceutical image analysis system. "
-                "Output ONLY the structured report in the exact format requested. "
-                "No preamble, no thinking traces, no extra commentary."
+            payload = {
+                "model": self.model_name,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a cautious visual screening assistant. Inspect only visible "
+                            "features. Packaging and appearance cannot prove medicine authenticity. "
+                            "Return a concise structured response; do not output hidden reasoning."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": QWEN_VISION_PROMPT,
+                        "images": [b64_img],
+                    },
+                ],
+                "format": _QWEN_RESPONSE_SCHEMA,
+                "think": False,
+                "stream": False,
+                "options": {"temperature": 0.0, "num_predict": 512},
+            }
+            req = urllib.request.Request(
+                f"{self.base_url}/api/chat",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
             )
-            resp = client.generate(
-                model=self.model_name,
-                prompt=QWEN_VISION_PROMPT,
-                system=sys_directive,
-                images=[b64_img],
-                options={"temperature": 0.1, "num_predict": 750},
-            )
-            raw_text = (resp.response or "").strip()
-            if not raw_text and hasattr(resp, "thinking") and resp.thinking:
-                raw_text = resp.thinking.strip()
-        except ImportError:
-            ollama_pkg_error = "ollama python package not installed"
-        except Exception as client_err:
-            err_str = str(client_err)
-            # Detect model not found (404)
-            if "not found" in err_str.lower() or "404" in err_str:
-                return self._make_unavailable_response(
-                    f"Model '{self.model_name}' is not installed in Ollama.\n"
-                    f"To install this model, run:\n"
-                    f"  ollama pull {self.model_name}\n\n"
-                    f"(Note: {self.model_name} is in the ~8B class. On an RTX 3050 4GB GPU, "
-                    f"Ollama will offload layers across VRAM and 16GB system RAM.)"
-                )
-            # Detect multimodal unsupported
-            if "multimodal" in err_str.lower():
-                return self._make_unavailable_response(
-                    f"Model '{self.model_name}' does not support visual/image inputs.\n"
-                    f"Please pull an official Qwen Vision model:\n"
-                    f"  ollama pull {DEFAULT_OLLAMA_VISION_MODEL}"
-                )
-            # Detect connection refused / offline
-            if "connection refused" in err_str.lower() or "connect" in err_str.lower():
-                return self._make_unavailable_response(
-                    f"Ollama is not running (connection refused at {self.base_url})."
-                )
-            # Detect timeout
-            if "timed out" in err_str.lower():
-                return self._make_unavailable_response(
-                    f"Vision verification timed out after {self.timeout}s."
-                )
-            # Fall back to HTTP urllib call in case client syntax issue
-            ollama_pkg_error = err_str
-
-        # Attempt 2: Direct HTTP API via urllib
-        if raw_text is None:
-            try:
-                payload = {
-                    "model": self.model_name,
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": "You are the AI Vision Verification module of a Counterfeit Pharmaceutical Detection system. Directly output the structured verification report in the exact format requested. Do NOT output internal thinking or reasoning chains.",
-                        },
-                        {
-                            "role": "user",
-                            "content": QWEN_VISION_PROMPT,
-                            "images": [b64_img],
-                        }
-                    ],
-                    "stream": False,
-                    "options": {"temperature": 0.1, "num_predict": 900},
-                }
-                endpoint = f"{self.base_url}/api/chat"
-                req_data = json.dumps(payload).encode("utf-8")
-                req = urllib.request.Request(
-                    endpoint,
-                    data=req_data,
-                    headers={"Content-Type": "application/json"},
-                )
-                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                    resp_data = json.loads(resp.read().decode("utf-8"))
-                    msg_obj = resp_data.get("message", {})
-                    raw_text = msg_obj.get("content", "").strip()
-                    if not raw_text:
-                        raw_text = msg_obj.get("thinking", "").strip()
-            except urllib.error.HTTPError as http_err:
-                if http_err.code == 404:
+            with urllib.request.urlopen(req, timeout=self.timeout) as response:
+                response_data = json.loads(response.read().decode("utf-8"))
+            message = response_data.get("message") or {}
+            raw_text = str(message.get("content") or "").strip()
+            if not raw_text:
+                if message.get("thinking"):
                     return self._make_unavailable_response(
-                        f"Model '{self.model_name}' is not installed in Ollama.\n"
-                        f"To install this model, run:\n"
-                        f"  ollama pull {self.model_name}\n\n"
-                        f"(Note: {self.model_name} is in the ~8B class. On an RTX 3050 4GB GPU, "
-                        f"Ollama will offload layers across VRAM and 16GB system RAM.)"
-                    )
-                error_body = ""
-                try:
-                    error_body = http_err.read().decode("utf-8")
-                except Exception:
-                    pass
-                if "multimodal" in error_body.lower():
-                    return self._make_unavailable_response(
-                        f"Model '{self.model_name}' does not support vision inputs."
+                        f"Model '{self.model_name}' returned reasoning but no structured answer. "
+                        "Use a Qwen vision model that supports schema-constrained output."
                     )
                 return self._make_unavailable_response(
-                    f"Ollama HTTP error {http_err.code}: {http_err.reason}. {error_body}".strip()
+                    f"Model '{self.model_name}' returned an empty response."
                 )
-            except urllib.error.URLError as url_err:
+            decoded = json.loads(raw_text)
+            if not isinstance(decoded, dict) or decoded.get("assessment") not in {
+                "AUTHENTIC", "COUNTERFEIT", "UNCERTAIN"
+            }:
                 return self._make_unavailable_response(
-                    f"Ollama is not running (connection refused at {self.base_url})."
+                    f"Model '{self.model_name}' returned malformed structured output."
                 )
-            except (TimeoutError, OSError) as to_err:
-                return self._make_unavailable_response(
-                    f"Vision verification timed out after {self.timeout}s: {to_err}"
-                )
-            except Exception as final_err:
-                return self._make_unavailable_response(
-                    f"Vision verification error: {final_err} (prior: {ollama_pkg_error})"
-                )
-
-        if not raw_text:
+        except urllib.error.HTTPError as http_err:
+            error_body = http_err.read().decode("utf-8", errors="replace")
+            if http_err.code == 404:
+                reason = f"Model '{self.model_name}' is not installed in Ollama. Run: ollama pull {self.model_name}"
+            else:
+                reason = f"Ollama HTTP error {http_err.code}: {error_body[:500]}"
+            return self._make_unavailable_response(reason)
+        except urllib.error.URLError as url_err:
             return self._make_unavailable_response(
-                "Empty response received from Qwen Vision model."
+                f"Cannot connect to Ollama at {self.base_url}: {url_err.reason}"
+            )
+        except (TimeoutError, OSError) as timeout_err:
+            return self._make_unavailable_response(
+                f"Vision verification timed out after {self.timeout}s: {timeout_err}"
+            )
+        except (json.JSONDecodeError, TypeError, ValueError) as parse_err:
+            return self._make_unavailable_response(
+                f"Qwen returned invalid structured output: {parse_err}"
+            )
+        except Exception as request_err:
+            return self._make_unavailable_response(
+                f"Qwen vision request failed: {request_err}"
             )
 
         parsed = parse_qwen_vision_output(raw_text)
         reasoning_list = []
         if parsed.get("recommendation"):
             reasoning_list.append(f"Recommendation: {parsed['recommendation']}")
-        obs_matches = re.findall(r"[*•-]\s*(.+)", raw_text)
-        if obs_matches:
-            reasoning_list.extend([m.strip() for m in obs_matches[:4]])
+        reasoning_list.extend(parsed.get("observations_list", [])[:4])
         if not reasoning_list:
             reasoning_list = ["Qwen Vision secondary visual inspection completed."]
 

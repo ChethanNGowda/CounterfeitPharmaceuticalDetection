@@ -29,6 +29,7 @@ from PIL import Image
 COLOR_CENTROIDS = [
     ("White", (245, 245, 245)),
     ("Off-White / Cream", (230, 225, 210)),
+    ("White / Light Gray", (200, 200, 193)),
     ("Light Pink", (240, 195, 205)),
     ("Pink", (225, 135, 165)),
     ("Red", (190, 45, 45)),
@@ -40,6 +41,7 @@ COLOR_CENTROIDS = [
     ("Green", (50, 140, 70)),
     ("Light Blue", (150, 195, 230)),
     ("Blue", (45, 100, 185)),
+    ("Blue / Teal", (35, 130, 175)),
     ("Purple / Violet", (135, 80, 160)),
     ("Brown", (130, 85, 55)),
     ("Gray", (130, 130, 130)),
@@ -60,6 +62,51 @@ def _match_color_name(rgb: tuple[float, float, float]) -> str:
             best_name = name
     return best_name
 
+
+
+def _describe_surface_colors(pixels: np.ndarray) -> tuple[str, list[str]]:
+    """Describe the main visible surface colors without averaging unlike colors.
+
+    A single RGB mean turns a blue-and-white capsule into a shade of gray/pink.
+    A small deterministic color clustering preserves clearly separate colors.
+    """
+    if pixels.size == 0:
+        return "Unclear", []
+
+    sample = pixels.reshape(-1, 3)
+    if len(sample) > 8000:
+        indices = np.linspace(0, len(sample) - 1, 8000, dtype=np.int32)
+        sample = sample[indices]
+    sample32 = sample.astype(np.float32)
+    distinct = np.unique(sample32, axis=0)
+    if len(distinct) < 2:
+        rgb = tuple(float(value) for value in sample32[0])
+        name = _match_color_name(rgb)
+        return name, [name]
+
+    cluster_count = min(3, len(distinct))
+    _, labels, centers = cv2.kmeans(
+        sample32,
+        cluster_count,
+        None,
+        (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 0.5),
+        3,
+        cv2.KMEANS_PP_CENTERS,
+    )
+    shares = np.bincount(labels.ravel(), minlength=cluster_count) / len(labels)
+    ranked = np.argsort(shares)[::-1]
+    selected: list[str] = []
+    for index in ranked:
+        if shares[index] < 0.14 and selected:
+            continue
+        center = tuple(float(value) for value in centers[index])
+        name = _match_color_name(center)
+        if name not in selected:
+            selected.append(name)
+        if len(selected) == 3:
+            break
+
+    return " and ".join(selected) if selected else "Unclear", selected
 
 def _load_image_to_cv(image_input: Union[str, Path, Image.Image, bytes, bytearray, np.ndarray]) -> np.ndarray:
     """Safely load image input to RGB numpy array."""
@@ -107,29 +154,45 @@ def analyze_visual_features(
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
     _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
+    # Grayscale thresholding can erase blue/green tablet sections when their
+    # brightness resembles a gray background. Retain clearly colored pixels
+    # as foreground candidates as well.
+    hsv_for_mask = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2HSV)
+    colored_foreground = np.where(hsv_for_mask[:, :, 1] >= 38, 255, 0).astype(np.uint8)
+
     # Check background polarity from image perimeter
     border_pixels = np.concatenate([gray[0, :], gray[-1, :], gray[:, 0], gray[:, -1]])
     if np.median(border_pixels) > 128:
         thresh = cv2.bitwise_not(thresh)
+    thresh = cv2.bitwise_or(thresh, colored_foreground)
 
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    # Filter candidate contours by area (between 1.5% and 98% of image)
+    # Keep the central medicine/tablet contours. A two-tone capsule can be
+    # split into separate contours by Otsu thresholding; using just the largest
+    # contour discards one half and makes its reported color incorrect.
     valid_contours = []
-    min_area = total_pixels * 0.015
-    max_area = total_pixels * 0.98
-
+    min_area = total_pixels * 0.008
+    max_area = total_pixels * 0.80
     for cnt in contours:
-        a = cv2.contourArea(cnt)
-        if min_area <= a <= max_area:
-            valid_contours.append((cnt, a))
+        area = cv2.contourArea(cnt)
+        x, y, box_w, box_h = cv2.boundingRect(cnt)
+        center_x = x + box_w / 2
+        if (
+            min_area <= area <= max_area
+            and y < h_img * 0.82
+            and h_img * 0.01 < box_h < h_img * 0.95
+            and w_img * 0.01 < box_w < w_img * 0.98
+            and w_img * 0.01 < center_x < w_img * 0.99
+        ):
+            valid_contours.append((cnt, area))
 
     object_detected = len(valid_contours) > 0
     if object_detected:
-        # Choose the largest central contour
+        # Union qualifying parts (for example, the white and blue halves).
         best_cnt = max(valid_contours, key=lambda x: x[1])[0]
         tablet_mask = np.zeros((h_img, w_img), dtype=np.uint8)
-        cv2.drawContours(tablet_mask, [best_cnt], -1, 255, thickness=-1)
+        cv2.drawContours(tablet_mask, [cnt for cnt, _ in valid_contours], -1, 255, thickness=-1)
     else:
         # Fallback to central 60% window for color/texture metrics
         best_cnt = None
@@ -151,18 +214,21 @@ def analyze_visual_features(
         mean_hsv = np.mean(masked_hsv, axis=0)
         mean_h, mean_s, mean_v = float(mean_hsv[0]), float(mean_hsv[1]), float(mean_hsv[2])
 
-        dom_name = _match_color_name((mean_r, mean_g, mean_b))
+        dom_name, observed_colors = _describe_surface_colors(masked_pixels)
         overall_std = float(np.mean(std_rgb))
 
-        if overall_std < 22.0:
+        if len(observed_colors) > 1:
+            consistency = "MULTI-COLORED"
+            variation = "Multiple main colors are visible; this alone is not a quality or authenticity concern."
+        elif overall_std < 22.0:
             consistency = "HIGH"
-            variation = "Uniform coloration across tablet surface"
+            variation = "Color appears fairly even in this photo; lighting can affect the reading."
         elif overall_std < 48.0:
             consistency = "MODERATE"
-            variation = "Consistent appearance with minor shading/lighting variance"
+            variation = "Some shading is visible; camera lighting can affect the reading."
         else:
             consistency = "LOW"
-            variation = "Noticeable color variation, mottling, or multi-tone appearance"
+            variation = "Color varies across the selected image area; inspect the photo and tablet directly."
     else:
         dom_name = "Unclear"
         mean_r, mean_g, mean_b = 0.0, 0.0, 0.0

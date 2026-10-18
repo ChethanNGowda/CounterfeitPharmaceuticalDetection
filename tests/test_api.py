@@ -48,8 +48,7 @@ def test_health_includes_secondary_ai_fields():
     data = response.json()
     assert "secondary_ai_model" in data
     assert "secondary_ai_endpoint" in data
-    assert "qwen3-vl" in data["secondary_ai_model"]
-    assert data["secondary_ai_model"] == "qwen3-vl:4b"
+    assert data["secondary_ai_model"] == "qwen3.5:4b"
     assert "11434" in data["secondary_ai_endpoint"]
 
 

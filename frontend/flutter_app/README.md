@@ -11,7 +11,7 @@
 PharmaAssist is an Android mobile screening instrument inspired by the field usability and disciplined workflow of DetectaChem MobileDetect. Built with Flutter, it interfaces with the project's production FastAPI backend and multi-model machine learning pipeline:
 
 - **Primary Classifier:** Fine-tuned EfficientNet-B0 (99.88% test accuracy, 100% recall).
-- **Secondary AI Inspector:** Local Ollama Qwen3-VL (4B parameters) vision-language verifier for tablet shape, color consistency, imprint legibility, and packaging inspection.
+- **Secondary AI Inspector:** Local Ollama Qwen Vision (4B parameters) vision-language verifier for tablet shape, color consistency, imprint legibility, and packaging inspection.
 - **Image Quality Pre-Screen:** OpenCV Laplacian variance blur check, brightness mean, RMS contrast, and 64×64 pixel resolution gate.
 - **Conservative Decision Engine:** Deterministic 4-rule synthesis engine enforcing mandatory physical laboratory review for low-confidence, uncertain, or conflicting evidence.
 - **Persistent Local Archive:** Encrypted local storage of completed inspections (up to 50 records), sample IDs, medicine names, inspection notes, and generated field reports.
@@ -57,7 +57,7 @@ Physical Android Phone (PharmaAssist App)
 FastAPI Backend (backend.app.main:app)
   ├── OpenCV Quality Gate (Resolution, Blur ≥ 50, Brightness 15-245)
   ├── EfficientNet-B0 Classifier (outputs/full_data_training/checkpoints/...)
-  ├── QwenVisionVerifier (qwen3-vl:4b via local Ollama at http://localhost:11434)
+  ├── QwenVisionVerifier (qwen3.5:4b via local Ollama at http://localhost:11434)
   └── DecisionEngine (Conservative 4-rule verdict synthesizer)
 ```
 
@@ -133,12 +133,12 @@ adb install -r "frontend\flutter_app\build\app\outputs\flutter-apk\app-debug.apk
 
 ---
 
-## Secondary AI Verification (Qwen3-VL)
+## Secondary AI Verification (Qwen Vision)
 
-The backend integrates an optional secondary vision-language inspection model (`qwen3-vl:4b`) hosted via local [Ollama](https://ollama.com):
+The backend integrates an optional secondary vision-language inspection model (`qwen3.5:4b`) hosted via local [Ollama](https://ollama.com):
 
-- **Auto Mode (Default):** Qwen3-VL is conditionally invoked only when primary EfficientNet-B0 confidence is in the borderline zone (`0.70 ≤ confidence < 0.90`).
-- **Always Mode:** Force Qwen3-VL review on every sample for deep physical feature extraction.
+- **Auto Mode (Default):** Qwen Vision is conditionally invoked only when primary EfficientNet-B0 confidence is in the borderline zone (`0.70 ≤ confidence < 0.90`).
+- **Always Mode:** Force Qwen Vision review on every sample for deep physical feature extraction.
 - **Never Mode:** Fast-path execution; primary classifier only (~35 ms latency).
 - **Graceful Degradation:** If Ollama is offline or times out, the backend gracefully flags `needs_human_verification: true` with an operational warning. Mobile app screening remains operational.
 

@@ -51,6 +51,11 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
 
+# 2.5.0's JNI Pigeon lookup expects kotlin.coroutines.Continuation in the JVM
+# signature, which R8 renames in this release build. 2.4.28 uses method channels.
+dependency_overrides:
+  shared_preferences_android: 2.4.28
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 

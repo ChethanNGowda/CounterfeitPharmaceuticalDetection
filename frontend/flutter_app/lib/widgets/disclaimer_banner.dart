@@ -6,11 +6,7 @@ class DisclaimerBanner extends StatelessWidget {
   final String? customText;
   final bool compact;
 
-  const DisclaimerBanner({
-    super.key,
-    this.customText,
-    this.compact = false,
-  });
+  const DisclaimerBanner({super.key, this.customText, this.compact = false});
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +22,7 @@ class DisclaimerBanner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
+          Icon(
             Icons.health_and_safety_outlined,
             color: AppTheme.primaryTeal,
             size: 20,
@@ -36,7 +32,7 @@ class DisclaimerBanner extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Preliminary Screening Advisory',
                   style: TextStyle(
                     color: AppTheme.textPrimary,
@@ -47,7 +43,7 @@ class DisclaimerBanner extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   text,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 11,
                     height: 1.4,

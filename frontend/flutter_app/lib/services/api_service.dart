@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:pharma_assist/core/constants.dart';
@@ -24,19 +25,21 @@ class ApiService {
   final http.Client _client;
 
   ApiService(this._storage, [http.Client? client])
-      : _client = client ?? http.Client();
+    : _client = client ?? http.Client();
 
   String get _baseUrl => _storage.getBackendUrl();
 
   /// Check connectivity with the backend server via GET /health or GET /
   Future<HealthResponse> checkHealth({String? customBaseUrl}) async {
-    final String targetUrl = StorageService.normalizeUrl(customBaseUrl ?? _baseUrl);
+    final String targetUrl = StorageService.normalizeUrl(
+      customBaseUrl ?? _baseUrl,
+    );
     final Uri uri = Uri.parse('$targetUrl/health');
 
     try {
-      final response = await _client.get(uri).timeout(
-        const Duration(seconds: 8),
-      );
+      final response = await _client
+          .get(uri)
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
         final dynamic decoded = jsonDecode(response.body);
@@ -47,9 +50,9 @@ class ApiService {
       } else {
         // Fallback to GET / root info endpoint if /health gives non-200
         final rootUri = Uri.parse('$targetUrl/');
-        final rootResponse = await _client.get(rootUri).timeout(
-          const Duration(seconds: 6),
-        );
+        final rootResponse = await _client
+            .get(rootUri)
+            .timeout(const Duration(seconds: 6));
         if (rootResponse.statusCode == 200) {
           final dynamic rootDecoded = jsonDecode(rootResponse.body);
           if (rootDecoded is Map<String, dynamic>) {
@@ -142,9 +145,11 @@ class ApiService {
 
     // 4. Send request with timeout
     try {
-      final streamedResponse = await _client.send(request).timeout(
-        const Duration(seconds: 90),
-      );
+      final streamedResponse = await _client
+          .send(request)
+          // Qwen Vision uses the backend's 180-second Ollama timeout. Allow
+          // enough time for a cold model load on CPU before calling it a failure.
+          .timeout(const Duration(seconds: 240));
 
       final response = await http.Response.fromStream(streamedResponse);
 
@@ -173,23 +178,21 @@ class ApiService {
       switch (response.statusCode) {
         case 413:
           throw ApiException(
-            errorDetail.isNotEmpty
-                ? errorDetail
-                : 'Upload rejected: Image exceeds maximum allowed size of 15 MB.',
+            errorDetail.isNotEmpty ? errorDetail : 'Upload rejected: Image exceeds maximum allowed size of 15 MB.',
             statusCode: 413,
             detail: errorDetail,
           );
         case 415:
           throw ApiException(
-            errorDetail.isNotEmpty
-                ? errorDetail
-                : 'Upload rejected: Unsupported image format. Allowed: JPEG, PNG, WEBP, BMP.',
+            errorDetail.isNotEmpty ? errorDetail : 'Upload rejected: Unsupported image format. Allowed: JPEG, PNG, WEBP, BMP.',
             statusCode: 415,
             detail: errorDetail,
           );
         case 400:
           throw ApiException(
-            errorDetail.isNotEmpty ? errorDetail : 'Bad request sent to screening API.',
+            errorDetail.isNotEmpty
+                ? errorDetail
+                : 'Bad request sent to screening API.',
             statusCode: 400,
             detail: errorDetail,
           );
@@ -217,7 +220,7 @@ class ApiService {
       );
     } on TimeoutException {
       throw ApiException(
-        'Screening request timed out after 90 seconds. The secondary AI (Qwen3-VL) or model inference took too long.',
+        'Screening request timed out after 4 minutes. Check that the backend and its AI review service are responding, then try again.',
       );
     } catch (e) {
       if (e is ApiException) rethrow;
@@ -226,16 +229,22 @@ class ApiService {
   }
 
   /// Fetch model registry status from GET /models endpoint
-  Future<Map<String, dynamic>> fetchModels() async {
-    final Uri uri = Uri.parse('$_baseUrl/models');
+  Future<Map<String, dynamic>> fetchModels({String? customBaseUrl}) async {
+    final targetUrl = StorageService.normalizeUrl(customBaseUrl ?? _baseUrl);
+    final Uri uri = Uri.parse('$targetUrl/models');
     try {
-      final response = await _client.get(uri).timeout(const Duration(seconds: 10));
+      final response = await _client
+          .get(uri)
+          .timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final dynamic decoded = jsonDecode(response.body);
         if (decoded is Map<String, dynamic>) return decoded;
         throw ApiException('Unexpected /models response format.');
       }
-      throw ApiException('GET /models failed: HTTP ${response.statusCode}', statusCode: response.statusCode);
+      throw ApiException(
+        'GET /models failed: HTTP ${response.statusCode}',
+        statusCode: response.statusCode,
+      );
     } on SocketException {
       throw ApiException('Cannot connect to backend for model registry.');
     } on TimeoutException {
@@ -247,16 +256,22 @@ class ApiService {
   }
 
   /// Fetch Qwen secondary AI diagnostic status from GET /health/qwen
-  Future<Map<String, dynamic>> fetchQwenStatus() async {
-    final Uri uri = Uri.parse('$_baseUrl/health/qwen');
+  Future<Map<String, dynamic>> fetchQwenStatus({String? customBaseUrl}) async {
+    final targetUrl = StorageService.normalizeUrl(customBaseUrl ?? _baseUrl);
+    final Uri uri = Uri.parse('$targetUrl/health/qwen');
     try {
-      final response = await _client.get(uri).timeout(const Duration(seconds: 8));
+      final response = await _client
+          .get(uri)
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode == 200) {
         final dynamic decoded = jsonDecode(response.body);
         if (decoded is Map<String, dynamic>) return decoded;
         throw ApiException('Unexpected /health/qwen response format.');
       }
-      throw ApiException('GET /health/qwen failed: HTTP ${response.statusCode}', statusCode: response.statusCode);
+      throw ApiException(
+        'GET /health/qwen failed: HTTP ${response.statusCode}',
+        statusCode: response.statusCode,
+      );
     } on SocketException {
       throw ApiException('Cannot connect to backend for Qwen status.');
     } on TimeoutException {

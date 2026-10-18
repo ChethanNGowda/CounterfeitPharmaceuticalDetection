@@ -1,6 +1,7 @@
 """Unit tests for ml.inference.visual_inspector and enhanced quality checker metrics."""
 
 import numpy as np
+import cv2
 from PIL import Image
 import pytest
 
@@ -30,6 +31,22 @@ def test_visual_analysis_solid_red_square(tmp_path):
     assert result["color"]["dominant_color"] == "Red"
     assert result["color"]["consistency"] == "HIGH"
     assert len(result["color"]["average_rgb"]) == 3
+
+
+def test_visual_analysis_preserves_two_tone_capsule_colors(tmp_path):
+    """A blue-and-white capsule must not be reduced to a misleading average."""
+    img_path = tmp_path / "two_tone_capsule.png"
+    arr = np.full((220, 300, 3), 120, dtype=np.uint8)
+    cv2.ellipse(arr, (90, 110), (70, 45), 0, 90, 270, (0, 130, 200), -1)
+    cv2.ellipse(arr, (210, 110), (70, 45), 0, -90, 90, (245, 245, 245), -1)
+    cv2.rectangle(arr, (90, 65), (210, 155), (245, 245, 245), -1)
+    Image.fromarray(arr).save(img_path)
+
+    color = analyze_visual_features(img_path)["color"]
+    assert "White" in color["dominant_color"]
+    assert "Blue / Teal" in color["dominant_color"]
+    assert color["consistency"] == "MULTI-COLORED"
+    assert "not a quality" in color["visible_variation"]
 
 
 def test_visual_analysis_circular_pill(tmp_path):

@@ -58,7 +58,7 @@ class _ExpandableCardState extends State<ExpandableCard> {
                       children: [
                         Text(
                           widget.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppTheme.textPrimary,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -68,7 +68,7 @@ class _ExpandableCardState extends State<ExpandableCard> {
                           const SizedBox(height: 1),
                           Text(
                             widget.subtitle!,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppTheme.textMuted,
                               fontSize: 10,
                             ),
@@ -94,10 +94,7 @@ class _ExpandableCardState extends State<ExpandableCard> {
           ),
           if (_expanded) ...[
             Container(height: 1, color: AppTheme.border),
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: widget.content,
-            ),
+            Padding(padding: const EdgeInsets.all(14), child: widget.content),
           ],
         ],
       ),

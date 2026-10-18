@@ -71,9 +71,19 @@ class _ModelLabScreenState extends State<ModelLabScreen>
     });
     try {
       final data = await widget.apiService.fetchModels();
-      if (mounted) setState(() { _modelsData = data; _loadingModels = false; });
+      if (mounted) {
+        setState(() {
+          _modelsData = data;
+          _loadingModels = false;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() { _modelsError = e.toString(); _loadingModels = false; });
+      if (mounted) {
+        setState(() {
+          _modelsError = e.toString();
+          _loadingModels = false;
+        });
+      }
     }
   }
 
@@ -84,9 +94,19 @@ class _ModelLabScreenState extends State<ModelLabScreen>
     });
     try {
       final data = await widget.apiService.fetchQwenStatus();
-      if (mounted) setState(() { _qwenData = data; _loadingQwen = false; });
+      if (mounted) {
+        setState(() {
+          _qwenData = data;
+          _loadingQwen = false;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() { _qwenError = e.toString(); _loadingQwen = false; });
+      if (mounted) {
+        setState(() {
+          _qwenError = e.toString();
+          _loadingQwen = false;
+        });
+      }
     }
   }
 
@@ -112,9 +132,15 @@ class _ModelLabScreenState extends State<ModelLabScreen>
               decoration: BoxDecoration(
                 color: AppTheme.violetAccent.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: AppTheme.violetAccent.withValues(alpha: 0.45)),
+                border: Border.all(
+                  color: AppTheme.violetAccent.withValues(alpha: 0.45),
+                ),
               ),
-              child: Icon(Icons.science_outlined, color: AppTheme.violetAccent, size: 17),
+              child: Icon(
+                Icons.science_outlined,
+                color: AppTheme.violetAccent,
+                size: 17,
+              ),
             ),
             const SizedBox(width: 10),
             Column(
@@ -122,8 +148,13 @@ class _ModelLabScreenState extends State<ModelLabScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text('Model Laboratory', style: AppTheme.headingSmall()),
-                Text('Registry · Benchmarks · History',
-                    style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 9.5)),
+                Text(
+                  'Registry · Benchmarks · History',
+                  style: AppTheme.bodyText(
+                    color: AppTheme.textMuted,
+                    fontSize: 9.5,
+                  ),
+                ),
               ],
             ),
           ],
@@ -173,8 +204,10 @@ class _ModelLabScreenState extends State<ModelLabScreen>
           children: [
             CircularProgressIndicator(color: AppTheme.violetAccent),
             const SizedBox(height: 16),
-            const Text('Fetching model registry…',
-                style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
+            Text(
+              'Fetching model registry…',
+              style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+            ),
           ],
         ),
       );
@@ -188,11 +221,16 @@ class _ModelLabScreenState extends State<ModelLabScreen>
       );
     }
     if (_modelsData == null) {
-      return _buildEmptyState('No model data', 'Tap refresh to load the registry.', Icons.inventory_2_outlined);
+      return _buildEmptyState(
+        'No model data',
+        'Tap refresh to load the registry.',
+        Icons.inventory_2_outlined,
+      );
     }
 
     final models = (_modelsData!['models'] as List?) ?? [];
-    final availableList = (_modelsData!['available_models'] as List?)?.cast<String>() ?? [];
+    final availableList =
+        (_modelsData!['available_models'] as List?)?.cast<String>() ?? [];
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -207,11 +245,23 @@ class _ModelLabScreenState extends State<ModelLabScreen>
           ),
           child: Row(
             children: [
-              _summaryBadge('${_modelsData!['total_models']}', 'Registered', AppTheme.primaryCyan),
+              _summaryBadge(
+                '${_modelsData!['total_models']}',
+                'Registered',
+                AppTheme.primaryCyan,
+              ),
               const SizedBox(width: 20),
-              _summaryBadge('${availableList.length}', 'Runnable', AppTheme.success),
+              _summaryBadge(
+                '${availableList.length}',
+                'Runnable',
+                AppTheme.success,
+              ),
               const SizedBox(width: 20),
-              _summaryBadge('${models.length - availableList.length}', 'Checkpoint\nMissing', AppTheme.warning),
+              _summaryBadge(
+                '${models.length - availableList.length}',
+                'Checkpoint\nMissing',
+                AppTheme.warning,
+              ),
             ],
           ),
         ),
@@ -222,7 +272,9 @@ class _ModelLabScreenState extends State<ModelLabScreen>
           decoration: BoxDecoration(
             color: AppTheme.violetAccent.withValues(alpha: 0.07),
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: AppTheme.violetAccent.withValues(alpha: 0.3)),
+            border: Border.all(
+              color: AppTheme.violetAccent.withValues(alpha: 0.3),
+            ),
           ),
           child: Text(
             'Historical benchmark metrics are from the original training run (2026-09-23, test.csv, 827 images). '
@@ -247,10 +299,13 @@ class _ModelLabScreenState extends State<ModelLabScreen>
     final String status = model['status'] ?? '';
     final String desc = model['description'] ?? '';
     final String? sha = model['checkpoint_sha256'] as String?;
-    final Map<String, dynamic>? metrics = model['metrics'] as Map<String, dynamic>?;
+    final Map<String, dynamic>? metrics =
+        model['metrics'] as Map<String, dynamic>?;
 
     final Color statusColor = available ? AppTheme.success : AppTheme.warning;
-    final IconData statusIcon = available ? Icons.check_circle_outline : Icons.error_outline;
+    final IconData statusIcon = available
+        ? Icons.check_circle_outline
+        : Icons.error_outline;
 
     return Container(
       decoration: BoxDecoration(
@@ -278,19 +333,28 @@ class _ModelLabScreenState extends State<ModelLabScreen>
                     children: [
                       Text(
                         name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'Space Grotesk',
                           color: AppTheme.textPrimary,
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      Text(desc, style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 10.5)),
+                      Text(
+                        desc,
+                        style: AppTheme.bodyText(
+                          color: AppTheme.textMuted,
+                          fontSize: 10.5,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: available
                         ? AppTheme.success.withValues(alpha: 0.12)
@@ -325,11 +389,20 @@ class _ModelLabScreenState extends State<ModelLabScreen>
               children: [
                 Row(
                   children: [
-                    Text('Status: ', style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 10.5)),
+                    Text(
+                      'Status: ',
+                      style: AppTheme.bodyText(
+                        color: AppTheme.textMuted,
+                        fontSize: 10.5,
+                      ),
+                    ),
                     Expanded(
                       child: Text(
                         status,
-                        style: AppTheme.bodyText(color: AppTheme.textSecondary, fontSize: 10.5),
+                        style: AppTheme.bodyText(
+                          color: AppTheme.textSecondary,
+                          fontSize: 10.5,
+                        ),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 2,
                       ),
@@ -340,10 +413,16 @@ class _ModelLabScreenState extends State<ModelLabScreen>
                   const SizedBox(height: 3),
                   Row(
                     children: [
-                      Text('SHA-256: ', style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 10.5)),
+                      Text(
+                        'SHA-256: ',
+                        style: AppTheme.bodyText(
+                          color: AppTheme.textMuted,
+                          fontSize: 10.5,
+                        ),
+                      ),
                       Text(
                         '${sha.substring(0, 16)}…',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'JetBrains Mono',
                           color: AppTheme.primaryCyan,
                           fontSize: 10,
@@ -387,7 +466,10 @@ class _ModelLabScreenState extends State<ModelLabScreen>
                   const SizedBox(height: 6),
                   Text(
                     metrics['note'] as String? ?? '',
-                    style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 9.5),
+                    style: AppTheme.bodyText(
+                      color: AppTheme.textMuted,
+                      fontSize: 9.5,
+                    ),
                   ),
                 ],
               ),
@@ -412,10 +494,16 @@ class _ModelLabScreenState extends State<ModelLabScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(p.$1, style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 9.5)),
+              Text(
+                p.$1,
+                style: AppTheme.bodyText(
+                  color: AppTheme.textMuted,
+                  fontSize: 9.5,
+                ),
+              ),
               Text(
                 p.$2,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'JetBrains Mono',
                   color: AppTheme.textPrimary,
                   fontSize: 11.5,
@@ -444,14 +532,19 @@ class _ModelLabScreenState extends State<ModelLabScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(value,
-            style: TextStyle(
-              fontFamily: 'JetBrains Mono',
-              color: color,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            )),
-        Text(label, style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 10)),
+        Text(
+          value,
+          style: TextStyle(
+            fontFamily: 'JetBrains Mono',
+            color: color,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        Text(
+          label,
+          style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 10),
+        ),
       ],
     );
   }
@@ -460,14 +553,16 @@ class _ModelLabScreenState extends State<ModelLabScreen>
 
   Widget _buildQwenTab() {
     if (_loadingQwen) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             CircularProgressIndicator(color: AppTheme.primaryCyan),
             SizedBox(height: 16),
-            Text('Checking Qwen AI status…',
-                style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
+            Text(
+              'Checking Qwen AI status…',
+              style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+            ),
           ],
         ),
       );
@@ -481,7 +576,11 @@ class _ModelLabScreenState extends State<ModelLabScreen>
       );
     }
     if (_qwenData == null) {
-      return _buildEmptyState('No Qwen data', 'Tap refresh to check secondary AI status.', Icons.psychology_outlined);
+      return _buildEmptyState(
+        'No Qwen data',
+        'Tap refresh to check secondary AI status.',
+        Icons.psychology_outlined,
+      );
     }
 
     final String status = _qwenData!['status'] ?? 'UNKNOWN';
@@ -489,7 +588,8 @@ class _ModelLabScreenState extends State<ModelLabScreen>
     final String modelName = _qwenData!['model_name'] ?? '—';
     final String baseUrl = _qwenData!['base_url'] ?? '—';
     final String message = _qwenData!['message'] ?? '';
-    final List<String> installedModels = (_qwenData!['installed_models'] as List?)?.cast<String>() ?? [];
+    final List<String> installedModels =
+        (_qwenData!['installed_models'] as List?)?.cast<String>() ?? [];
 
     Color statusColor;
     IconData statusIcon;
@@ -539,15 +639,23 @@ class _ModelLabScreenState extends State<ModelLabScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(status,
-                        style: TextStyle(
-                          fontFamily: 'JetBrains Mono',
-                          color: statusColor,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        )),
+                    Text(
+                      status,
+                      style: TextStyle(
+                        fontFamily: 'JetBrains Mono',
+                        color: statusColor,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     const SizedBox(height: 3),
-                    Text(message, style: AppTheme.bodyText(color: AppTheme.textSecondary, fontSize: 11.5)),
+                    Text(
+                      message,
+                      style: AppTheme.bodyText(
+                        color: AppTheme.textSecondary,
+                        fontSize: 11.5,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -560,22 +668,49 @@ class _ModelLabScreenState extends State<ModelLabScreen>
         _infoCard('CONFIGURATION', [
           ('Configured Model', modelName),
           ('Ollama Endpoint', baseUrl),
-          ('Integration Type', 'Vision-language model receiving actual image via Ollama API'),
+          (
+            'Integration Type',
+            'Vision-language model receiving actual image via Ollama API',
+          ),
           ('Image Encoding', 'Base64 JPEG (resized to max 384px, quality 88)'),
-          ('Prompt Style', 'Structured output: Assessment / Confidence / Tablet Analysis / Concerns'),
+          (
+            'Prompt Style',
+            'Structured output: Assessment / Confidence / Tablet Analysis / Concerns',
+          ),
         ]),
         const SizedBox(height: 12),
 
         // Test coverage
         _infoCard('AUTOMATED TEST COVERAGE', [
-          ('Ollama unavailable (connection refused)', '✅ Returns UNAVAILABLE fallback'),
+          (
+            'Ollama unavailable (connection refused)',
+            '✅ Returns UNAVAILABLE fallback',
+          ),
           ('Request timeout', '✅ Returns UNAVAILABLE with timeout message'),
-          ('Model not installed (404)', '✅ Returns UNAVAILABLE with install instructions'),
-          ('Multimodal not supported', '✅ Returns UNAVAILABLE with model suggestion'),
-          ('Malformed / empty response', '✅ Defaults to UNCERTAIN + MANUAL REVIEW'),
-          ('Qwen contradicts primary classifier', '✅ SUSPICIOUS / NEEDS VERIFICATION result'),
-          ('Low primary confidence (<0.70)', '✅ SUSPICIOUS without secondary invocation'),
-          ('High primary confidence (≥0.90, auto mode)', '✅ Qwen skipped, fast path used'),
+          (
+            'Model not installed (404)',
+            '✅ Returns UNAVAILABLE with install instructions',
+          ),
+          (
+            'Multimodal not supported',
+            '✅ Returns UNAVAILABLE with model suggestion',
+          ),
+          (
+            'Malformed / empty response',
+            '✅ Defaults to UNCERTAIN + MANUAL REVIEW',
+          ),
+          (
+            'Qwen contradicts primary classifier',
+            '✅ SUSPICIOUS / NEEDS VERIFICATION result',
+          ),
+          (
+            'Low primary confidence (<0.70)',
+            '✅ SUSPICIOUS without secondary invocation',
+          ),
+          (
+            'High primary confidence (≥0.90, auto mode)',
+            '✅ Qwen skipped, fast path used',
+          ),
         ]),
         const SizedBox(height: 12),
 
@@ -598,7 +733,7 @@ class _ModelLabScreenState extends State<ModelLabScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'INTEGRATION NOTICE',
                 style: TextStyle(
                   fontFamily: 'Space Grotesk',
@@ -610,12 +745,15 @@ class _ModelLabScreenState extends State<ModelLabScreen>
               ),
               const SizedBox(height: 6),
               Text(
-                'Qwen3-VL is a true multimodal vision model. It receives the actual tablet image '
+                'Qwen Vision is a true multimodal vision model. It receives the actual tablet image '
                 '(base64-encoded JPEG) — not JSON metadata or classifier statistics. '
                 'It operates as a secondary verifier: Qwen agreement does not prove authenticity, '
                 'and Qwen disagreement always escalates the result to SUSPICIOUS / NEEDS VERIFICATION. '
-                'End-to-end integration requires a running local Ollama instance with qwen3-vl:4b installed.',
-                style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 10.5),
+                'End-to-end integration requires a running local Ollama instance with qwen3.5:4b installed.',
+                style: AppTheme.bodyText(
+                  color: AppTheme.textMuted,
+                  fontSize: 10.5,
+                ),
               ),
               if (!available) ...[
                 const SizedBox(height: 10),
@@ -624,12 +762,14 @@ class _ModelLabScreenState extends State<ModelLabScreen>
                   decoration: BoxDecoration(
                     color: AppTheme.warning.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(5),
-                    border: Border.all(color: AppTheme.warning.withValues(alpha: 0.35)),
+                    border: Border.all(
+                      color: AppTheme.warning.withValues(alpha: 0.35),
+                    ),
                   ),
                   child: Text(
                     'To enable secondary AI review:\n'
                     '  1. Install Ollama (https://ollama.com)\n'
-                    '  2. Run: ollama pull qwen3-vl:4b\n'
+                    '  2. Run: ollama pull qwen3.5:4b\n'
                     '  3. Ensure Ollama is running on port 11434',
                     style: TextStyle(
                       fontFamily: 'JetBrains Mono',
@@ -661,7 +801,7 @@ class _ModelLabScreenState extends State<ModelLabScreen>
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
             child: Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Space Grotesk',
                 color: AppTheme.textMuted,
                 fontSize: 9.5,
@@ -670,29 +810,45 @@ class _ModelLabScreenState extends State<ModelLabScreen>
               ),
             ),
           ),
-          const Divider(color: AppTheme.border, height: 1),
+          Divider(color: AppTheme.border, height: 1),
           for (int i = 0; i < rows.length; i++) ...[
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
               child: rows[i].$2.isEmpty
-                  ? Text(rows[i].$1, style: AppTheme.bodyText(color: AppTheme.textSecondary, fontSize: 11.5))
+                  ? Text(
+                      rows[i].$1,
+                      style: AppTheme.bodyText(
+                        color: AppTheme.textSecondary,
+                        fontSize: 11.5,
+                      ),
+                    )
                   : Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(
                           width: 150,
-                          child: Text(rows[i].$1,
-                              style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 11)),
+                          child: Text(
+                            rows[i].$1,
+                            style: AppTheme.bodyText(
+                              color: AppTheme.textMuted,
+                              fontSize: 11,
+                            ),
+                          ),
                         ),
                         Expanded(
-                          child: Text(rows[i].$2,
-                              style: AppTheme.bodyText(color: AppTheme.textSecondary, fontSize: 11)),
+                          child: Text(
+                            rows[i].$2,
+                            style: AppTheme.bodyText(
+                              color: AppTheme.textSecondary,
+                              fontSize: 11,
+                            ),
+                          ),
                         ),
                       ],
                     ),
             ),
             if (i < rows.length - 1)
-              const Divider(color: AppTheme.border, height: 1, indent: 12),
+              Divider(color: AppTheme.border, height: 1, indent: 12),
           ],
         ],
       ),
@@ -719,11 +875,22 @@ class _ModelLabScreenState extends State<ModelLabScreen>
           child: TextField(
             decoration: InputDecoration(
               hintText: 'Search by sample, product, verdict, or model…',
-              hintStyle: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 12),
-              prefixIcon: const Icon(Icons.search, color: AppTheme.textMuted, size: 18),
+              hintStyle: AppTheme.bodyText(
+                color: AppTheme.textMuted,
+                fontSize: 12,
+              ),
+              prefixIcon: Icon(
+                Icons.search,
+                color: AppTheme.textMuted,
+                size: 18,
+              ),
               suffixIcon: _historySearch.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear, size: 16, color: AppTheme.textMuted),
+                      icon: Icon(
+                        Icons.clear,
+                        size: 16,
+                        color: AppTheme.textMuted,
+                      ),
                       onPressed: () => setState(() => _historySearch = ''),
                     )
                   : null,
@@ -740,7 +907,10 @@ class _ModelLabScreenState extends State<ModelLabScreen>
           ),
           child: Row(
             children: [
-              Expanded(flex: 3, child: Text('Sample / Product', style: _headerStyle())),
+              Expanded(
+                flex: 3,
+                child: Text('Sample / Product', style: _headerStyle()),
+              ),
               Expanded(flex: 2, child: Text('Verdict', style: _headerStyle())),
               Expanded(flex: 2, child: Text('Model', style: _headerStyle())),
               Expanded(flex: 2, child: Text('Qwen', style: _headerStyle())),
@@ -751,7 +921,9 @@ class _ModelLabScreenState extends State<ModelLabScreen>
         Expanded(
           child: filtered.isEmpty
               ? _buildEmptyState(
-                  _historySearch.isNotEmpty ? 'No matching records' : 'No inspection records',
+                  _historySearch.isNotEmpty
+                      ? 'No matching records'
+                      : 'No inspection records',
                   _historySearch.isNotEmpty
                       ? 'Try a different search term.'
                       : 'Complete a scan to see history here.',
@@ -766,13 +938,13 @@ class _ModelLabScreenState extends State<ModelLabScreen>
     );
   }
 
-  TextStyle _headerStyle() => const TextStyle(
-        fontFamily: 'Space Grotesk',
-        color: AppTheme.textMuted,
-        fontSize: 10,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.5,
-      );
+  TextStyle _headerStyle() => TextStyle(
+    fontFamily: 'Space Grotesk',
+    color: AppTheme.textMuted,
+    fontSize: 10,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0.5,
+  );
 
   Widget _buildHistoryRow(ScanHistoryItem item) {
     final String qwenStatus = item.qwenAssessment ?? '—';
@@ -792,7 +964,9 @@ class _ModelLabScreenState extends State<ModelLabScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: AppTheme.border.withValues(alpha: 0.6))),
+          border: Border(
+            bottom: BorderSide(color: AppTheme.border.withValues(alpha: 0.6)),
+          ),
         ),
         child: Row(
           children: [
@@ -803,7 +977,7 @@ class _ModelLabScreenState extends State<ModelLabScreen>
                 children: [
                   Text(
                     item.sampleId,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'JetBrains Mono',
                       color: AppTheme.textPrimary,
                       fontSize: 10.5,
@@ -814,32 +988,40 @@ class _ModelLabScreenState extends State<ModelLabScreen>
                   if (item.medicineName != null)
                     Text(
                       item.medicineName!,
-                      style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 10),
+                      style: AppTheme.bodyText(
+                        color: AppTheme.textMuted,
+                        fontSize: 10,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   Text(
                     DateFormat('MMM d, HH:mm').format(item.timestamp),
-                    style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 9.5),
+                    style: AppTheme.bodyText(
+                      color: AppTheme.textMuted,
+                      fontSize: 9.5,
+                    ),
                   ),
                 ],
               ),
             ),
-            Expanded(
-              flex: 2,
-              child: StatusBadge(statusText: item.finalResult),
-            ),
+            Expanded(flex: 2, child: StatusBadge(statusText: item.finalResult)),
             Expanded(
               flex: 2,
               child: Text(
                 item.modelName,
-                style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 9.5),
+                style: AppTheme.bodyText(
+                  color: AppTheme.textMuted,
+                  fontSize: 9.5,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
             Expanded(
               flex: 2,
               child: Text(
-                qwenStatus.length > 10 ? '${qwenStatus.substring(0, 9)}…' : qwenStatus,
+                qwenStatus.length > 10
+                    ? '${qwenStatus.substring(0, 9)}…'
+                    : qwenStatus,
                 style: TextStyle(
                   fontFamily: 'JetBrains Mono',
                   color: qwenColor,
@@ -897,7 +1079,10 @@ class _ModelLabScreenState extends State<ModelLabScreen>
             const SizedBox(height: 8),
             Text(
               detail,
-              style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 11.5),
+              style: AppTheme.bodyText(
+                color: AppTheme.textMuted,
+                fontSize: 11.5,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
@@ -922,9 +1107,11 @@ class _ModelLabScreenState extends State<ModelLabScreen>
           const SizedBox(height: 12),
           Text(title, style: AppTheme.headingSmall()),
           const SizedBox(height: 4),
-          Text(subtitle,
-              style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 11.5),
-              textAlign: TextAlign.center),
+          Text(
+            subtitle,
+            style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 11.5),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );

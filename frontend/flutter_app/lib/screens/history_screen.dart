@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:pharma_assist/core/theme.dart';
 import 'package:pharma_assist/models/scan_history_item.dart';
 import 'package:pharma_assist/screens/results_screen.dart';
 import 'package:pharma_assist/services/storage_service.dart';
+import 'package:pharma_assist/services/history_csv_exporter.dart';
 import 'package:pharma_assist/widgets/status_badge.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -19,8 +21,10 @@ class HistoryScreenState extends State<HistoryScreen> {
   List<ScanHistoryItem> _allHistory = [];
   List<ScanHistoryItem> _filteredHistory = [];
   String _searchQuery = '';
-  String _selectedFilter = 'ALL'; // ALL, AUTHENTIC, COUNTERFEIT, REVIEW, FAVORITES
+  String _selectedFilter =
+      'ALL'; // ALL, AUTHENTIC, COUNTERFEIT, REVIEW, FAVORITES
   bool _sortNewestFirst = true;
+  DateTimeRange? _dateRange;
 
   final TextEditingController _searchController = TextEditingController();
 
@@ -56,13 +60,38 @@ class HistoryScreenState extends State<HistoryScreen> {
     } else if (_selectedFilter == 'COUNTERFEIT') {
       list = list.where((item) => item.isLikelyCounterfeit).toList();
     } else if (_selectedFilter == 'REVIEW') {
-      list = list.where((item) => item.isSuspicious || item.needsHumanVerification).toList();
+      list = list
+          .where((item) => item.isSuspicious || item.needsHumanVerification)
+          .toList();
     } else if (_selectedFilter == 'FAVORITES') {
       final favs = widget.storage.getFavoriteIds();
       list = list.where((item) => favs.contains(item.id)).toList();
     }
 
     // Apply search query
+    if (_dateRange != null) {
+      final start = DateTime(
+        _dateRange!.start.year,
+        _dateRange!.start.month,
+        _dateRange!.start.day,
+      );
+      final end = DateTime(
+        _dateRange!.end.year,
+        _dateRange!.end.month,
+        _dateRange!.end.day,
+        23,
+        59,
+        59,
+        999,
+      );
+      list = list
+          .where(
+            (item) =>
+                !item.timestamp.isBefore(start) && !item.timestamp.isAfter(end),
+          )
+          .toList();
+    }
+
     if (_searchQuery.trim().isNotEmpty) {
       final q = _searchQuery.trim().toLowerCase();
       list = list.where((item) {
@@ -75,9 +104,11 @@ class HistoryScreenState extends State<HistoryScreen> {
     }
 
     // Sort order
-    list.sort((a, b) => _sortNewestFirst
-        ? b.timestamp.compareTo(a.timestamp)
-        : a.timestamp.compareTo(b.timestamp));
+    list.sort(
+      (a, b) => _sortNewestFirst
+          ? b.timestamp.compareTo(a.timestamp)
+          : a.timestamp.compareTo(b.timestamp),
+    );
 
     _filteredHistory = list;
   }
@@ -114,11 +145,11 @@ class HistoryScreenState extends State<HistoryScreen> {
         backgroundColor: AppTheme.elevatedCard,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: AppTheme.border),
+          side: BorderSide(color: AppTheme.border),
         ),
         title: Row(
           children: [
-            const Icon(Icons.compare_arrows, color: AppTheme.primaryCyan, size: 20),
+            Icon(Icons.compare_arrows, color: AppTheme.primaryCyan, size: 20),
             const SizedBox(width: 8),
             Text('Side-by-Side Comparison', style: AppTheme.headingSmall()),
           ],
@@ -133,14 +164,19 @@ class HistoryScreenState extends State<HistoryScreen> {
                 Text(
                   'Comparative analysis between two archived screening records. '
                   'Note: Visual screening comparison cannot establish identical chemical formulation.',
-                  style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 11),
+                  style: AppTheme.bodyText(
+                    color: AppTheme.textMuted,
+                    fontSize: 11,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Table(
                   border: TableBorder.all(color: AppTheme.border, width: 0.8),
                   children: [
                     TableRow(
-                      decoration: const BoxDecoration(color: AppTheme.secondaryBackground),
+                      decoration: BoxDecoration(
+                        color: AppTheme.secondaryBackground,
+                      ),
                       children: [
                         _tableCell('Metric', isHeader: true),
                         _tableCell(itemA.sampleId, isHeader: true),
@@ -164,8 +200,12 @@ class HistoryScreenState extends State<HistoryScreen> {
                     TableRow(
                       children: [
                         _tableCell('Primary Confidence'),
-                        _tableCell('${(itemA.confidence * 100).toStringAsFixed(1)}%'),
-                        _tableCell('${(itemB.confidence * 100).toStringAsFixed(1)}%'),
+                        _tableCell(
+                          '${(itemA.confidence * 100).toStringAsFixed(1)}%',
+                        ),
+                        _tableCell(
+                          '${(itemB.confidence * 100).toStringAsFixed(1)}%',
+                        ),
                       ],
                     ),
                     TableRow(
@@ -185,8 +225,12 @@ class HistoryScreenState extends State<HistoryScreen> {
                     TableRow(
                       children: [
                         _tableCell('Inspection Date'),
-                        _tableCell(DateFormat('yyyy-MM-dd').format(itemA.timestamp)),
-                        _tableCell(DateFormat('yyyy-MM-dd').format(itemB.timestamp)),
+                        _tableCell(
+                          DateFormat('yyyy-MM-dd').format(itemA.timestamp),
+                        ),
+                        _tableCell(
+                          DateFormat('yyyy-MM-dd').format(itemB.timestamp),
+                        ),
                       ],
                     ),
                   ],
@@ -220,14 +264,7 @@ class HistoryScreenState extends State<HistoryScreen> {
   }
 
   void _exportHistoryCsv() {
-    final buffer = StringBuffer();
-    buffer.writeln('ID,Sample_ID,Medicine_Name,Verdict,Confidence_Pct,Primary_Model,Human_Review_Required,Timestamp,Notes');
-    for (final item in _filteredHistory) {
-      final conf = (item.confidence * 100).toStringAsFixed(1);
-      final notes = (item.notes ?? '').replaceAll(',', ' ');
-      final med = (item.medicineName ?? '').replaceAll(',', ' ');
-      buffer.writeln('${item.id},${item.sampleId},$med,${item.finalResult},$conf,${item.primaryModel},${item.needsHumanVerification},${item.timestamp.toIso8601String()},$notes');
-    }
+    final csv = HistoryCsvExporter.encode(_filteredHistory);
 
     showDialog(
       context: context,
@@ -235,11 +272,15 @@ class HistoryScreenState extends State<HistoryScreen> {
         backgroundColor: AppTheme.elevatedCard,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: AppTheme.border),
+          side: BorderSide(color: AppTheme.border),
         ),
         title: Row(
           children: [
-            const Icon(Icons.file_download_outlined, color: AppTheme.primaryCyan, size: 20),
+            Icon(
+              Icons.file_download_outlined,
+              color: AppTheme.primaryCyan,
+              size: 20,
+            ),
             const SizedBox(width: 8),
             Text('Exported History CSV', style: AppTheme.headingSmall()),
           ],
@@ -252,7 +293,10 @@ class HistoryScreenState extends State<HistoryScreen> {
             children: [
               Text(
                 'Metadata export of ${_filteredHistory.length} inspection records. No images embedded for privacy protection.',
-                style: AppTheme.bodyText(color: AppTheme.textSecondary, fontSize: 11.5),
+                style: AppTheme.bodyText(
+                  color: AppTheme.textSecondary,
+                  fontSize: 11.5,
+                ),
               ),
               const SizedBox(height: 10),
               Container(
@@ -265,8 +309,11 @@ class HistoryScreenState extends State<HistoryScreen> {
                 ),
                 child: SingleChildScrollView(
                   child: SelectableText(
-                    buffer.toString(),
-                    style: AppTheme.monoNumeric(fontSize: 10, color: AppTheme.textSecondary),
+                    csv,
+                    style: AppTheme.monoNumeric(
+                      fontSize: 10,
+                      color: AppTheme.textSecondary,
+                    ),
                   ),
                 ),
               ),
@@ -274,7 +321,23 @@ class HistoryScreenState extends State<HistoryScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Close')),
+          TextButton.icon(
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(ctx);
+              await Clipboard.setData(ClipboardData(text: csv));
+              if (!ctx.mounted) return;
+              Navigator.of(ctx).pop();
+              messenger.showSnackBar(
+                const SnackBar(content: Text('CSV copied to clipboard')),
+              );
+            },
+            icon: const Icon(Icons.copy_outlined),
+            label: const Text('Copy CSV'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Close'),
+          ),
         ],
       ),
     );
@@ -287,12 +350,15 @@ class HistoryScreenState extends State<HistoryScreen> {
         backgroundColor: AppTheme.elevatedCard,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: AppTheme.border),
+          side: BorderSide(color: AppTheme.border),
         ),
         title: Text('Delete Record?', style: AppTheme.headingSmall()),
         content: Text(
           'Permanently remove inspection record "${item.sampleId}" from device memory?',
-          style: AppTheme.bodyText(color: AppTheme.textSecondary, fontSize: 12.5),
+          style: AppTheme.bodyText(
+            color: AppTheme.textSecondary,
+            fontSize: 12.5,
+          ),
         ),
         actions: [
           TextButton(
@@ -333,7 +399,7 @@ class HistoryScreenState extends State<HistoryScreen> {
           children: [
             _buildSearchAndFilters(),
             if (_selectedForComparison.isNotEmpty) _buildComparisonBar(),
-            const Divider(height: 1, color: AppTheme.border),
+            Divider(height: 1, color: AppTheme.border),
             Expanded(
               child: _filteredHistory.isEmpty
                   ? _buildEmptyState()
@@ -358,19 +424,31 @@ class HistoryScreenState extends State<HistoryScreen> {
               borderRadius: BorderRadius.circular(6),
               border: Border.all(color: AppTheme.border),
             ),
-            child: const Icon(Icons.history, color: AppTheme.primaryCyan, size: 16),
+            child: Icon(Icons.history, color: AppTheme.primaryCyan, size: 16),
           ),
           const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Inspection Records', style: AppTheme.headingSmall()),
-              Text(
-                '${_allHistory.length} local records preserved',
-                style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 9.5),
-              ),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Inspection Records',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.headingSmall(),
+                ),
+                Text(
+                  '${_allHistory.length} local records preserved',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.bodyText(
+                    color: AppTheme.textMuted,
+                    fontSize: 9.5,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -382,7 +460,9 @@ class HistoryScreenState extends State<HistoryScreen> {
         ),
         IconButton(
           icon: Icon(_sortNewestFirst ? Icons.south : Icons.north, size: 18),
-          tooltip: _sortNewestFirst ? 'Sort: Newest First' : 'Sort: Oldest First',
+          tooltip: _sortNewestFirst
+              ? 'Sort: Newest First'
+              : 'Sort: Oldest First',
           onPressed: () {
             setState(() {
               _sortNewestFirst = !_sortNewestFirst;
@@ -404,12 +484,15 @@ class HistoryScreenState extends State<HistoryScreen> {
       color: AppTheme.secondaryBackground,
       child: Row(
         children: [
-          const Icon(Icons.compare_arrows, size: 16, color: AppTheme.primaryCyan),
+          Icon(Icons.compare_arrows, size: 16, color: AppTheme.primaryCyan),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               '${_selectedForComparison.length}/2 records selected for comparison',
-              style: AppTheme.bodyText(color: AppTheme.textSecondary, fontSize: 11),
+              style: AppTheme.bodyText(
+                color: AppTheme.textSecondary,
+                fontSize: 11,
+              ),
             ),
           ),
           if (_selectedForComparison.length == 2)
@@ -418,14 +501,20 @@ class HistoryScreenState extends State<HistoryScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryCyan,
                 foregroundColor: const Color(0xFF0B1020),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 minimumSize: const Size(60, 32),
               ),
-              child: const Text('Compare', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+              child: const Text(
+                'Compare',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+              ),
             ),
           const SizedBox(width: 6),
           IconButton(
-            icon: const Icon(Icons.close, size: 16, color: AppTheme.textMuted),
+            icon: Icon(Icons.close, size: 16, color: AppTheme.textMuted),
             onPressed: () => setState(() => _selectedForComparison.clear()),
           ),
         ],
@@ -449,14 +538,23 @@ class HistoryScreenState extends State<HistoryScreen> {
                   _applyFilters();
                 });
               },
-              style: const TextStyle(fontSize: 12.5, color: AppTheme.textPrimary),
+              style: TextStyle(fontSize: 12.5, color: AppTheme.textPrimary),
               decoration: InputDecoration(
-                hintText: 'Search by sample ID, brand name, notes, or verdict...',
-                hintStyle: const TextStyle(fontSize: 11.5, color: AppTheme.textMuted),
-                prefixIcon: const Icon(Icons.search, size: 16, color: AppTheme.textMuted),
+                hintText:
+                    'Search by sample ID, brand name, notes, or verdict...',
+                hintStyle: TextStyle(fontSize: 11.5, color: AppTheme.textMuted),
+                prefixIcon: Icon(
+                  Icons.search,
+                  size: 16,
+                  color: AppTheme.textMuted,
+                ),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear, size: 14, color: AppTheme.textMuted),
+                        icon: Icon(
+                          Icons.clear,
+                          size: 14,
+                          color: AppTheme.textMuted,
+                        ),
                         onPressed: () {
                           _searchController.clear();
                           setState(() {
@@ -466,7 +564,10 @@ class HistoryScreenState extends State<HistoryScreen> {
                         },
                       )
                     : null,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 0,
+                ),
               ),
             ),
           ),
@@ -475,6 +576,26 @@ class HistoryScreenState extends State<HistoryScreen> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
+                ActionChip(
+                  avatar: const Icon(Icons.calendar_month_outlined, size: 16),
+                  label: Text(
+                    _dateRange == null
+                        ? 'Dates'
+                        : '${DateFormat('MMM d').format(_dateRange!.start)}–${DateFormat('MMM d').format(_dateRange!.end)}',
+                  ),
+                  onPressed: _chooseDateRange,
+                ),
+                if (_dateRange != null)
+                  IconButton(
+                    tooltip: 'Clear date filter',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => setState(() {
+                      _dateRange = null;
+                      _applyFilters();
+                    }),
+                    icon: const Icon(Icons.close, size: 16),
+                  ),
+                const SizedBox(width: 4),
                 _filterChip('ALL', 'All (${_allHistory.length})'),
                 const SizedBox(width: 6),
                 _filterChip(
@@ -508,6 +629,23 @@ class HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  Future<void> _chooseDateRange() async {
+    final now = DateTime.now();
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(now.year + 1),
+      initialDateRange: _dateRange,
+      helpText: 'Filter screening dates',
+    );
+    if (range != null && mounted) {
+      setState(() {
+        _dateRange = range;
+        _applyFilters();
+      });
+    }
+  }
+
   Widget _filterChip(String id, String label, {Color? color}) {
     final bool isSelected = _selectedFilter == id;
 
@@ -522,16 +660,22 @@ class HistoryScreenState extends State<HistoryScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: isSelected ? (color?.withValues(alpha: 0.2) ?? AppTheme.surfaceHighlight) : AppTheme.elevatedCard,
+          color: isSelected
+              ? (color?.withValues(alpha: 0.2) ?? AppTheme.surfaceHighlight)
+              : AppTheme.elevatedCard,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
-            color: isSelected ? (color ?? AppTheme.primaryCyan) : AppTheme.border,
+            color: isSelected
+                ? (color ?? AppTheme.primaryCyan)
+                : AppTheme.border,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? (color ?? AppTheme.primaryCyan) : AppTheme.textSecondary,
+            color: isSelected
+                ? (color ?? AppTheme.primaryCyan)
+                : AppTheme.textSecondary,
             fontSize: 11,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
           ),
@@ -555,11 +699,17 @@ class HistoryScreenState extends State<HistoryScreen> {
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: AppTheme.border),
               ),
-              child: const Icon(Icons.inventory_2_outlined, size: 28, color: AppTheme.textMuted),
+              child: Icon(
+                Icons.inventory_2_outlined,
+                size: 28,
+                color: AppTheme.textMuted,
+              ),
             ),
             const SizedBox(height: 16),
             Text(
-              _searchQuery.isNotEmpty ? 'No Matching Records Found' : 'No Inspection Records',
+              _searchQuery.isNotEmpty
+                  ? 'No Matching Records Found'
+                  : 'No Inspection Records',
               style: AppTheme.headingSmall(),
             ),
             const SizedBox(height: 6),
@@ -567,7 +717,10 @@ class HistoryScreenState extends State<HistoryScreen> {
               _searchQuery.isNotEmpty
                   ? 'Try adjusting your search query, filter chips, or date sorting.'
                   : 'Completed field screenings will be preserved in this local archive.',
-              style: AppTheme.bodyText(color: AppTheme.textSecondary, fontSize: 12),
+              style: AppTheme.bodyText(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -584,9 +737,15 @@ class HistoryScreenState extends State<HistoryScreen> {
       itemCount: _filteredHistory.length,
       itemBuilder: (context, index) {
         final item = _filteredHistory[index];
-        final double normConf = item.confidence <= 1.0 ? item.confidence * 100 : item.confidence;
+        final double normConf = item.confidence <= 1.0
+            ? item.confidence * 100
+            : item.confidence;
         final bool isFav = widget.storage.isFavorite(item.id);
         final bool isSelected = _selectedForComparison.contains(item.id);
+        final String historyLabel =
+            item.isSuspicious || item.needsHumanVerification
+            ? 'NEEDS REVIEW'
+            : item.prediction;
 
         final Color stripColor = item.isLikelyAuthentic
             ? AppTheme.success
@@ -612,10 +771,15 @@ class HistoryScreenState extends State<HistoryScreen> {
                   style: AppTheme.bodyText(fontSize: 12.5),
                 ),
                 actions: [
-                  TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                    child: const Text('Cancel'),
+                  ),
                   ElevatedButton(
                     onPressed: () => Navigator.of(ctx).pop(true),
-                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.error,
+                    ),
                     child: const Text('Delete'),
                   ),
                 ],
@@ -629,7 +793,9 @@ class HistoryScreenState extends State<HistoryScreen> {
           child: Container(
             margin: const EdgeInsets.only(bottom: 8),
             decoration: BoxDecoration(
-              color: isSelected ? AppTheme.surfaceHighlight : AppTheme.elevatedCard,
+              color: isSelected
+                  ? AppTheme.surfaceHighlight
+                  : AppTheme.elevatedCard,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: isSelected ? AppTheme.primaryCyan : AppTheme.border,
@@ -656,78 +822,128 @@ class HistoryScreenState extends State<HistoryScreen> {
                     : null,
                 child: Padding(
                   padding: const EdgeInsets.all(12),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Container(
-                        width: 3.5,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: stripColor,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 3.5,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: stripColor,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(item.sampleId, style: AppTheme.monoNumeric(fontSize: 12.5)),
-                                if (item.medicineName != null && item.medicineName!.isNotEmpty) ...[
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      '· ${item.medicineName}',
-                                      style: AppTheme.bodyText(color: AppTheme.textSecondary, fontSize: 11.5),
-                                      overflow: TextOverflow.ellipsis,
+                                Text(
+                                  item.sampleId,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTheme.monoNumeric(fontSize: 12.5),
+                                ),
+                                if (item.medicineName != null &&
+                                    item.medicineName!.isNotEmpty)
+                                  Text(
+                                    item.medicineName!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTheme.bodyText(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 11.5,
                                     ),
                                   ),
-                                ],
+                                const SizedBox(height: 2),
+                                Text(
+                                  formatter.format(item.timestamp),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTheme.bodyText(
+                                    color: AppTheme.textMuted,
+                                    fontSize: 10.5,
+                                  ),
+                                ),
+                                Text(
+                                  item.finalResult,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTheme.bodyText(
+                                    color: AppTheme.textMuted,
+                                    fontSize: 10.5,
+                                  ),
+                                ),
                               ],
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${formatter.format(item.timestamp)} · ${item.finalResult}',
-                              style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 10.5),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 6),
-                      IconButton(
-                        icon: Icon(
-                          isFav ? Icons.bookmark : Icons.bookmark_border,
-                          size: 18,
-                          color: isFav ? AppTheme.softViolet : AppTheme.textMuted,
-                        ),
-                        tooltip: isFav ? 'Remove Bookmark' : 'Bookmark Record',
-                        onPressed: () => _toggleFavorite(item),
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          isSelected ? Icons.check_box : Icons.check_box_outline_blank,
-                          size: 18,
-                          color: isSelected ? AppTheme.primaryCyan : AppTheme.textMuted,
-                        ),
-                        tooltip: 'Select for Comparison',
-                        onPressed: () => _toggleComparisonSelection(item.id),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, size: 18, color: AppTheme.textMuted),
-                        tooltip: 'Delete Record',
-                        onPressed: () => _deleteItem(item),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                      const SizedBox(height: 2),
+                      Row(
                         children: [
                           Text(
                             '${normConf.toStringAsFixed(1)}%',
-                            style: AppTheme.monoNumeric(color: stripColor, fontSize: 12),
+                            style: AppTheme.monoNumeric(
+                              color: stripColor,
+                              fontSize: 12,
+                            ),
                           ),
-                          const SizedBox(height: 2),
-                          StatusBadge(statusText: item.prediction),
+                          const SizedBox(width: 6),
+                          StatusBadge(statusText: historyLabel),
+                          const Spacer(),
                         ],
+                      ),
+                      if (item.fullResponse != null) ...[
+                        const SizedBox(height: 6),
+                        _buildAiReviewSummary(item),
+                      ],
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                isFav ? Icons.bookmark : Icons.bookmark_border,
+                                size: 18,
+                                color: isFav
+                                    ? AppTheme.softViolet
+                                    : AppTheme.textMuted,
+                              ),
+                              tooltip: isFav
+                                  ? 'Remove Bookmark'
+                                  : 'Bookmark Record',
+                              onPressed: () => _toggleFavorite(item),
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                isSelected
+                                    ? Icons.check_box
+                                    : Icons.check_box_outline_blank,
+                                size: 18,
+                                color: isSelected
+                                    ? AppTheme.primaryCyan
+                                    : AppTheme.textMuted,
+                              ),
+                              tooltip: 'Select for Comparison',
+                              onPressed: () =>
+                                  _toggleComparisonSelection(item.id),
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.delete_outline,
+                                size: 18,
+                                color: AppTheme.textMuted,
+                              ),
+                              tooltip: 'Delete Record',
+                              onPressed: () => _deleteItem(item),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -737,6 +953,67 @@ class HistoryScreenState extends State<HistoryScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildAiReviewSummary(ScanHistoryItem item) {
+    final response = item.fullResponse!;
+    final qwen = response.qwen;
+    final String title = !response.secondaryExecuted
+        ? 'AI review not run'
+        : qwen.available
+        ? 'AI review: ${qwen.assessment}'
+        : 'AI review unavailable';
+    final String? detail = !response.secondaryExecuted
+        ? response.secondaryReason
+        : qwen.available
+        ? (qwen.finalExplanation ??
+              qwen.recommendation ??
+              qwen.reasoning.firstOrNull)
+        : (qwen.error ?? qwen.warning ?? response.secondaryReason);
+    final Color color = !response.secondaryExecuted
+        ? AppTheme.textMuted
+        : qwen.available
+        ? AppTheme.primaryCyan
+        : AppTheme.warning;
+    return Semantics(
+      label: detail == null || detail.isEmpty ? title : '$title. $detail',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+        decoration: BoxDecoration(
+          color: AppTheme.secondaryBackground,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.psychology_outlined, size: 16, color: color),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTheme.bodyText(color: color, fontSize: 10.5),
+                  ),
+                  if (detail != null && detail.isNotEmpty)
+                    Text(
+                      detail,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTheme.bodyText(
+                        color: AppTheme.textSecondary,
+                        fontSize: 10,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

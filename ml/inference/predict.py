@@ -52,7 +52,20 @@ def predict(
     # 1. Quality screening
     if quality_check:
         quality_res = check_image_quality(image_input)
-        if not quality_res.is_valid:
+        # A low Laplacian score is an imperfect blur heuristic: large, smooth
+        # blister packs and downsampled phone photos can score low even when
+        # the medicine is visible. Keep very poor images blocked, but allow a
+        # bounded blur-warning band through the classifier. The quality result
+        # remains invalid, so predict_pipeline still skips Qwen and the decision
+        # engine still forces manual review; this is only a provisional model
+        # suggestion and must never become the final screening verdict.
+        blur_only_warning = (
+            not quality_res.is_valid
+            and quality_res.reason is not None
+            and "excessive blur" in quality_res.reason.lower()
+            and quality_res.blur_score >= 10.0
+        )
+        if not quality_res.is_valid and not blur_only_warning:
             return {
                 "image_path": str(image_input) if isinstance(image_input, (str, Path)) else "in_memory",
                 "prediction": "UNKNOWN",
@@ -154,7 +167,7 @@ def predict_pipeline(
     2. EfficientNet-B0 primary neural classification
     3. Confidence-based gating policy:
        - < threshold (0.70): Suspicious / Needs Review (no automatic Qwen call)
-       - threshold <= confidence < high_threshold (0.70 - 0.8999): Qwen3-VL secondary visual verification
+       - threshold <= confidence < high_threshold (0.70 - 0.8999): Qwen Vision secondary visual verification
        - >= high_threshold (0.90): High-confidence fast path (Qwen skipped in auto mode)
        - vision_mode 'always': Force secondary vision verification
        - vision_mode 'never': Skip secondary vision verification
@@ -181,10 +194,11 @@ def predict_pipeline(
     quality_is_valid = quality.get("is_valid", True)
     primary_conf = float(primary_res.get("confidence", 0.0))
 
-    # 2. Determine whether to run Qwen3-VL Vision Verifier
+    # 2. Determine whether to run Qwen Vision Vision Verifier
     if not quality_is_valid:
         should_run_vision = False
-        secondary_reason = f"Skipped: image quality check failed ({primary_res.get('reason', 'poor quality')})"
+        quality_reason = quality.get("reason") or primary_res.get("reason") or "poor quality"
+        secondary_reason = f"Skipped: image quality check failed ({quality_reason})"
     elif norm_vision_mode == "never":
         should_run_vision = False
         secondary_reason = "Skipped: secondary verification disabled by vision mode 'never'"
@@ -229,7 +243,7 @@ def predict_pipeline(
                 "reasoning": [f"Secondary vision verification error: {exc}"],
                 "needs_human_verification": True,
                 "warning": "Secondary AI verification unavailable — result based on primary classifier.",
-                "model_name": getattr(vision_verifier, "model_name", "qwen3-vl:4b"),
+                "model_name": getattr(vision_verifier, "model_name", "qwen3.5:4b"),
                 "raw_text": "",
             }
 

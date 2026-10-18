@@ -110,7 +110,7 @@ class PredictionResponse(BaseModel):
     primary_model: str = Field("efficientnet_b0", description="Primary visual classifier architecture")
     prediction: str = Field(..., description="Screening prediction: AUTHENTIC, COUNTERFEIT, or UNKNOWN")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence of primary model")
-    qwen: QwenReviewDetails = Field(default_factory=QwenReviewDetails, description="Secondary AI vision verification review from qwen3-vl:4b")
+    qwen: QwenReviewDetails = Field(default_factory=QwenReviewDetails, description="Secondary AI vision verification review from local Qwen Vision")
     final_result: str = Field(..., description="Final synthesized verdict: LIKELY AUTHENTIC, LIKELY COUNTERFEIT, or SUSPICIOUS / NEEDS VERIFICATION")
     needs_human_verification: bool = Field(False, description="Whether manual physical verification is advised")
     warning: Optional[str] = Field(None, description="Operational or discrepancy warning message")
@@ -146,7 +146,7 @@ class HealthResponse(BaseModel):
     device: str
     default_model: str
     available_models: list[str] = Field(default_factory=lambda: AVAILABLE_MODELS)
-    secondary_ai_model: str = "qwen3-vl:4b"
+    secondary_ai_model: str = "qwen3.5:4b"
     secondary_ai_endpoint: str = "http://localhost:11434"
 
 
@@ -172,7 +172,7 @@ class ModelsListResponse(BaseModel):
 class QwenHealthResponse(BaseModel):
     status: str = "READY"  # READY, OLLAMA_UNREACHABLE, MODEL_NOT_INSTALLED, ERROR
     available: bool = True
-    model_name: str = "qwen3-vl:4b"
+    model_name: str = "qwen3.5:4b"
     base_url: str = "http://localhost:11434"
     installed_models: list[str] = Field(default_factory=list)
     message: str = "Qwen Vision secondary review is ready."

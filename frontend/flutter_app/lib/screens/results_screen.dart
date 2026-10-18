@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pharma_assist/core/theme.dart';
@@ -27,7 +28,8 @@ class ResultsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveSampleId = sampleId ??
+    final effectiveSampleId =
+        sampleId ??
         'SMP-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
 
     return Scaffold(
@@ -65,24 +67,34 @@ class ResultsScreen extends StatelessWidget {
             ],
 
             // 4. Warning Box if present
-            if (result.warning != null && result.warning!.trim().isNotEmpty) ...[
+            if (result.warning != null &&
+                result.warning!.trim().isNotEmpty) ...[
               const SizedBox(height: 12),
               _buildWarningBox(result.warning!),
             ],
 
             // 5. Primary Confidence Gauge
             const SizedBox(height: 16),
-            ConfidenceGauge(
-              confidence: result.confidence,
-              authenticProb: result.authenticProbability,
-              counterfeitProb: result.counterfeitProbability,
-            ),
+            if (result.prediction == 'UNKNOWN')
+              _buildInferenceNotRunCard()
+            else ...[
+              ConfidenceGauge(
+                confidence: result.confidence,
+                authenticProb: result.authenticProbability,
+                counterfeitProb: result.counterfeitProbability,
+                provisional: result.quality != null && !result.quality!.isValid,
+              ),
+              if (result.quality != null && !result.quality!.isValid) ...[
+                const SizedBox(height: 8),
+                _buildProvisionalPredictionNotice(),
+              ],
+            ],
 
             // 6. Pipeline Summary Card
             const SizedBox(height: 12),
             _buildPipelineSummary(),
 
-            // 7. Secondary AI Review (Qwen3-VL)
+            // 7. Secondary AI Review (Qwen Vision)
             const SizedBox(height: 6),
             _buildQwenCard(),
 
@@ -115,10 +127,12 @@ class ResultsScreen extends StatelessWidget {
 
   Widget _buildOutcomeBanner() {
     final String verdict = result.finalResult.toUpperCase();
-    final bool isAuthentic = verdict.contains('AUTHENTIC') &&
+    final bool isAuthentic =
+        verdict.contains('AUTHENTIC') &&
         !verdict.contains('SUSPICIOUS') &&
         !verdict.contains('VERIFICATION');
-    final bool isCounterfeit = verdict.contains('COUNTERFEIT') &&
+    final bool isCounterfeit =
+        verdict.contains('COUNTERFEIT') &&
         !verdict.contains('SUSPICIOUS') &&
         !verdict.contains('VERIFICATION');
 
@@ -133,32 +147,29 @@ class ResultsScreen extends StatelessWidget {
       outcomeBg = AppTheme.authenticBg;
       outcomeIcon = Icons.verified_outlined;
       outcomeHeader = 'SCREENING INDICATES AUTHENTIC';
-      outcomeSubtitle =
-          'Optical and convolutional surface patterns match authentic reference models. '
-          'Notice: Preliminary optical triage only; does not certify chemical purity or API bioequivalence.';
+      outcomeSubtitle = 'The main model found visual patterns that resemble its reference examples. This is a screening estimate, not proof that the medicine is genuine or safe.';
     } else if (isCounterfeit) {
       outcomeColor = AppTheme.counterfeitRed;
       outcomeBg = AppTheme.counterfeitBg;
       outcomeIcon = Icons.gpp_bad_outlined;
       outcomeHeader = 'SCREENING INDICATES COUNTERFEIT';
-      outcomeSubtitle =
-          'Optical irregularities, imprint deviations, or classifier confidence indicate potential adulteration. '
-          'Immediately quarantine sample from dispensing supply chain and submit for laboratory testing.';
+      outcomeSubtitle = 'The model found visual patterns that need checking. Do not take or discard the medicine based only on this result. Keep its packaging and ask a pharmacist or health authority to inspect it.';
     } else {
       outcomeColor = AppTheme.suspiciousAmber;
       outcomeBg = AppTheme.suspiciousBg;
       outcomeIcon = Icons.warning_amber_rounded;
       outcomeHeader = 'INCONCLUSIVE · MANUAL REVIEW REQUIRED';
-      outcomeSubtitle =
-          'Borderline confidence score, conflicting secondary review, or optical variances detected. '
-          'Visual automated screening cannot provide conclusive clearance. Laboratory testing required.';
+      outcomeSubtitle = 'This screening could not reach a clear result. A pharmacist or appropriate health authority should check the product.';
     }
 
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.cardColor,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: outcomeColor.withValues(alpha: 0.6), width: 1.2),
+        border: Border.all(
+          color: outcomeColor.withValues(alpha: 0.6),
+          width: 1.2,
+        ),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -210,8 +221,8 @@ class ResultsScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'FINAL VERDICT LABEL',
+                          Text(
+                            'OVERALL SCREENING RESULT',
                             style: TextStyle(
                               color: AppTheme.textMuted,
                               fontSize: 9,
@@ -230,7 +241,14 @@ class ResultsScreen extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 6),
-                          StatusBadge(statusText: result.prediction),
+                          Text(
+                            '${result.quality != null && !result.quality!.isValid ? 'Preliminary model suggestion' : 'Main model prediction'}: ${_plainPrediction(result.prediction)}',
+                            style: TextStyle(
+                              color: outcomeColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -239,7 +257,7 @@ class ResultsScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   outcomeSubtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 11.5,
                     height: 1.4,
@@ -249,7 +267,7 @@ class ResultsScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   Container(height: 1, color: AppTheme.border),
                   const SizedBox(height: 10),
-                  const Text(
+                  Text(
                     'DECISION RATIONALE:',
                     style: TextStyle(
                       color: AppTheme.textMuted,
@@ -277,7 +295,7 @@ class ResultsScreen extends StatelessWidget {
                           Expanded(
                             child: Text(
                               r,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppTheme.textPrimary,
                                 fontSize: 11.5,
                                 height: 1.35,
@@ -316,7 +334,7 @@ class ResultsScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'SAMPLE SPECIFICATIONS',
                 style: TextStyle(
                   color: AppTheme.textMuted,
@@ -327,7 +345,7 @@ class ResultsScreen extends StatelessWidget {
               ),
               Text(
                 timeStr,
-                style: const TextStyle(color: AppTheme.textMuted, fontSize: 10),
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 10),
               ),
             ],
           ),
@@ -347,14 +365,23 @@ class ResultsScreen extends StatelessWidget {
   // ── Human Review Alert ──────────────────────────────────────────────────────
 
   Widget _buildHumanReviewAlert() {
+    final qualityFailed = result.quality != null && !result.quality!.isValid;
+    final title = qualityFailed
+        ? 'Retake photo before relying on this result'
+        : 'Ask a pharmacist to review this result';
+    final message = qualityFailed
+        ? 'The photo did not pass the sharpness check, so this screening is inconclusive. Retake it in bright, even light with the medicine in focus. Do not take or discard the medicine based only on this app.'
+        : 'This is a visual screening estimate, not proof of authenticity or safety. Do not take or discard the medicine based only on this app; ask a pharmacist or health authority to check it.';
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppTheme.suspiciousBg,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppTheme.suspiciousAmber.withValues(alpha: 0.6)),
+        border: Border.all(
+          color: AppTheme.suspiciousAmber.withValues(alpha: 0.6),
+        ),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(Icons.flag_outlined, color: AppTheme.suspiciousAmber, size: 20),
@@ -364,7 +391,7 @@ class ResultsScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Physical Laboratory Verification Required',
+                  title,
                   style: TextStyle(
                     color: AppTheme.suspiciousAmber,
                     fontSize: 12,
@@ -373,8 +400,7 @@ class ResultsScreen extends StatelessWidget {
                 ),
                 SizedBox(height: 3),
                 Text(
-                  'This sample triggered the conservative safety rule due to low primary confidence, '
-                  'secondary vision disagreement, or image quality variances. Quarantine the lot and submit for spectrometry.',
+                  message,
                   style: TextStyle(
                     color: Color(0xFFFED7AA),
                     fontSize: 11,
@@ -397,12 +423,18 @@ class ResultsScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1E1500),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppTheme.suspiciousAmber.withValues(alpha: 0.4)),
+        border: Border.all(
+          color: AppTheme.suspiciousAmber.withValues(alpha: 0.4),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline, color: AppTheme.suspiciousAmber, size: 16),
+          const Icon(
+            Icons.info_outline,
+            color: AppTheme.suspiciousAmber,
+            size: 16,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -432,8 +464,8 @@ class ResultsScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'PIPELINE EXECUTION TRACE',
+          Text(
+            'HOW THIS SCREENING RAN',
             style: TextStyle(
               color: AppTheme.textMuted,
               fontSize: 9.5,
@@ -442,12 +474,19 @@ class ResultsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          _detailRow('Primary Classifier', result.primaryModel),
-          _detailRow('Primary Prediction', result.prediction),
-          _detailRow('Confidence Threshold', '${(result.threshold * 100).toStringAsFixed(0)}%'),
+          _detailRow('Main model', 'Fine-tuned EfficientNet-B0'),
+          _detailRow('Model prediction', _plainPrediction(result.prediction)),
           _detailRow(
-            'Secondary Executed',
-            result.secondaryExecuted ? 'Yes (Qwen3-VL:4b)' : 'No (Fast Path / Skipped)',
+            'Review threshold',
+            '${(result.threshold * 100).toStringAsFixed(0)}%',
+          ),
+          _detailRow(
+            'Additional AI review',
+            result.secondaryExecuted
+                ? (result.qwen.available
+                      ? 'Completed'
+                      : 'Tried, but unavailable')
+                : 'Not run',
           ),
           if (result.secondaryReason != null)
             _detailRow('Gating Reason', result.secondaryReason!),
@@ -462,64 +501,166 @@ class ResultsScreen extends StatelessWidget {
     );
   }
 
-  // ── Qwen3-VL Secondary Review ───────────────────────────────────────────────
+  // ── Qwen Vision Secondary Review ───────────────────────────────────────────────
 
   Widget _buildQwenCard() {
     final qwen = result.qwen;
-    final String qwenStatus = qwen.available ? qwen.assessment : 'UNAVAILABLE';
+    final attempted = result.secondaryExecuted;
+    final status = !attempted
+        ? 'NOT RUN'
+        : qwen.available
+        ? qwen.assessment
+        : 'UNAVAILABLE';
+    final subtitle = !attempted
+        ? 'Not run for this image'
+        : qwen.available
+        ? 'Review completed'
+        : 'Review attempted but unavailable';
+    final explanation = !attempted
+        ? _plainReviewReason(result.secondaryReason)
+        : qwen.available
+        ? 'This is a supporting visual review. It cannot confirm medicine ingredients or safety.'
+        : (qwen.error ??
+              qwen.warning ??
+              'The review service did not return a result. Check the backend AI service and try again.');
 
     return ExpandableCard(
-      title: 'Secondary AI Review (Qwen3-VL)',
-      subtitle: qwen.available
-          ? 'Qwen3-VL:4b · Assessment: ${qwen.assessment}'
-          : 'Qwen3-VL · Service Offline or Skipped',
+      title: 'Optional AI visual review',
+      subtitle: subtitle,
       icon: Icons.remove_red_eye_outlined,
-      trailingBadge: StatusBadge(statusText: qwenStatus),
+      trailingBadge: StatusBadge(statusText: status),
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _detailRow('Model', qwen.modelName ?? 'qwen3-vl:4b'),
-          _detailRow('Service Availability', qwen.available ? 'Online' : 'Offline / Skipped'),
-          _detailRow('Visual Assessment', qwen.assessment),
-          _detailRow('Visual Confidence', qwen.confidenceDisplay),
-          if (qwen.recommendation != null)
-            _detailRow('Recommendation', qwen.recommendation!),
-          if (qwen.imageQuality != null)
-            _detailRow('Image Quality', qwen.imageQuality!),
-          if (qwen.tabletShape != null)
-            _detailRow('Detected Shape', qwen.tabletShape!),
-          if (qwen.tabletColor != null)
-            _detailRow('Detected Color', qwen.tabletColor!),
-          if (qwen.tabletSurface != null)
-            _detailRow('Surface Condition', qwen.tabletSurface!),
-          if (qwen.tabletMarkings != null)
-            _detailRow('Markings & Imprints', qwen.tabletMarkings!),
-          if (qwen.tabletEdges != null)
-            _detailRow('Edge Integrity', qwen.tabletEdges!),
-          if (qwen.reasoning.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            const Text(
-              'REASONING POINTS:',
-              style: TextStyle(color: AppTheme.textMuted, fontSize: 9.5, fontWeight: FontWeight.w700),
+          Text(
+            explanation,
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 11.5,
+              height: 1.4,
             ),
-            const SizedBox(height: 4),
-            ...qwen.reasoning.map(
-              (pt) => Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text('• $pt', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11, height: 1.35)),
+          ),
+          if (attempted)
+            _detailRow(
+              'AI service',
+              qwen.available ? 'Connected' : 'Not responding',
+            ),
+          if (attempted && qwen.available) ...[
+            _detailRow('AI visual opinion', _plainPrediction(qwen.assessment)),
+            _detailRow('AI confidence', qwen.confidenceDisplay),
+            if (qwen.recommendation != null)
+              _detailRow('Recommendation', qwen.recommendation!),
+            if (qwen.tabletShape != null)
+              _detailRow('Observed shape', qwen.tabletShape!),
+            if (qwen.tabletColor != null)
+              _detailRow('Observed color', qwen.tabletColor!),
+            if (qwen.tabletSurface != null)
+              _detailRow('Surface appearance', qwen.tabletSurface!),
+            if (qwen.tabletMarkings != null)
+              _detailRow('Visible markings', qwen.tabletMarkings!),
+            if (qwen.tabletEdges != null)
+              _detailRow('Visible edges', qwen.tabletEdges!),
+            if (qwen.reasoning.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'WHAT THE AI NOTICED',
+                style: TextStyle(
+                  color: AppTheme.textMuted,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
-          ],
-          if (qwen.finalExplanation != null && qwen.finalExplanation!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              qwen.finalExplanation!,
-              style: const TextStyle(color: AppTheme.textMuted, fontSize: 10.5, fontStyle: FontStyle.italic),
-            ),
+              ...qwen.reasoning
+                  .take(4)
+                  .map(
+                    (point) => Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '- $point',
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 11,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ),
+            ],
           ],
         ],
       ),
     );
+  }
+
+  Widget _buildInferenceNotRunCard() => Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: AppTheme.suspiciousBg,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(
+        color: AppTheme.suspiciousAmber.withValues(alpha: .45),
+      ),
+    ),
+    child: Text(
+      'The photo did not pass the image-quality check, so the main model did not make a prediction. No confidence score is available. Retake the photo using the guide on the scan screen.',
+      style: TextStyle(
+        color: AppTheme.textSecondary,
+        fontSize: 12,
+        height: 1.45,
+      ),
+    ),
+  );
+
+  Widget _buildProvisionalPredictionNotice() => Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: AppTheme.suspiciousBg,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(
+        color: AppTheme.suspiciousAmber.withValues(alpha: .45),
+      ),
+    ),
+    child: Text(
+      'The model was able to inspect the photo, but it did not pass the sharpness check. Treat this suggestion and score as unreliable; the overall result remains inconclusive. Retake the photo in bright, even light and keep the medicine in focus.',
+      style: TextStyle(
+        color: AppTheme.textSecondary,
+        fontSize: 12,
+        height: 1.45,
+      ),
+    ),
+  );
+
+  String _plainPrediction(String value) {
+    switch (value.toUpperCase()) {
+      case 'AUTHENTIC':
+        return 'likely authentic';
+      case 'COUNTERFEIT':
+        return 'possible counterfeit';
+      case 'UNKNOWN':
+        return 'no prediction made';
+      default:
+        return value.toLowerCase().replaceAll('_', ' ');
+    }
+  }
+
+  String _plainReviewReason(String? reason) {
+    if (reason == null || reason.isEmpty) {
+      return 'The review policy did not request an additional AI opinion for this scan.';
+    }
+    final lower = reason.toLowerCase();
+    if (lower.contains('high-confidence')) {
+      return 'Not needed: the main model result is above the configured review threshold.';
+    }
+    if (lower.contains('low primary confidence')) {
+      return 'Not run: the main model result already requires a person to check the medicine.';
+    }
+    if (lower.contains('quality check failed')) {
+      return 'Not run because the photo did not pass the image-quality check.';
+    }
+    if (lower.contains("vision mode 'never'")) {
+      return 'Turned off in screening settings.';
+    }
+    return reason.replaceFirst(RegExp(r'^(Skipped|Executed):\s*'), '');
   }
 
   // ── OpenCV Visual Analysis ──────────────────────────────────────────────────
@@ -528,28 +669,39 @@ class ResultsScreen extends StatelessWidget {
     final v = result.visualAnalysis!;
 
     return ExpandableCard(
-      title: 'Deterministic Feature Inspection',
-      subtitle: 'OpenCV color centroid & contour analysis',
+      title: 'What the photo analysis noticed',
+      subtitle: 'Visible appearance only; lighting and camera angle can change what is seen.',
       icon: Icons.pattern_outlined,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (v.color != null) ...[
-            _sectionLabel('COLOR CENTROIDS'),
+            _sectionLabel('APPROXIMATE PHOTO COLORS'),
             if (v.color!.dominantColor != null)
-              _detailRow('Dominant Color', v.color!.dominantColor!),
+              _detailRow('Main visible colors', v.color!.dominantColor!),
             if (v.color!.consistency != null)
-              _detailRow('Consistency', v.color!.consistency!),
-            if (v.color!.averageRgb != null)
-              _detailRow('Average RGB', v.color!.averageRgb!.map((e) => e.toStringAsFixed(1)).join(', ')),
+              _detailRow(
+                'Color appearance',
+                v.color!.consistency == 'MULTI-COLORED'
+                    ? 'More than one main color'
+                    : v.color!.consistency!.toLowerCase(),
+              ),
+            if (v.color!.visibleVariation != null)
+              Text(
+                v.color!.visibleVariation!,
+                style: TextStyle(
+                  color: AppTheme.textMuted,
+                  fontSize: 10.5,
+                  height: 1.4,
+                ),
+              ),
           ],
           if (v.shape != null) ...[
             const SizedBox(height: 8),
-            _sectionLabel('GEOMETRY & CONTOURS'),
+            _sectionLabel('VISIBLE SHAPE'),
             if (v.shape!.shapeType != null)
-              _detailRow('Shape', v.shape!.shapeType!),
-            if (v.shape!.circularity != null)
-              _detailRow('Circularity', v.shape!.circularity!.toStringAsFixed(3)),
+              _detailRow('Approximate shape', v.shape!.shapeType!),
+
             if (v.shape!.symmetry != null)
               _detailRow('Symmetry', v.shape!.symmetry!),
           ],
@@ -582,26 +734,43 @@ class ResultsScreen extends StatelessWidget {
 
   Widget _buildQualityCard() {
     final q = result.quality!;
-
     return ExpandableCard(
-      title: 'Image Quality Assessment',
-      subtitle: q.isValid ? 'Passed sharpness & exposure criteria' : 'Quality checks flagged',
+      title: 'Photo quality',
+      subtitle: q.isValid
+          ? 'Clear enough for this screening check'
+          : 'Retake the photo before relying on a screening result',
       icon: Icons.high_quality_outlined,
       trailingBadge: _qualityBadge(q.isValid),
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _detailRow('Resolution Dimensions', '${q.dimensions.join("×")} px (min 64×64)'),
-          _detailRow('Laplacian Variance (Blur)', '${q.blurScore.toStringAsFixed(1)} (min 50.0)'),
-          _detailRow('Mean Brightness Exposure', '${q.brightnessMean.toStringAsFixed(1)} (range 15-245)'),
-          if (q.contrast != null)
-            _detailRow('RMS Contrast Metric', q.contrast!.toStringAsFixed(1)),
-          if (q.sharpnessStatus != null)
-            _detailRow('Sharpness Classification', q.sharpnessStatus!),
-          if (q.exposureStatus != null)
-            _detailRow('Exposure Status', q.exposureStatus!),
+          _detailRow('Image size', '${q.dimensions.join(' x ')} pixels'),
+          _detailRow(
+            'Photo sharpness',
+            '${q.blurScore.toStringAsFixed(1)} (minimum 50; higher is clearer)',
+          ),
+          _detailRow(
+            'Photo lighting',
+            '${q.brightnessMean.toStringAsFixed(1)} (acceptable range 15 to 245)',
+          ),
           if (q.reason != null && q.reason!.isNotEmpty)
-            _detailRow('Quality Flag Reason', q.reason!, valueColor: AppTheme.counterfeitRed),
+            _detailRow(
+              'What needs attention',
+              q.reason!,
+              valueColor: AppTheme.counterfeitRed,
+            ),
+          if (!q.isValid)
+            Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                'Retake: hold the phone steady, tap the medicine to focus, clean the lens, and use even light without glare.',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 11.5,
+                  height: 1.4,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -609,7 +778,10 @@ class ResultsScreen extends StatelessWidget {
 
   // ── Action Buttons ──────────────────────────────────────────────────────────
 
-  Widget _buildReportActionButtons(BuildContext context, String effectiveSampleId) {
+  Widget _buildReportActionButtons(
+    BuildContext context,
+    String effectiveSampleId,
+  ) {
     return Column(
       children: [
         SizedBox(
@@ -620,7 +792,11 @@ class ResultsScreen extends StatelessWidget {
             icon: const Icon(Icons.description_outlined, size: 18),
             label: const Text(
               'SHARE / EXPORT INSPECTION REPORT',
-              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, letterSpacing: 0.6),
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.6,
+              ),
             ),
           ),
         ),
@@ -633,7 +809,11 @@ class ResultsScreen extends StatelessWidget {
             icon: const Icon(Icons.add, size: 18),
             label: const Text(
               'START NEW INSPECTION',
-              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, letterSpacing: 0.6),
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.6,
+              ),
             ),
           ),
         ),
@@ -675,7 +855,7 @@ class ResultsScreen extends StatelessWidget {
         ),
       ),
       child: Text(
-        valid ? 'VALID' : 'FLAGGED',
+        valid ? 'READY' : 'RETAKE',
         style: TextStyle(
           color: valid ? AppTheme.authenticGreen : AppTheme.counterfeitRed,
           fontSize: 9,
@@ -691,7 +871,7 @@ class ResultsScreen extends StatelessWidget {
       padding: const EdgeInsets.only(top: 4, bottom: 2),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           color: AppTheme.textMuted,
           fontSize: 9,
           fontWeight: FontWeight.w700,
@@ -709,7 +889,7 @@ class ResultsScreen extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11.5),
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 11.5),
           ),
           const SizedBox(width: 8),
           Flexible(

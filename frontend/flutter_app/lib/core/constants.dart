@@ -25,7 +25,13 @@ class AppConstants {
   static const String defaultModel = 'efficientnet_b0';
   static const String defaultVisionMode = 'auto'; // 'auto', 'always', 'never'
   static const bool defaultEnableQwen = true;
-  static const String defaultThemeMode = 'dark'; // 'system', 'dark', 'light'
+  static const String defaultThemeMode = 'dark'; // 'dark' or 'light'
+
+  static const String visionModeAutoLabel =
+      'Automatic - review borderline results';
+  static const String visionModeAlwaysLabel =
+      'Every scan - request an AI review';
+  static const String visionModeNeverLabel = 'Off - use the main model only';
 
   // Max upload size in bytes (15 MB)
   static const int maxFileSizeBytes = 15 * 1024 * 1024;

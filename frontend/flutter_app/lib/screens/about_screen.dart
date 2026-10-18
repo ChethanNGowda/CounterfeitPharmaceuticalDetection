@@ -22,7 +22,11 @@ class AboutScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
                 border: Border.all(color: AppTheme.border),
               ),
-              child: const Icon(Icons.info_outline, color: AppTheme.primaryTeal, size: 16),
+              child: Icon(
+                Icons.info_outline,
+                color: AppTheme.primaryTeal,
+                size: 16,
+              ),
             ),
             const SizedBox(width: 10),
             const Text('Instrument Specifications & Safety'),
@@ -42,37 +46,41 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: 16),
 
             // Prominent Medical Advisory Banner
-            const DisclaimerBanner(customText: AppConstants.persistentDisclaimer),
+            const DisclaimerBanner(
+              customText: AppConstants.persistentDisclaimer,
+            ),
             const SizedBox(height: 16),
 
             _buildSectionLabel('SYSTEM ARCHITECTURE'),
             const SizedBox(height: 8),
-            _buildInfoBlock(items: const [
-              _InfoItem(
-                label: 'Primary Convolutional Classifier',
-                body:
-                    'Fine-tuned EfficientNet-B0 trained on 10,551 deduplicated pharmaceutical tablet images. '
-                    'Test accuracy 99.88%, macro F1 99.82%, ROC-AUC 0.9988. Evaluated on a clean, leakage-controlled test split.',
-              ),
-              _InfoItem(
-                label: 'Secondary AI Vision Verifier',
-                body:
-                    'Qwen3-VL (4B parameters) vision-language model running via local Ollama. '
-                    'Inspects physical tablet shape, color consistency, surface texture, and packaging integrity.',
-              ),
-              _InfoItem(
-                label: 'OpenCV Quality & Feature Engine',
-                body:
-                    'Deterministic pre-screening: 17 color centroids in RGB/HSV, Laplacian variance blur detection (threshold ≥ 50.0), '
-                    'exposure validation (mean 15–245), and minimum 64×64 pixel resolution gate.',
-              ),
-              _InfoItem(
-                label: 'Conservative Decision Engine',
-                body:
-                    'Deterministic multi-tier synthesis. Automatically enforces mandatory physical laboratory verification '
-                    'if primary confidence < 0.70, models disagree, or secondary verifier is uncertain.',
-              ),
-            ]),
+            _buildInfoBlock(
+              items: const [
+                _InfoItem(
+                  label: 'Primary Convolutional Classifier',
+                  body:
+                      'Fine-tuned EfficientNet-B0 trained on 10,551 deduplicated pharmaceutical tablet images. '
+                      'Test accuracy 99.88%, macro F1 99.82%, ROC-AUC 0.9988. Evaluated on a clean, leakage-controlled test split.',
+                ),
+                _InfoItem(
+                  label: 'Secondary AI Vision Verifier',
+                  body:
+                      'Qwen Vision (4B parameters) vision-language model running via local Ollama. '
+                      'Inspects physical tablet shape, color consistency, surface texture, and packaging integrity.',
+                ),
+                _InfoItem(
+                  label: 'OpenCV Quality & Feature Engine',
+                  body:
+                      'Deterministic pre-screening: 17 color centroids in RGB/HSV, Laplacian variance blur detection (threshold ≥ 50.0), '
+                      'exposure validation (mean 15–245), and minimum 64×64 pixel resolution gate.',
+                ),
+                _InfoItem(
+                  label: 'Conservative Decision Engine',
+                  body:
+                      'Deterministic multi-tier synthesis. Automatically enforces mandatory physical laboratory verification '
+                      'if primary confidence < 0.70, models disagree, or secondary verifier is uncertain.',
+                ),
+              ],
+            ),
 
             const SizedBox(height: 20),
             _buildSectionLabel('CLINICAL & SCIENTIFIC LIMITATIONS'),
@@ -110,25 +118,26 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: 20),
             _buildSectionLabel('REGULATORY & LEGAL NOTICE'),
             const SizedBox(height: 8),
-            _buildInfoBlock(items: const [
-              _InfoItem(
-                label: 'Intended Scope of Use',
-                body:
-                    'Intended for preliminary field supply-chain triage and rapid visual inspection support by authorized personnel.',
-              ),
-              _InfoItem(
-                label: 'No Regulatory Clearance Claimed',
-                body:
-                    'This software does not constitute medical advice or FDA/EMA regulatory product clearance. '
-                    'No certification of compliance with medical device standards is made.',
-              ),
-            ]),
+            _buildInfoBlock(
+              items: const [
+                _InfoItem(
+                  label: 'Intended Scope of Use',
+                  body: 'Intended for preliminary field supply-chain triage and rapid visual inspection support by authorized personnel.',
+                ),
+                _InfoItem(
+                  label: 'No Regulatory Clearance Claimed',
+                  body:
+                      'This software does not constitute medical advice or FDA/EMA regulatory product clearance. '
+                      'No certification of compliance with medical device standards is made.',
+                ),
+              ],
+            ),
 
             const SizedBox(height: 24),
             Center(
               child: Text(
                 'PharmaAssist v${AppConstants.appVersion} · Build 2026.10',
-                style: const TextStyle(color: AppTheme.textMuted, fontSize: 10),
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 10),
               ),
             ),
           ],
@@ -153,9 +162,15 @@ class AboutScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppTheme.surface,
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: AppTheme.primaryTeal.withValues(alpha: 0.5)),
+              border: Border.all(
+                color: AppTheme.primaryTeal.withValues(alpha: 0.5),
+              ),
             ),
-            child: const Icon(Icons.biotech_outlined, color: AppTheme.primaryTeal, size: 24),
+            child: Icon(
+              Icons.biotech_outlined,
+              color: AppTheme.primaryTeal,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -164,27 +179,38 @@ class AboutScreen extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Text(
+                    Text(
                       AppConstants.appName,
-                      style: TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: AppTheme.surface,
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(color: AppTheme.border),
                       ),
-                      child: const Text(
+                      child: Text(
                         'v1.2.0',
-                        style: TextStyle(color: AppTheme.primaryTeal, fontSize: 9.5, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          color: AppTheme.primaryTeal,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 2),
-                const Text(
+                Text(
                   AppConstants.appSubtitle,
                   style: TextStyle(color: AppTheme.textSecondary, fontSize: 11),
                 ),
@@ -196,10 +222,7 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoBlock({
-    required List<_InfoItem> items,
-    Color accentColor = AppTheme.primaryTeal,
-  }) {
+  Widget _buildInfoBlock({required List<_InfoItem> items, Color? accentColor}) {
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.cardColor,
@@ -233,7 +256,7 @@ class AboutScreen extends StatelessWidget {
                         children: [
                           Text(
                             item.label,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppTheme.textPrimary,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -242,7 +265,7 @@ class AboutScreen extends StatelessWidget {
                           const SizedBox(height: 3),
                           Text(
                             item.body,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppTheme.textSecondary,
                               fontSize: 11,
                               height: 1.4,
@@ -264,7 +287,7 @@ class AboutScreen extends StatelessWidget {
   Widget _buildSectionLabel(String label) {
     return Text(
       label,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppTheme.textMuted,
         fontSize: 9.5,
         fontWeight: FontWeight.w700,

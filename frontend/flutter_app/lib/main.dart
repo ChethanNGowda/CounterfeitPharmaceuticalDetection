@@ -37,14 +37,13 @@ class _PharmaAssistAppState extends State<PharmaAssistApp> {
   void initState() {
     super.initState();
     _themeMode = _parseThemeMode(widget.storage.getThemeMode());
+    AppTheme.setPalette(_themeMode == ThemeMode.light);
   }
 
   ThemeMode _parseThemeMode(String mode) {
     switch (mode) {
       case 'light':
         return ThemeMode.light;
-      case 'system':
-        return ThemeMode.system;
       case 'dark':
       default:
         return ThemeMode.dark;
@@ -52,8 +51,10 @@ class _PharmaAssistAppState extends State<PharmaAssistApp> {
   }
 
   void _onThemeChanged(String mode) {
+    final nextMode = _parseThemeMode(mode);
+    AppTheme.setPalette(nextMode == ThemeMode.light);
     setState(() {
-      _themeMode = _parseThemeMode(mode);
+      _themeMode = nextMode;
     });
   }
 
@@ -94,7 +95,9 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
   int _currentIndex = 0;
 
   final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
-  final GlobalKey<HistoryScreenState> _historyKey = GlobalKey<HistoryScreenState>();
+  final GlobalKey<HistoryScreenState> _historyKey =
+      GlobalKey<HistoryScreenState>();
+  final GlobalKey<ScanScreenState> _scanKey = GlobalKey<ScanScreenState>();
 
   late final List<Widget> _screens;
 
@@ -107,9 +110,11 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
         storage: widget.storage,
         apiService: widget.apiService,
         onNavigateToScan: () => _onTabTapped(1),
+        onChooseGallery: _chooseGalleryFromHome,
         onNavigateToSettings: () => _onTabTapped(3),
       ),
       ScanScreen(
+        key: _scanKey,
         storage: widget.storage,
         apiService: widget.apiService,
         onScanComplete: () {
@@ -135,45 +140,57 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
     setState(() => _currentIndex = index);
   }
 
+  void _chooseGalleryFromHome() {
+    _onTabTapped(1);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scanKey.currentState?.chooseFromGallery();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _screens),
-      bottomNavigationBar: _buildBottomNav(),
+    return PopScope<Object?>(
+      canPop: _currentIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _currentIndex != 0) _onTabTapped(0);
+      },
+      child: Scaffold(
+        body: IndexedStack(index: _currentIndex, children: _screens),
+        bottomNavigationBar: _buildBottomNav(),
+      ),
     );
   }
 
   Widget _buildBottomNav() {
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppTheme.border, width: 1)),
-      ),
-      child: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: _onTabTapped,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_outlined),
-            activeIcon: Icon(Icons.dashboard),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.document_scanner_outlined),
-            activeIcon: Icon(Icons.document_scanner),
-            label: 'Scan',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history_outlined),
-            activeIcon: Icon(Icons.history),
-            label: 'History',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.tune_outlined),
-            activeIcon: Icon(Icons.tune),
-            label: 'Settings',
-          ),
-        ],
-      ),
+    return NavigationBar(
+      selectedIndex: _currentIndex,
+      onDestinationSelected: _onTabTapped,
+      height: 72,
+      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+      indicatorColor: Theme.of(context).colorScheme.primary
+          .withValues(alpha: 0.14),
+      destinations: const [
+        NavigationDestination(
+          icon: Icon(Icons.dashboard_outlined),
+          selectedIcon: Icon(Icons.dashboard),
+          label: 'Home',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.document_scanner_outlined),
+          selectedIcon: Icon(Icons.document_scanner),
+          label: 'Scan',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.history_outlined),
+          selectedIcon: Icon(Icons.history),
+          label: 'History',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.tune_outlined),
+          selectedIcon: Icon(Icons.tune),
+          label: 'Settings',
+        ),
+      ],
     );
   }
 }

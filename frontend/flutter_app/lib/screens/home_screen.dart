@@ -12,6 +12,7 @@ class HomeScreen extends StatefulWidget {
   final StorageService storage;
   final ApiService apiService;
   final VoidCallback? onNavigateToScan;
+  final VoidCallback? onChooseGallery;
   final VoidCallback? onNavigateToSettings;
 
   const HomeScreen({
@@ -19,6 +20,7 @@ class HomeScreen extends StatefulWidget {
     required this.storage,
     required this.apiService,
     this.onNavigateToScan,
+    this.onChooseGallery,
     this.onNavigateToSettings,
   });
 
@@ -31,7 +33,9 @@ class HomeScreenState extends State<HomeScreen> {
   bool? _isBackendConnected;
   String? _connectedDevice;
   String? _serverModel;
-  String? _secondaryAi;
+  bool? _modelAvailable;
+  bool? _qwenAvailable;
+  String? _apiVersion;
 
   List<ScanHistoryItem> _recentInspections = [];
 
@@ -41,9 +45,9 @@ class HomeScreenState extends State<HomeScreen> {
     refreshData();
   }
 
-  void refreshData() {
+  Future<void> refreshData() async {
     _loadRecentInspections();
-    _checkBackendHealth();
+    await _checkBackendHealth();
   }
 
   void _loadRecentInspections() {
@@ -64,11 +68,37 @@ class HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         setState(() {
           _isBackendConnected = true;
-          _connectedDevice = health.device ?? 'CPU';
-          _serverModel = health.defaultModel ?? 'efficientnet_b0';
-          _secondaryAi = health.secondaryAiModel ?? 'qwen3-vl:4b';
-          _isCheckingConnection = false;
+          _connectedDevice = health.device;
+          _serverModel = health.defaultModel;
+          _apiVersion = health.version;
         });
+      }
+      try {
+        final registry = await widget.apiService.fetchModels();
+        final models = registry['models'];
+        final matches = models is List
+            ? models
+                  .whereType<Map>()
+                  .where(
+                    (entry) =>
+                        entry['model_name']?.toString() == health.defaultModel,
+                  )
+                  .toList()
+            : <Map>[];
+        final model = matches.isEmpty ? null : matches.first;
+        if (mounted) {
+          setState(
+            () => _modelAvailable = model?['finetuned_available'] == true,
+          );
+        }
+      } catch (_) {
+        if (mounted) setState(() => _modelAvailable = null);
+      }
+      try {
+        final qwen = await widget.apiService.fetchQwenStatus();
+        if (mounted) setState(() => _qwenAvailable = qwen['available'] == true);
+      } catch (_) {
+        if (mounted) setState(() => _qwenAvailable = null);
       }
     } catch (_) {
       if (mounted) {
@@ -76,10 +106,13 @@ class HomeScreenState extends State<HomeScreen> {
           _isBackendConnected = false;
           _connectedDevice = null;
           _serverModel = null;
-          _secondaryAi = null;
-          _isCheckingConnection = false;
+          _modelAvailable = null;
+          _qwenAvailable = null;
+          _apiVersion = null;
         });
       }
+    } finally {
+      if (mounted) setState(() => _isCheckingConnection = false);
     }
   }
 
@@ -90,7 +123,7 @@ class HomeScreenState extends State<HomeScreen> {
       appBar: _buildHeader(),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () async => refreshData(),
+          onRefresh: refreshData,
           color: AppTheme.primaryCyan,
           backgroundColor: AppTheme.elevatedCard,
           child: SingleChildScrollView(
@@ -99,8 +132,13 @@ class HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                _buildGreeting(),
+                const SizedBox(height: 16),
                 // System Status Widget
                 _buildSystemStatusCard(),
+                const SizedBox(height: 16),
+
+                _buildSummaryStats(),
                 const SizedBox(height: 16),
 
                 // Primary Scan Card
@@ -121,6 +159,92 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildGreeting() {
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12
+        ? 'Good morning'
+        : (hour < 17 ? 'Good afternoon' : 'Good evening');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          greeting,
+          style: AppTheme.bodyText(color: AppTheme.textSecondary, fontSize: 13),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          'Pharmaceutical screening, made clearer.',
+          style: AppTheme.headingLarge(),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          'Review a medicine sample using your connected screening service.',
+          style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 12),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSummaryStats() {
+    final history = widget.storage.getScanHistory();
+    final authentic = history.where((item) => item.isLikelyAuthentic).length;
+    final review = history
+        .where((item) => item.isSuspicious || item.needsHumanVerification)
+        .length;
+    return Row(
+      children: [
+        _statCard(
+          'Screenings',
+          history.length.toString(),
+          Icons.fact_check_outlined,
+          AppTheme.primaryCyan,
+        ),
+        const SizedBox(width: 8),
+        _statCard(
+          'Likely authentic',
+          authentic.toString(),
+          Icons.verified_outlined,
+          AppTheme.success,
+        ),
+        const SizedBox(width: 8),
+        _statCard(
+          'Flagged',
+          review.toString(),
+          Icons.priority_high_rounded,
+          AppTheme.warning,
+        ),
+      ],
+    );
+  }
+
+  Widget _statCard(String label, String value, IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 82),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppTheme.secondaryBackground,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 17, color: color),
+            const SizedBox(height: 6),
+            Text(value, style: AppTheme.headingMedium()),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 10),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   PreferredSizeWidget _buildHeader() {
     return AppBar(
       backgroundColor: AppTheme.background,
@@ -130,14 +254,18 @@ class HomeScreenState extends State<HomeScreen> {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 colors: [AppTheme.primaryCyan, AppTheme.secondaryTeal],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.biotech, color: Color(0xFF0B1020), size: 20),
+            child: const Icon(
+              Icons.biotech,
+              color: Color(0xFF0B1020),
+              size: 20,
+            ),
           ),
           const SizedBox(width: 10),
           Column(
@@ -147,7 +275,10 @@ class HomeScreenState extends State<HomeScreen> {
               Text('PharmaAssist', style: AppTheme.headingSmall()),
               Text(
                 'AI-assisted pharmaceutical screening',
-                style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 10),
+                style: AppTheme.bodyText(
+                  color: AppTheme.textMuted,
+                  fontSize: 10,
+                ),
               ),
             ],
           ),
@@ -158,13 +289,19 @@ class HomeScreenState extends State<HomeScreen> {
           icon: Icon(
             Icons.refresh,
             size: 19,
-            color: _isCheckingConnection ? AppTheme.primaryCyan : AppTheme.textSecondary,
+            color: _isCheckingConnection
+                ? AppTheme.primaryCyan
+                : AppTheme.textSecondary,
           ),
           tooltip: 'Refresh Status',
           onPressed: _isCheckingConnection ? null : _checkBackendHealth,
         ),
         IconButton(
-          icon: const Icon(Icons.settings_outlined, size: 20, color: AppTheme.textSecondary),
+          icon: Icon(
+            Icons.settings_outlined,
+            size: 20,
+            color: AppTheme.textSecondary,
+          ),
           tooltip: 'Settings',
           onPressed: widget.onNavigateToSettings,
         ),
@@ -193,12 +330,14 @@ class HomeScreenState extends State<HomeScreen> {
     } else if (isOnline) {
       badgeColor = AppTheme.success;
       statusTitle = 'Backend Connected';
-      statusSubtitle = 'Device: $_connectedDevice · Model: $_serverModel · Secondary: $_secondaryAi';
+      statusSubtitle =
+          'API ${_apiVersion ?? 'version unavailable'} · ${_connectedDevice ?? 'Compute device not reported'}';
       statusIcon = Icons.check_circle_outline;
     } else if (isOffline) {
       badgeColor = AppTheme.error;
       statusTitle = 'Backend Unavailable';
-      statusSubtitle = 'Offline: Verify server is running at ${widget.storage.getBackendUrl()}';
+      statusSubtitle =
+          'Offline: Verify server is running at ${widget.storage.getBackendUrl()}';
       statusIcon = Icons.error_outline;
     } else {
       badgeColor = AppTheme.textMuted;
@@ -233,22 +372,45 @@ class HomeScreenState extends State<HomeScreen> {
               children: [
                 Row(
                   children: [
-                    Text(statusTitle, style: AppTheme.headingSmall(color: badgeColor)),
+                    Text(
+                      statusTitle,
+                      style: AppTheme.headingSmall(color: badgeColor),
+                    ),
                     const Spacer(),
                     Container(
                       width: 8,
                       height: 8,
-                      decoration: BoxDecoration(color: badgeColor, shape: BoxShape.circle),
+                      decoration: BoxDecoration(
+                        color: badgeColor,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 3),
                 Text(
                   statusSubtitle,
-                  style: AppTheme.bodyText(color: AppTheme.textSecondary, fontSize: 11),
+                  style: AppTheme.bodyText(
+                    color: AppTheme.textSecondary,
+                    fontSize: 11,
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
+                if (isOnline) ...[
+                  const SizedBox(height: 7),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 5,
+                    children: [
+                      _statusPill(
+                        'Model ${_serverModel ?? 'unknown'}',
+                        _modelAvailable,
+                      ),
+                      _statusPill('Qwen review', _qwenAvailable),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -257,16 +419,36 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _statusPill(String label, bool? available) {
+    final color = available == true
+        ? AppTheme.success
+        : (available == false ? AppTheme.warning : AppTheme.textMuted);
+    final status = available == true
+        ? 'available'
+        : (available == false ? 'unavailable' : 'unknown');
+    return Semantics(
+      label: '$label $status',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          '$label · $status',
+          style: AppTheme.bodyText(color: color, fontSize: 10),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPrimaryScanCard() {
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF17243A), Color(0xFF1A2A44)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.primaryCyan.withValues(alpha: 0.35), width: 1.2),
+        color: AppTheme.elevatedCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.border),
       ),
       padding: const EdgeInsets.all(18),
       child: Column(
@@ -279,9 +461,11 @@ class HomeScreenState extends State<HomeScreen> {
                 decoration: BoxDecoration(
                   color: AppTheme.primaryCyan.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: AppTheme.primaryCyan.withValues(alpha: 0.4)),
+                  border: Border.all(
+                    color: AppTheme.primaryCyan.withValues(alpha: 0.4),
+                  ),
                 ),
-                child: const Text(
+                child: Text(
                   'PRIMARY ACTION',
                   style: TextStyle(
                     fontFamily: 'Space Grotesk',
@@ -293,15 +477,22 @@ class HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const Spacer(),
-              const Icon(Icons.shield_outlined, color: AppTheme.secondaryTeal, size: 18),
+              Icon(
+                Icons.shield_outlined,
+                color: AppTheme.secondaryTeal,
+                size: 18,
+              ),
             ],
           ),
           const SizedBox(height: 12),
-          Text('Screen Pharmaceutical Sample', style: AppTheme.headingLarge()),
+          Text('Screen a medicine sample', style: AppTheme.headingLarge()),
           const SizedBox(height: 6),
           Text(
-            'Photograph a pharmaceutical tablet or blister pack under uniform, shadow-free illumination against a plain background.',
-            style: AppTheme.bodyText(color: AppTheme.textSecondary, fontSize: 12.5),
+            'Capture a clear image of a tablet or package in even light. The model provides a preliminary visual screening only.',
+            style: AppTheme.bodyText(
+              color: AppTheme.textSecondary,
+              fontSize: 12.5,
+            ),
           ),
           const SizedBox(height: 16),
           Row(
@@ -324,8 +515,8 @@ class HomeScreenState extends State<HomeScreen> {
                       );
                     }
                   },
-                  icon: const Icon(Icons.camera_alt, size: 18),
-                  label: const Text('SCAN MEDICINE'),
+                  icon: const Icon(Icons.document_scanner_outlined, size: 18),
+                  label: const Text('Scan medicine'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryCyan,
                     foregroundColor: const Color(0xFF0B1020),
@@ -338,7 +529,9 @@ class HomeScreenState extends State<HomeScreen> {
                 flex: 2,
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    if (widget.onNavigateToScan != null) {
+                    if (widget.onChooseGallery != null) {
+                      widget.onChooseGallery!();
+                    } else if (widget.onNavigateToScan != null) {
                       widget.onNavigateToScan!();
                     } else {
                       Navigator.of(context).push(
@@ -353,7 +546,7 @@ class HomeScreenState extends State<HomeScreen> {
                     }
                   },
                   icon: const Icon(Icons.photo_library_outlined, size: 16),
-                  label: const Text('GALLERY'),
+                  label: const Text('Choose image'),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
@@ -374,8 +567,8 @@ class HomeScreenState extends State<HomeScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'RECENT FIELD SCREENINGS',
-              style: const TextStyle(
+              'RECENT SCREENINGS',
+              style: TextStyle(
                 fontFamily: 'Space Grotesk',
                 color: AppTheme.textMuted,
                 fontSize: 10.5,
@@ -385,7 +578,10 @@ class HomeScreenState extends State<HomeScreen> {
             ),
             Text(
               '${widget.storage.getScanHistory().length} total',
-              style: AppTheme.monoNumeric(color: AppTheme.textMuted, fontSize: 11),
+              style: AppTheme.monoNumeric(
+                color: AppTheme.textMuted,
+                fontSize: 11,
+              ),
             ),
           ],
         ),
@@ -409,13 +605,23 @@ class HomeScreenState extends State<HomeScreen> {
       child: Center(
         child: Column(
           children: [
-            Icon(Icons.inventory_2_outlined, color: AppTheme.textMuted, size: 28),
+            Icon(
+              Icons.inventory_2_outlined,
+              color: AppTheme.textMuted,
+              size: 28,
+            ),
             const SizedBox(height: 8),
-            Text('No Prior Screenings Recorded', style: AppTheme.headingSmall()),
+            Text(
+              'No Prior Screenings Recorded',
+              style: AppTheme.headingSmall(),
+            ),
             const SizedBox(height: 4),
             Text(
               'Use the Scan Medicine button above to perform your first sample triage.',
-              style: AppTheme.bodyText(color: AppTheme.textSecondary, fontSize: 11.5),
+              style: AppTheme.bodyText(
+                color: AppTheme.textSecondary,
+                fontSize: 11.5,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -425,7 +631,9 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildRecentScanTile(ScanHistoryItem item) {
-    final double normConf = item.confidence <= 1.0 ? item.confidence * 100 : item.confidence;
+    final double normConf = item.confidence <= 1.0
+        ? item.confidence * 100
+        : item.confidence;
     final bool isAuthentic = item.isLikelyAuthentic;
     final bool isCounterfeit = item.isLikelyCounterfeit;
 
@@ -477,12 +685,19 @@ class HomeScreenState extends State<HomeScreen> {
                     children: [
                       Row(
                         children: [
-                          Text(item.sampleId, style: AppTheme.monoNumeric(fontSize: 12)),
-                          if (item.medicineName != null && item.medicineName!.isNotEmpty) ...[
+                          Text(
+                            item.sampleId,
+                            style: AppTheme.monoNumeric(fontSize: 12),
+                          ),
+                          if (item.medicineName != null &&
+                              item.medicineName!.isNotEmpty) ...[
                             const SizedBox(width: 6),
                             Text(
                               '· ${item.medicineName}',
-                              style: AppTheme.bodyText(color: AppTheme.textSecondary, fontSize: 11.5),
+                              style: AppTheme.bodyText(
+                                color: AppTheme.textSecondary,
+                                fontSize: 11.5,
+                              ),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ],
@@ -491,7 +706,10 @@ class HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 2),
                       Text(
                         '${item.timestamp.year}-${item.timestamp.month.toString().padLeft(2, '0')}-${item.timestamp.day.toString().padLeft(2, '0')} · ${item.finalResult}',
-                        style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 10.5),
+                        style: AppTheme.bodyText(
+                          color: AppTheme.textMuted,
+                          fontSize: 10.5,
+                        ),
                       ),
                     ],
                   ),
@@ -502,7 +720,10 @@ class HomeScreenState extends State<HomeScreen> {
                   children: [
                     Text(
                       '${normConf.toStringAsFixed(1)}%',
-                      style: AppTheme.monoNumeric(color: statusColor, fontSize: 12),
+                      style: AppTheme.monoNumeric(
+                        color: statusColor,
+                        fontSize: 12,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     StatusBadge(statusText: item.prediction),

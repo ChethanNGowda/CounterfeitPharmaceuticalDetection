@@ -39,7 +39,7 @@ Phone / Image Input
  │  (low primary confidence, manual review)    │
  │                                              │
  │  0.70 ≤ confidence < 0.90                   │
- │  → QwenVisionVerifier (qwen3-vl:4b)         │
+ │  → QwenVisionVerifier (qwen3.5:4b)         │
  │    inspects the actual image                 │
  │                                              │
  │  confidence ≥ 0.90                           │
@@ -64,9 +64,9 @@ Phone / Image Input
 
 `needs_human_verification: true` is set whenever the result is not a clear high-confidence authentic determination, or when the secondary verifier and primary classifier disagree.
 
-### Qwen3-VL is a secondary verifier, not the primary classifier
+### Qwen Vision is a secondary verifier, not the primary classifier
 
-Qwen3-VL inspects the **actual image** — it is not given only JSON metadata. It provides a supporting opinion when the primary EfficientNet-B0 confidence falls in the borderline zone (0.70–0.90). If Qwen3-VL is unavailable or times out, the system degrades safely and returns the primary classifier result with an explicit warning.
+Qwen Vision inspects the **actual image** — it is not given only JSON metadata. It provides a supporting opinion when the primary EfficientNet-B0 confidence falls in the borderline zone (0.70–0.90). If Qwen Vision is unavailable or times out, the system degrades safely and returns the primary classifier result with an explicit warning.
 
 ---
 
@@ -121,9 +121,9 @@ Benchmark comparison from original training logs (only EfficientNet-B0 checkpoin
 | Classification threshold | 0.70 (lower → NEEDS MANUAL REVIEW) |
 | High-confidence threshold | 0.90 (≥ 0.90 → fast path, Qwen skipped in auto mode) |
 
-### Secondary Verifier — Qwen3-VL (`qwen3-vl:4b`)
+### Secondary Verifier — Qwen Vision (`qwen3.5:4b`)
 
-Qwen3-VL is a **vision-language model** that inspects the actual pharmaceutical image. It is invoked only for borderline-confidence predictions (0.70 ≤ confidence < 0.90 in `auto` mode). It runs locally via [Ollama](https://ollama.com) and does not send images to external servers.
+Qwen Vision is a **vision-language model** that inspects the actual pharmaceutical image. It is invoked only for borderline-confidence predictions (0.70 ≤ confidence < 0.90 in `auto` mode). It runs locally via [Ollama](https://ollama.com) and does not send images to external servers.
 
 ---
 
@@ -161,22 +161,22 @@ A hash-based cross-split duplicate check was run against all 5,544 manifest rows
 pip install -r requirements.txt
 ```
 
-For secondary Qwen3-VL verification, install [Ollama](https://ollama.com) and pull the model:
+For secondary Qwen Vision verification, install [Ollama](https://ollama.com) and pull the preferred model:
 
 ```bash
-ollama pull qwen3-vl:4b
+ollama pull qwen3.5:4b
 ```
 
 ### CLI — Single Image
 
 ```bash
-# Auto mode: Qwen3-VL invoked for borderline confidence [0.70, 0.90)
+# Auto mode: Qwen Vision invoked for borderline confidence [0.70, 0.90)
 python test.py test_images/sample_authentic_c3pi.jpg
 
-# Always run Qwen3-VL secondary verification
+# Always run Qwen Vision secondary verification
 python test.py image.jpg --vision-mode always
 
-# Fast path: skip Qwen3-VL
+# Fast path: skip Qwen Vision
 python test.py image.jpg --vision-mode never
 python test.py image.jpg --no-vision   # alias
 ```
@@ -287,7 +287,7 @@ A Flutter client designed for point-of-dispense visual screening of oral solid d
 | **Primary Classifier (EfficientNet-B0)** | **Completed** | 20% | 20% / 20% | 99.76% accuracy, 100% recall on test_clean split (reproduced 2026-10-18) |
 | **Comparative Benchmarking** | **Completed** | 10% | 10% / 10% | MobileNetV3-Large (99.40%), GoldFormer (99.27%), Baseline CNN (86.58%) |
 | **Image Quality & Visual Inspection** | **Completed** | 10% | 10% / 10% | Resolution, blur, exposure gates + 17 color centroids inspector |
-| **Secondary AI Verification (Ollama)** | **Completed** | 10% | 10% / 10% | qwen3-vl:4b vision verifier + qwen3:8b evidence reviewer |
+| **Secondary AI Verification (Ollama)** | **Completed** | 10% | 10% / 10% | qwen3.5:4b vision verifier + qwen3:8b evidence reviewer |
 | **Conservative Decision Engine** | **Completed** | 5% | 5% / 5% | 4 deterministic rules, 0.70 & 0.90 thresholds, conflict safety |
 | **FastAPI Backend & API Contract** | **Completed** | 10% | 10% / 10% | GET /, GET /health, POST /predict, POST /verify, validation |
 | **Automated Testing Suite** | **Completed** | 5% | 5% / 5% | 169 tests passing across unit, integration, API, and schema suites |
@@ -313,7 +313,7 @@ A Flutter client designed for point-of-dispense visual screening of oral solid d
 │   │   └── image_preprocessor.py  # [LEGACY] 512×512 CLAHE pipeline — NOT used in inference
 │   ├── verification/
 │   │   ├── decision_engine.py     # Authoritative verdict synthesis
-│   │   ├── qwen_verifier.py       # QwenVisionVerifier — production (qwen3-vl:4b)
+│   │   ├── qwen_verifier.py       # QwenVisionVerifier — production (qwen3.5:4b)
 │   │   └── qwen_reviewer.py       # [LEGACY] QwenReviewer — text-evidence reviewer (qwen3:8b)
 │   ├── features/                  # [LEGACY] Hand-crafted colour/texture/shape features
 │   ├── evaluation/                # Evaluation scripts and metrics
@@ -340,9 +340,9 @@ A Flutter client designed for point-of-dispense visual screening of oral solid d
 
 `load_classifier()` raises `CheckpointUnavailableError` if a requested fine-tuned checkpoint does not exist on disk. Generic ImageNet pretrained weights are never silently used as pharmaceutical classifiers.
 
-### Qwen3-VL graceful degradation
+### Qwen Vision graceful degradation
 
-If Qwen3-VL times out or is unavailable, the pipeline returns the primary classifier result with `needs_human_verification: True` and an explicit warning. No inference is blocked by Qwen3-VL availability.
+If Qwen Vision times out or is unavailable, the pipeline returns the primary classifier result with `needs_human_verification: True` and an explicit warning. No inference is blocked by Qwen Vision availability.
 
 ---
 
@@ -358,4 +358,4 @@ If Qwen3-VL times out or is unavailable, the pipeline returns the primary classi
 
 ## Acknowledgements
 
-Dataset images sourced from publicly available pharmaceutical image collections. EfficientNet-B0 and MobileNetV3-Large architectures via [torchvision](https://github.com/pytorch/vision). Secondary vision verification via [Ollama](https://ollama.com) and [Qwen3-VL](https://huggingface.co/Qwen/Qwen2.5-VL-3B-Instruct).
+Dataset images sourced from publicly available pharmaceutical image collections. EfficientNet-B0 and MobileNetV3-Large architectures via [torchvision](https://github.com/pytorch/vision). Secondary vision verification via [Ollama](https://ollama.com) and [Qwen Vision](https://huggingface.co/Qwen/Qwen2.5-VL-3B-Instruct).

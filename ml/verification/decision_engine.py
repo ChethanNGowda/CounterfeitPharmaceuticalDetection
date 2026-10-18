@@ -1,7 +1,7 @@
 """Conservative Deterministic Decision Engine for Pharmaceutical Screening.
 
 Authoritative decision-synthesis path combining predictions from the primary
-visual classifier (EfficientNet-B0) and secondary AI verification (Qwen3-VL / Ollama).
+visual classifier (EfficientNet-B0) and secondary AI verification (Qwen Vision / Ollama).
 
 Standardized Output Contract:
 - final_result: Exactly one of:
@@ -35,7 +35,7 @@ Decision Rules:
    - 3E. Secondary SUSPICIOUS (explicit concern flagged by secondary reviewer):
      final_result = 'SUSPICIOUS / NEEDS VERIFICATION', needs_human_verification = True.
 4. Secondary AI Unavailable / Fallback:
-   4a. Secondary was invoked but failed (connection refused, timeout, error) — README §Qwen3-VL graceful degradation:
+   4a. Secondary was invoked but failed (connection refused, timeout, error) — README §Qwen Vision graceful degradation:
        - Primary AUTHENTIC  (>= 0.70) -> final_result = 'LIKELY AUTHENTIC',   needs_human_verification = True.
        - Primary COUNTERFEIT(>= 0.70) -> final_result = 'LIKELY COUNTERFEIT', needs_human_verification = True.
    4b. Secondary was never invoked (vision_mode='never' or high-confidence auto skip):
@@ -265,7 +265,7 @@ class DecisionEngine:
         else:
             # Rule 4: Secondary AI Unavailable / Fallback
             #
-            # Two distinct sub-cases per README §Qwen3-VL graceful degradation (line 298):
+            # Two distinct sub-cases per README §Qwen Vision graceful degradation (line 298):
             #   4a. secondary_executed=True  (Qwen was invoked but failed — conn refused, timeout, error):
             #       needs_human_verification = True for ALL primary predictions, because secondary
             #       verification was expected and could not be completed.

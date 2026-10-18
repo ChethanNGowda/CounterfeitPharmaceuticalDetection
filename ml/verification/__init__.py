@@ -12,7 +12,7 @@ from ml.verification.qwen_reviewer import (
 )
 
 # ---------------------------------------------------------------------------
-# Production: QwenVisionVerifier (qwen3-vl:4b — inspects actual image)
+# Production: QwenVisionVerifier (qwen3.5:4b — inspects actual image)
 # ---------------------------------------------------------------------------
 from ml.verification.qwen_verifier import (
     QwenVisionVerifier,

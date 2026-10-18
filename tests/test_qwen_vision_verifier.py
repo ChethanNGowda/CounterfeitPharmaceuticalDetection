@@ -253,3 +253,126 @@ def test_format_final_screening_result():
     assert "Primary ML Confidence: 54.46%" in formatted
     assert "Qwen Visual Assessment: UNCERTAIN" in formatted
     assert "Final Result: SUSPICIOUS / NEEDS VERIFICATION" in formatted
+
+
+
+def test_parser_does_not_read_choice_list_as_an_assessment():
+    parsed = parse_qwen_vision_output(
+        "Assessment: AUTHENTIC / COUNTERFEIT / UNCERTAIN\n"
+        "Visual Confidence: LOW / MEDIUM / HIGH\n"
+        "Image Quality: GOOD / FAIR / POOR\n"
+    )
+    assert parsed["assessment"] == "UNCERTAIN"
+    assert parsed["confidence"] == "LOW"
+    assert parsed["image_quality"] == "FAIR"
+
+
+def test_qwen_vision_request_uses_structured_output_and_ignores_thinking(monkeypatch):
+    import io
+    import json
+    from PIL import Image
+
+    response_content = json.dumps({
+        "assessment": "UNCERTAIN",
+        "confidence": "LOW",
+        "image_quality": "FAIR",
+        "recommendation": "MANUAL REVIEW",
+        "tablet_shape": "round",
+        "tablet_color": "white",
+        "tablet_surface": "unclear",
+        "tablet_markings": "not readable",
+        "tablet_edges": "unclear",
+        "tablet_other": "",
+        "packaging_analysis": "not visible",
+        "observations_list": ["A round tablet is visible."],
+        "concerns_list": ["Markings cannot be read."],
+        "final_explanation": "Visual evidence is insufficient.",
+    })
+    captured = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return json.dumps({
+                "message": {
+                    "content": response_content,
+                    "thinking": "Assessment: AUTHENTIC / COUNTERFEIT / UNCERTAIN",
+                }
+            }).encode()
+
+    def fake_urlopen(request, timeout):
+        captured["payload"] = json.loads(request.data)
+        captured["timeout"] = timeout
+        return FakeResponse()
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    image = Image.new("RGB", (64, 64), "white")
+    image_bytes = io.BytesIO()
+    image.save(image_bytes, format="JPEG")
+
+    result = QwenVisionVerifier(model_name="qwen3.5:4b").verify_image(
+        image_bytes.getvalue()
+    )
+
+    assert result["available"] is True
+    assert result["assessment"] == "UNCERTAIN"
+    assert result["needs_human_verification"] is True
+    assert captured["payload"]["format"]["type"] == "object"
+    assert captured["payload"]["think"] is False
+    assert captured["timeout"] == 180.0
+
+
+def test_qwen_reasoning_without_answer_is_unavailable_not_a_prediction(monkeypatch):
+    import io
+    import json
+    from PIL import Image
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return json.dumps({
+                "message": {
+                    "content": "",
+                    "thinking": "Assessment: AUTHENTIC / COUNTERFEIT / UNCERTAIN",
+                }
+            }).encode()
+
+    monkeypatch.setattr("urllib.request.urlopen", lambda *_args, **_kwargs: FakeResponse())
+    image = Image.new("RGB", (64, 64), "white")
+    image_bytes = io.BytesIO()
+    image.save(image_bytes, format="JPEG")
+
+    result = QwenVisionVerifier(model_name="qwen3-vl:4b").verify_image(
+        image_bytes.getvalue()
+    )
+
+    assert result["available"] is False
+    assert result["assessment"] == "UNCERTAIN"
+    assert "no structured answer" in result["reason"].lower()
+
+
+
+def test_legacy_ollama_config_prefers_discovered_vision_model_and_safe_timeout(monkeypatch):
+    import ml.verification.qwen_verifier as qwen_module
+
+    monkeypatch.delenv("OLLAMA_VISION_MODEL", raising=False)
+    monkeypatch.setenv("OLLAMA_MODEL", "qwen3-vl:4b")
+    monkeypatch.setenv("OLLAMA_TIMEOUT", "12.0")
+    monkeypatch.setattr(
+        qwen_module, "_detect_vision_model", lambda _base_url: "qwen3.5:4b"
+    )
+
+    verifier = QwenVisionVerifier()
+
+    assert verifier.model_name == "qwen3.5:4b"
+    assert verifier.timeout == 180.0

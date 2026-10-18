@@ -15,25 +15,37 @@ import 'package:flutter/material.dart';
 /// - Warning: #F6BD60
 /// - Error: #FF647C
 class AppTheme {
+  static bool _useLightPalette = false;
+
+  static void setPalette(bool light) => _useLightPalette = light;
+
   // ── Surface and Background Tokens ───────────────────────────────────────────
-  static const Color background = Color(0xFF0B1020);
-  static const Color secondaryBackground = Color(0xFF111A2E);
-  static const Color elevatedCard = Color(0xFF17243A);
-  
+  static Color get background =>
+      _useLightPalette ? const Color(0xFFF5F8FC) : const Color(0xFF0B1020);
+  static Color get secondaryBackground =>
+      _useLightPalette ? const Color(0xFFEDF2F8) : const Color(0xFF111A2E);
+  static Color get elevatedCard =>
+      _useLightPalette ? Colors.white : const Color(0xFF17243A);
+
   // Backward compatibility aliases
-  static const Color surface = Color(0xFF111A2E);
-  static const Color cardColor = Color(0xFF17243A);
-  static const Color surfaceHighlight = Color(0xFF1F2F4A);
+  static Color get surface => secondaryBackground;
+  static Color get cardColor => elevatedCard;
+  static Color get surfaceHighlight =>
+      _useLightPalette ? const Color(0xFFE0F2F1) : const Color(0xFF1F2F4A);
 
   // ── Brand & Accent Colors ───────────────────────────────────────────────────
-  static const Color primaryCyan = Color(0xFF25D9F8);
-  static const Color secondaryTeal = Color(0xFF35D6B4);
-  static const Color softViolet = Color(0xFF8B7CFF);
-  static const Color violetAccent = Color(0xFF8B7CFF);
+  static Color get primaryCyan =>
+      _useLightPalette ? const Color(0xFF087E8B) : const Color(0xFF25D9F8);
+  static Color get secondaryTeal =>
+      _useLightPalette ? const Color(0xFF0D9488) : const Color(0xFF35D6B4);
+  static Color get softViolet =>
+      _useLightPalette ? const Color(0xFF6D5BD0) : const Color(0xFF8B7CFF);
+  static Color get violetAccent => softViolet;
 
   // Backward compatibility aliases
-  static const Color primaryTeal = Color(0xFF35D6B4);
-  static const Color primaryTealDim = Color(0xFF209A80);
+  static Color get primaryTeal => secondaryTeal;
+  static Color get primaryTealDim =>
+      _useLightPalette ? const Color(0xFF087E73) : const Color(0xFF209A80);
 
   // ── Semantic Feedback Colors ────────────────────────────────────────────────
   static const Color success = Color(0xFF36C98F);
@@ -42,71 +54,95 @@ class AppTheme {
 
   // Backward compatibility aliases
   static const Color authenticGreen = Color(0xFF36C98F);
-  static const Color authenticBg = Color(0xFF0E2E20);
+  static Color get authenticBg =>
+      _useLightPalette ? const Color(0xFFE5F5EC) : const Color(0xFF0E2E20);
   static const Color counterfeitRed = Color(0xFFFF647C);
-  static const Color counterfeitBg = Color(0xFF34141E);
+  static Color get counterfeitBg =>
+      _useLightPalette ? const Color(0xFFFCE8EC) : const Color(0xFF34141E);
   static const Color suspiciousAmber = Color(0xFFF6BD60);
-  static const Color suspiciousBg = Color(0xFF332612);
+  static Color get suspiciousBg =>
+      _useLightPalette ? const Color(0xFFFFF3D9) : const Color(0xFF332612);
 
   // ── Text & Typography Colors ────────────────────────────────────────────────
-  static const Color textPrimary = Color(0xFFF3F6FC);
-  static const Color textSecondary = Color(0xFFA5B2C7);
-  static const Color textMuted = Color(0xFF6B7C96);
+  static Color get textPrimary =>
+      _useLightPalette ? const Color(0xFF17212F) : const Color(0xFFF3F6FC);
+  static Color get textSecondary =>
+      _useLightPalette ? const Color(0xFF46566B) : const Color(0xFFA5B2C7);
+  static Color get textMuted =>
+      _useLightPalette ? const Color(0xFF5B6B80) : const Color(0xFF6B7C96);
 
   // ── Borders & Dividers ──────────────────────────────────────────────────────
-  static const Color border = Color(0xFF293952);
-  static const Color borderSubtle = Color(0xFF1D2A3D);
-  static const Color divider = Color(0xFF293952);
+  static Color get border =>
+      _useLightPalette ? const Color(0xFFD5DEE9) : const Color(0xFF293952);
+  static Color get borderSubtle =>
+      _useLightPalette ? const Color(0xFFE3EAF2) : const Color(0xFF1D2A3D);
+  static Color get divider => border;
 
   // ── Distinct Typography Tokens with Graceful Fallbacks ──────────────────────
-  static const List<String> fontHeadingFamilies = ['Space Grotesk', 'Roboto', 'sans-serif'];
-  static const List<String> fontBodyFamilies = ['Inter', 'Roboto', 'sans-serif'];
+  static const List<String> fontHeadingFamilies = [
+    'Space Grotesk',
+    'Roboto',
+    'sans-serif',
+  ];
+  static const List<String> fontBodyFamilies = [
+    'Inter',
+    'Roboto',
+    'sans-serif',
+  ];
   static const List<String> fontCodeFamilies = ['JetBrains Mono', 'monospace'];
 
-  static TextStyle headingLarge({Color color = textPrimary}) => TextStyle(
-        fontFamily: 'Space Grotesk',
-        fontFamilyFallback: fontHeadingFamilies,
-        color: color,
-        fontSize: 22,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.3,
-      );
+  static TextStyle headingLarge({Color? color}) => TextStyle(
+    fontFamily: 'Space Grotesk',
+    fontFamilyFallback: fontHeadingFamilies,
+    color: color ?? textPrimary,
+    fontSize: 22,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.3,
+  );
 
-  static TextStyle headingMedium({Color color = textPrimary}) => TextStyle(
-        fontFamily: 'Space Grotesk',
-        fontFamilyFallback: fontHeadingFamilies,
-        color: color,
-        fontSize: 17,
-        fontWeight: FontWeight.w600,
-        letterSpacing: -0.2,
-      );
+  static TextStyle headingMedium({Color? color}) => TextStyle(
+    fontFamily: 'Space Grotesk',
+    fontFamilyFallback: fontHeadingFamilies,
+    color: color ?? textPrimary,
+    fontSize: 17,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.2,
+  );
 
-  static TextStyle headingSmall({Color color = textPrimary}) => TextStyle(
-        fontFamily: 'Space Grotesk',
-        fontFamilyFallback: fontHeadingFamilies,
-        color: color,
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.1,
-      );
+  static TextStyle headingSmall({Color? color}) => TextStyle(
+    fontFamily: 'Space Grotesk',
+    fontFamilyFallback: fontHeadingFamilies,
+    color: color ?? textPrimary,
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0.1,
+  );
 
-  static TextStyle bodyText({Color color = textPrimary, double fontSize = 13, FontWeight fontWeight = FontWeight.w400}) => TextStyle(
-        fontFamily: 'Inter',
-        fontFamilyFallback: fontBodyFamilies,
-        color: color,
-        fontSize: fontSize,
-        fontWeight: fontWeight,
-        height: 1.45,
-      );
+  static TextStyle bodyText({
+    Color? color,
+    double fontSize = 13,
+    FontWeight fontWeight = FontWeight.w400,
+  }) => TextStyle(
+    fontFamily: 'Inter',
+    fontFamilyFallback: fontBodyFamilies,
+    color: color ?? textPrimary,
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    height: 1.45,
+  );
 
-  static TextStyle monoNumeric({Color color = textPrimary, double fontSize = 14, FontWeight fontWeight = FontWeight.w600}) => TextStyle(
-        fontFamily: 'JetBrains Mono',
-        fontFamilyFallback: fontCodeFamilies,
-        color: color,
-        fontSize: fontSize,
-        fontWeight: fontWeight,
-        letterSpacing: 0.2,
-      );
+  static TextStyle monoNumeric({
+    Color? color,
+    double fontSize = 14,
+    FontWeight fontWeight = FontWeight.w600,
+  }) => TextStyle(
+    fontFamily: 'JetBrains Mono',
+    fontFamilyFallback: fontCodeFamilies,
+    color: color ?? textPrimary,
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    letterSpacing: 0.2,
+  );
 
   // ── Dark Theme (Default) ────────────────────────────────────────────────────
   static ThemeData get darkTheme {
@@ -117,7 +153,7 @@ class AppTheme {
       dividerColor: divider,
       fontFamily: 'Inter',
       fontFamilyFallback: fontBodyFamilies,
-      colorScheme: const ColorScheme.dark(
+      colorScheme: ColorScheme.dark(
         primary: primaryCyan,
         secondary: secondaryTeal,
         tertiary: softViolet,
@@ -127,7 +163,7 @@ class AppTheme {
         onSecondary: Color(0xFF0B1020),
         onSurface: textPrimary,
       ),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: background,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -148,7 +184,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: border, width: 1),
+          side: BorderSide(color: border, width: 1),
         ),
         margin: const EdgeInsets.symmetric(vertical: 6),
       ),
@@ -171,7 +207,7 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: primaryCyan,
-          side: const BorderSide(color: border, width: 1.2),
+          side: BorderSide(color: border, width: 1.2),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           textStyle: const TextStyle(
@@ -182,7 +218,7 @@ class AppTheme {
           ),
         ),
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: secondaryBackground,
         selectedItemColor: primaryCyan,
         unselectedItemColor: textMuted,
@@ -204,24 +240,27 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: secondaryBackground,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: border),
+          borderSide: BorderSide(color: border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: border),
+          borderSide: BorderSide(color: border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: primaryCyan, width: 1.5),
+          borderSide: BorderSide(color: primaryCyan, width: 1.5),
         ),
-        labelStyle: const TextStyle(color: textSecondary, fontSize: 13),
-        hintStyle: const TextStyle(color: textMuted, fontSize: 13),
+        labelStyle: TextStyle(color: textSecondary, fontSize: 13),
+        hintStyle: TextStyle(color: textMuted, fontSize: 13),
         prefixIconColor: textMuted,
       ),
-      sliderTheme: const SliderThemeData(
+      sliderTheme: SliderThemeData(
         activeTrackColor: primaryCyan,
         inactiveTrackColor: border,
         thumbColor: primaryCyan,
@@ -229,11 +268,7 @@ class AppTheme {
         valueIndicatorColor: elevatedCard,
         valueIndicatorTextStyle: TextStyle(color: textPrimary, fontSize: 12),
       ),
-      dividerTheme: const DividerThemeData(
-        color: divider,
-        thickness: 1,
-        space: 1,
-      ),
+      dividerTheme: DividerThemeData(color: divider, thickness: 1, space: 1),
     );
   }
 
@@ -322,7 +357,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: lightSurface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: lightBorder),

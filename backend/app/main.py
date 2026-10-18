@@ -56,7 +56,7 @@ def health_check():
     it as a hard server error.
     """
     dev = get_device()
-    secondary_model = "qwen3-vl:4b"
+    secondary_model = "qwen3.5:4b"
     secondary_endpoint = "http://localhost:11434"
     try:
         service = ClassifierService.get_instance()

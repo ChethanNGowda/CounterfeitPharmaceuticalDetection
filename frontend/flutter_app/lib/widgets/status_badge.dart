@@ -14,10 +14,12 @@ class StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String upper = statusText.toUpperCase();
-    final bool isAuthentic = upper.contains('AUTHENTIC') &&
+    final bool isAuthentic =
+        upper.contains('AUTHENTIC') &&
         !upper.contains('SUSPICIOUS') &&
         !upper.contains('VERIFICATION');
-    final bool isCounterfeit = upper.contains('COUNTERFEIT') &&
+    final bool isCounterfeit =
+        upper.contains('COUNTERFEIT') &&
         !upper.contains('SUSPICIOUS') &&
         !upper.contains('VERIFICATION');
 

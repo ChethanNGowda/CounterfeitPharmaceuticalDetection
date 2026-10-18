@@ -3,7 +3,12 @@
 import numpy as np
 from PIL import Image
 import pytest
+import torch
+from torch import nn
+from unittest.mock import patch
 
+from ml.inference.predict import predict
+from ml.preprocessing.quality_checker import QualityCheckResult
 from ml.preprocessing.quality_checker import check_image_quality
 
 
@@ -67,3 +72,50 @@ def test_missing_file_fails():
     res = check_image_quality("non_existent_image_path.jpg")
     assert res.is_valid is False
     assert "does not exist" in res.reason
+
+
+class _FixedClassifier(nn.Module):
+    def forward(self, image):
+        return torch.tensor([[3.0, 0.0]], device=image.device)
+
+
+def test_moderate_blur_keeps_provisional_classifier_prediction():
+    quality = QualityCheckResult(
+        is_valid=False,
+        reason="Poor image quality: excessive blur (score 18.3 < 50.0)",
+        blur_score=18.3,
+        brightness_mean=101.9,
+        width=4096,
+        height=3072,
+        sharpness_status="Excessive Blur",
+        suitability="UNSUITABLE (blur warning)",
+    )
+    image = Image.fromarray(np.full((224, 224, 3), 120, dtype=np.uint8))
+
+    with patch("ml.inference.predict.check_image_quality", return_value=quality):
+        result = predict(image, model=_FixedClassifier(), device=torch.device("cpu"))
+
+    assert result["prediction"] == "AUTHENTIC"
+    assert result["confidence"] > 0.7
+    assert result["quality"]["is_valid"] is False
+    assert "excessive blur" in result["quality"]["reason"]
+
+
+def test_severe_blur_still_blocks_classifier():
+    quality = QualityCheckResult(
+        is_valid=False,
+        reason="Poor image quality: excessive blur (score 2.0 < 50.0)",
+        blur_score=2.0,
+        brightness_mean=120.0,
+        width=224,
+        height=224,
+        sharpness_status="Excessive Blur",
+        suitability="UNSUITABLE (severe blur)",
+    )
+    image = Image.fromarray(np.full((224, 224, 3), 120, dtype=np.uint8))
+
+    with patch("ml.inference.predict.check_image_quality", return_value=quality):
+        result = predict(image, model=_FixedClassifier(), device=torch.device("cpu"))
+
+    assert result["prediction"] == "UNKNOWN"
+    assert result["confidence"] == 0.0

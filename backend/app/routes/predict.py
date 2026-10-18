@@ -31,14 +31,14 @@ async def predict_pharmaceutical(
     file: UploadFile = File(..., description="Multipart tablet image file"),
     threshold: float = Form(DEFAULT_CONFIDENCE_THRESHOLD, description="Confidence threshold between 0.0 and 1.0"),
     model: Optional[str] = Form(DEFAULT_MODEL, description=f"Model name ({', '.join(SUPPORTED_MODELS)})"),
-    enable_qwen: bool = Form(True, description="Enable secondary AI verification via local Ollama qwen3-vl:4b"),
+    enable_qwen: bool = Form(True, description="Enable secondary AI verification via local Ollama Qwen Vision"),
     enable_vision: Optional[bool] = Form(None, description="Alias for enable_qwen for backward compatibility"),
     vision_mode: Optional[str] = Form(None, description="Vision mode: 'auto' (conditional gating), 'always' (forced), 'never' (disabled)"),
 ):
     """Screen an uploaded pharmaceutical tablet image using dual-model pipeline.
 
     - Primary Model: EfficientNet-B0 visual classifier (99.88% test accuracy).
-    - Secondary Review: qwen3-vl:4b (via local Ollama) performing visual inspection.
+    - Secondary Review: configured Qwen Vision model (via local Ollama).
     - Decision Engine: Conservative synthesis yielding LIKELY AUTHENTIC, LIKELY COUNTERFEIT,
       or SUSPICIOUS / NEEDS VERIFICATION.
     """

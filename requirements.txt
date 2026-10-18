@@ -1,6 +1,6 @@
 # Core API & Web Server
 fastapi
-uvicorn
+uvicorn[standard]
 python-multipart
 pydantic
 
@@ -18,8 +18,12 @@ torchvision
 # Utilities, Testing & AI Integration
 python-dotenv
 pytest
-httpx
+pytest-asyncio
+httpx          # Used by FastAPI TestClient (legacy)
+httpx2         # Preferred HTTPX client (resolves FastAPI/Starlette TestClient deprecation warning)
 ollama>=0.5.0
 
 # NOTE: Ollama is also an external system runtime daemon (https://ollama.com)
 # required for secondary Qwen Vision verification (model: qwen3-vl:4b).
+# Install Ollama separately: https://ollama.com/download
+# Then: ollama pull qwen3-vl:4b

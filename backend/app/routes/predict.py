@@ -7,9 +7,9 @@ from typing import Optional
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from PIL import Image
 
-from ml.config import DEFAULT_CONFIDENCE_THRESHOLD, DEFAULT_MODEL, SUPPORTED_MODELS
-from ml.models.transfer_learning import CheckpointUnavailableError, normalize_model_name
-from backend.app.schemas.predict import PredictionResponse
+from ml.config import CHECKPOINT_REGISTRY, DEFAULT_CONFIDENCE_THRESHOLD, DEFAULT_MODEL, SUPPORTED_MODELS
+from ml.models.transfer_learning import CheckpointUnavailableError, get_model_status, normalize_model_name
+from backend.app.schemas.predict import ModelsListResponse, ModelStatusItem, PredictionResponse, QwenHealthResponse
 from backend.app.services.classifier import ClassifierService
 
 router = APIRouter()
@@ -71,7 +71,7 @@ async def predict_pharmaceutical(
 
     if len(content) > MAX_UPLOAD_SIZE:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=f"Image upload exceeds maximum allowed size of 15MB ({len(content) / (1024 * 1024):.1f}MB uploaded).",
         )
 
@@ -148,4 +148,144 @@ async def predict_pharmaceutical(
         authentic_probability=result["authentic_probability"],
         counterfeit_probability=result["counterfeit_probability"],
         quality=result.get("quality"),
+    )
+
+
+@router.get("/health/qwen", response_model=QwenHealthResponse, tags=["Health"])
+@router.get("/diagnostics/qwen", response_model=QwenHealthResponse, tags=["Health"])
+def qwen_diagnostics():
+    """Live diagnostic check for local Ollama and Qwen Vision model."""
+    import json
+    import urllib.error
+    import urllib.request
+
+    service = ClassifierService.get_instance()
+    verifier = service.vision_verifier
+    base_url = verifier.base_url
+    model_name = verifier.model_name
+
+    try:
+        req = urllib.request.Request(f"{base_url}/api/tags")
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        models = [m.get("name", "") for m in data.get("models", [])]
+
+        has_model = any(model_name == m or m.startswith(model_name) for m in models)
+        if has_model:
+            return QwenHealthResponse(
+                status="READY",
+                available=True,
+                model_name=model_name,
+                base_url=base_url,
+                installed_models=models,
+                message=f"Qwen Vision model '{model_name}' is installed and responsive.",
+            )
+        else:
+            return QwenHealthResponse(
+                status="MODEL_NOT_INSTALLED",
+                available=False,
+                model_name=model_name,
+                base_url=base_url,
+                installed_models=models,
+                message=f"Ollama is running, but model '{model_name}' is not installed. Run 'ollama pull {model_name}'.",
+            )
+    except urllib.error.URLError:
+        return QwenHealthResponse(
+            status="OLLAMA_UNREACHABLE",
+            available=False,
+            model_name=model_name,
+            base_url=base_url,
+            installed_models=[],
+            message=f"Cannot connect to Ollama at {base_url}. Ensure the Ollama service is running.",
+        )
+    except Exception as exc:
+        return QwenHealthResponse(
+            status="ERROR",
+            available=False,
+            model_name=model_name,
+            base_url=base_url,
+            installed_models=[],
+            message=f"Diagnostic error: {exc}",
+        )
+
+
+# ── Saved benchmark metrics for unavailable models ─────────────────────────
+# Sourced from reports/model_comparison.md (benchmark run 2026-09-23, test.csv, 827 images)
+# These are NOT current reproduced metrics — treat as historical benchmarks only.
+_BENCHMARK_METRICS: dict = {
+    "efficientnet_b0": {
+        "accuracy": 0.9988, "precision": 0.9965, "recall": 1.0000,
+        "macro_f1": 0.9982, "specificity": 0.9982, "roc_auc": 0.9993,
+        "test_samples": 827,
+        "note": (
+            "REPRODUCED 2026-10-18 on test_clean.csv (839 images): "
+            "accuracy=99.76%, recall=100.00%, specificity=99.64%, ROC-AUC=0.99999"
+        ),
+    },
+    "mobilenet_v3_large": {
+        "accuracy": 0.9940, "precision": 0.9929, "recall": 0.9893,
+        "macro_f1": 0.9911, "specificity": 0.9963, "roc_auc": 0.9993,
+        "test_samples": 827,
+        "note": "Historical benchmark 2026-09-23 — fine-tuned checkpoint not on disk",
+    },
+    "goldformer": {
+        "accuracy": 0.9927, "precision": 0.9791, "recall": 1.0000,
+        "macro_f1": 0.9894, "specificity": 0.9890, "roc_auc": 0.9993,
+        "test_samples": 827,
+        "note": "Historical benchmark 2026-09-23 — fine-tuned checkpoint not on disk",
+    },
+    "baseline_cnn": {
+        "accuracy": 0.8658, "precision": 0.7457, "recall": 0.9181,
+        "macro_f1": 0.8230, "specificity": 0.8388, "roc_auc": 0.9456,
+        "test_samples": 827,
+        "note": "Historical benchmark 2026-09-23 — fine-tuned checkpoint not on disk",
+    },
+}
+
+
+@router.get("/models", response_model=ModelsListResponse, tags=["Information"])
+def list_models():
+    """Return registration status, checkpoint availability, and benchmark metrics for all models.
+
+    Metrics for models whose checkpoints are no longer present on disk are historical results
+    from the original benchmark run (2026-09-23, test.csv, 827 images). Only efficientnet_b0
+    has been reproduced from the current checkpoint (2026-10-18, test_clean.csv, 839 images).
+    Checkpoint paths are not exposed in full to avoid leaking filesystem layout.
+    """
+    import hashlib
+
+    def _sha256(path) -> str | None:
+        try:
+            h = hashlib.sha256()
+            with open(path, "rb") as f:
+                while chunk := f.read(65536):
+                    h.update(chunk)
+            return h.hexdigest()
+        except Exception:
+            return None
+
+    items = []
+    for name, reg in CHECKPOINT_REGISTRY.items():
+        status_info = get_model_status(name)
+        ckpt_path = reg.get("expected_checkpoint")
+        ckpt_exists = ckpt_path and ckpt_path.is_file()
+        sha = _sha256(str(ckpt_path)) if ckpt_exists else None
+        metrics = _BENCHMARK_METRICS.get(name)
+        items.append(ModelStatusItem(
+            model_name=name,
+            architecture=reg.get("architecture", name),
+            finetuned_available=status_info.get("finetuned_available", False),
+            pretrained_available=status_info.get("pretrained_available", False),
+            status=status_info.get("status", "Unknown"),
+            description=reg.get("description", ""),
+            expected_checkpoint="<registry path>",  # Do not expose full filesystem path
+            checkpoint_sha256=sha,
+            evaluated=metrics is not None,
+            metrics=metrics,
+        ))
+
+    return ModelsListResponse(
+        total_models=len(items),
+        available_models=[i.model_name for i in items if i.finetuned_available],
+        models=items,
     )

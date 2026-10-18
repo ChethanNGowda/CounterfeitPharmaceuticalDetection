@@ -121,11 +121,11 @@ def _parse_inline_field(text: str, field: str) -> str:
 
 
 def parse_qwen_vision_output(raw_text: str) -> dict[str, Any]:
-    """Parse structured fields from Qwen Vision text response.
+    """Parse structured fields from Qwen Vision text or JSON response.
 
     Strips markdown symbols (*, #, _) and uses the LAST match for each field
     so that intermediate thinking chain occurrences don't override the final answer.
-    Also extracts structured tablet analysis sub-fields, observations, and concerns.
+    Also parses JSON responses directly when present.
     """
     result: dict[str, Any] = {
         "assessment": "UNCERTAIN",
@@ -133,7 +133,67 @@ def parse_qwen_vision_output(raw_text: str) -> dict[str, Any]:
         "image_quality": "FAIR",
         "recommendation": "MANUAL REVIEW",
         "raw_text": raw_text.strip(),
+        "tablet_shape": "",
+        "tablet_color": "",
+        "tablet_surface": "",
+        "tablet_markings": "",
+        "tablet_edges": "",
+        "tablet_other": "",
+        "packaging_analysis": "",
+        "observations_list": [],
+        "concerns_list": [],
+        "final_explanation": "",
     }
+
+    # 1. Attempt JSON parsing if a JSON object is present
+    try:
+        trimmed = raw_text.strip()
+        json_str = None
+        if trimmed.startswith("{") and trimmed.endswith("}"):
+            json_str = trimmed
+        else:
+            json_match = re.search(r"\{[\s\S]*\}", trimmed)
+            if json_match:
+                json_str = json_match.group(0)
+        if json_str:
+            data = json.loads(json_str)
+            if any(k in data for k in ["assessment", "shape", "tablet_shape", "color", "markings"]):
+                if "assessment" in data:
+                    ass = str(data["assessment"]).strip().upper()
+                    if ass in ["AUTHENTIC", "COUNTERFEIT", "UNCERTAIN"]:
+                        result["assessment"] = ass
+                conf = data.get("confidence") or data.get("visual_confidence")
+                if conf:
+                    c_str = str(conf).strip().upper()
+                    if c_str in ["LOW", "MEDIUM", "HIGH"]:
+                        result["confidence"] = c_str
+                qual = data.get("image_quality") or data.get("quality")
+                if qual:
+                    q_str = str(qual).strip().upper()
+                    if q_str in ["GOOD", "FAIR", "POOR"]:
+                        result["image_quality"] = q_str
+                rec = data.get("recommendation")
+                if rec:
+                    r_str = str(rec).strip().upper()
+                    if "SCREENING" in r_str:
+                        result["recommendation"] = "AUTOMATED SCREENING"
+                    elif "MANUAL" in r_str or "REVIEW" in r_str:
+                        result["recommendation"] = "MANUAL REVIEW"
+                result["tablet_shape"] = str(data.get("tablet_shape") or data.get("shape") or "")
+                result["tablet_color"] = str(data.get("tablet_color") or data.get("color") or "")
+                result["tablet_surface"] = str(data.get("tablet_surface") or data.get("surface") or "")
+                result["tablet_markings"] = str(data.get("tablet_markings") or data.get("markings") or "")
+                result["tablet_edges"] = str(data.get("tablet_edges") or data.get("edges") or "")
+                result["tablet_other"] = str(data.get("tablet_other") or data.get("other") or "")
+                result["packaging_analysis"] = str(data.get("packaging_analysis") or data.get("packaging") or "")
+                obs = data.get("observations_list") or data.get("observations") or []
+                result["observations_list"] = [str(x).strip() for x in obs] if isinstance(obs, list) else ([str(obs).strip()] if obs else [])
+                conc = data.get("concerns_list") or data.get("concerns") or []
+                result["concerns_list"] = [str(x).strip() for x in conc] if isinstance(conc, list) else ([str(conc).strip()] if conc else [])
+                result["final_explanation"] = str(data.get("final_explanation") or data.get("explanation") or "")
+                return result
+    except Exception:
+        pass
 
     # Normalize by stripping markdown bold/heading characters
     clean_text = re.sub(r"[*#_]", "", raw_text)
@@ -255,6 +315,16 @@ class QwenVisionVerifier:
             "warning": "Secondary AI verification unavailable — result based on primary classifier.",
             "model_name": self.model_name,
             "raw_text": raw_text,
+            "tablet_shape": "",
+            "tablet_color": "",
+            "tablet_surface": "",
+            "tablet_markings": "",
+            "tablet_edges": "",
+            "tablet_other": "",
+            "packaging_analysis": "",
+            "observations_list": [],
+            "concerns_list": [],
+            "final_explanation": reason,
         }
 
     def verify_image(self, image_input: Union[str, Path, Image.Image, bytes, bytearray]) -> dict[str, Any]:
@@ -438,6 +508,16 @@ class QwenVisionVerifier:
             "needs_human_verification": parsed["assessment"] != "AUTHENTIC",
             "warning": "Visual screening cannot establish chemical authenticity.",
             "model_name": self.model_name,
+            "tablet_shape": parsed.get("tablet_shape", ""),
+            "tablet_color": parsed.get("tablet_color", ""),
+            "tablet_surface": parsed.get("tablet_surface", ""),
+            "tablet_markings": parsed.get("tablet_markings", ""),
+            "tablet_edges": parsed.get("tablet_edges", ""),
+            "tablet_other": parsed.get("tablet_other", ""),
+            "packaging_analysis": parsed.get("packaging_analysis", ""),
+            "observations_list": parsed.get("observations_list", []),
+            "concerns_list": parsed.get("concerns_list", []),
+            "final_explanation": parsed.get("final_explanation", ""),
         }
 
     def format_vision_section(self, verification: dict[str, Any]) -> str:

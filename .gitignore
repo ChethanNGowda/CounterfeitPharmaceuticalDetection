@@ -8,6 +8,7 @@ __pycache__/
 .coverage
 htmlcov/
 *.log
+.mypy_cache/
 
 # Local datasets and generated image copies
 data/counterfeit/
@@ -25,3 +26,41 @@ outputs/raw_training/
 
 # Local audit outputs that may contain machine-specific paths
 reports/*.json
+
+# Scratch / temporary development files
+scratch/
+
+# Flutter build artifacts and generated files
+frontend/flutter_app/build/
+frontend/flutter_app/.dart_tool/
+frontend/flutter_app/.flutter-plugins
+frontend/flutter_app/.flutter-plugins-dependencies
+frontend/flutter_app/.packages
+frontend/flutter_app/android/.gradle/
+frontend/flutter_app/android/.kotlin/
+frontend/flutter_app/android/local.properties
+frontend/flutter_app/ios/.symlinks/
+frontend/flutter_app/ios/Pods/
+frontend/flutter_app/ios/Flutter/Flutter.framework
+frontend/flutter_app/ios/Flutter/Flutter.podspec
+frontend/flutter_app/pubspec.lock
+
+# IDE / Editor artifacts
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Python notebook checkpoints
+.ipynb_checkpoints/
+
+# Large generated checkpoint directories (fine-tuned weights should be tracked separately)
+outputs/full_data_training/checkpoints/
+outputs/external_pretrained/

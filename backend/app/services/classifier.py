@@ -61,10 +61,14 @@ class ClassifierService:
 
         model = self.models[norm_name]
 
-        # 1. Read and validate PIL image
+        # 1. Pre-flight validate image readability before passing bytes to pipeline.
+        # Note: PIL.Image.verify() must be called on a freshly-opened image because
+        # it exhausts the internal stream pointer and marks the image as verified/closed.
+        # We only need to confirm the bytes are a decodable image; the pipeline handles
+        # corrupted images gracefully via the quality gate.
         try:
-            with Image.open(io.BytesIO(image_bytes)) as pil_image:
-                pil_image.verify()
+            img_probe = Image.open(io.BytesIO(image_bytes))
+            img_probe.verify()  # raises if image is truncated/corrupt
         except Exception as e:
             raise ValueError(f"Corrupted or invalid image data: {e}")
 

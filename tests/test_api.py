@@ -627,3 +627,100 @@ def test_app_startup_and_import():
     assert "/predict" in paths
     assert "/verify" in paths
 
+
+def test_root_endpoint_returns_api_info():
+    """GET / must return API information, supported models, and usage."""
+    response = client.get("/")
+    assert response.status_code == 200
+    data = response.json()
+    assert "name" in data
+    assert "version" in data
+    assert "endpoints" in data
+    assert "supported_models" in data
+    assert "efficientnet_b0" in data["supported_models"]
+
+
+def test_predict_endpoint_vision_mode_never_parameter():
+    """Passing vision_mode='never' must execute fast path without secondary AI."""
+    buf = _make_synthetic_image_buf()
+    response = client.post(
+        "/predict",
+        files={"file": ("tablet.jpg", buf, "image/jpeg")},
+        data={"vision_mode": "never"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["secondary_executed"] is False
+    assert "never" in (data["secondary_reason"] or "").lower()
+
+
+# ---------------------------------------------------------------------------
+# GET /models endpoint
+# ---------------------------------------------------------------------------
+
+def test_models_endpoint_returns_all_registered_models():
+    """GET /models must return all four registered model entries."""
+    response = client.get("/models")
+    assert response.status_code == 200
+    data = response.json()
+    assert "total_models" in data
+    assert "available_models" in data
+    assert "models" in data
+    assert data["total_models"] == 4
+    names = [m["model_name"] for m in data["models"]]
+    assert "efficientnet_b0" in names
+    assert "mobilenet_v3_large" in names
+    assert "baseline_cnn" in names
+    assert "goldformer" in names
+
+
+def test_models_endpoint_only_efficientnet_available():
+    """Only efficientnet_b0 should report finetuned_available=True (checkpoint on disk)."""
+    response = client.get("/models")
+    assert response.status_code == 200
+    data = response.json()
+    available = data["available_models"]
+    assert "efficientnet_b0" in available
+    for m in data["models"]:
+        if m["model_name"] == "efficientnet_b0":
+            assert m["finetuned_available"] is True
+            assert m["checkpoint_sha256"] is not None
+            assert len(m["checkpoint_sha256"]) == 64  # hex SHA-256
+        else:
+            assert m["finetuned_available"] is False
+            assert m["checkpoint_sha256"] is None
+
+
+def test_models_endpoint_all_models_have_metrics():
+    """All four models must have benchmark metrics (efficientnet_b0: reproduced; others: historical)."""
+    response = client.get("/models")
+    assert response.status_code == 200
+    data = response.json()
+    for m in data["models"]:
+        assert m["evaluated"] is True, f"{m['model_name']} should have metrics"
+        metrics = m["metrics"]
+        assert metrics is not None
+        assert "accuracy" in metrics
+        assert "recall" in metrics
+        assert "roc_auc" in metrics
+        assert "test_samples" in metrics
+        assert "note" in metrics
+
+
+def test_models_endpoint_unavailable_models_have_correct_status():
+    """Models without checkpoints must show appropriate status string."""
+    response = client.get("/models")
+    data = response.json()
+    for m in data["models"]:
+        if not m["finetuned_available"]:
+            assert "unavailable" in m["status"].lower() or "architecture supported" in m["status"].lower()
+
+
+def test_models_endpoint_does_not_expose_filesystem_paths():
+    """The /models endpoint must not expose real filesystem paths to app users."""
+    response = client.get("/models")
+    data = response.json()
+    for m in data["models"]:
+        # expected_checkpoint should be a placeholder, not a real Windows path
+        assert "C:\\" not in m.get("expected_checkpoint", "")
+        assert "/Users/" not in m.get("expected_checkpoint", "")

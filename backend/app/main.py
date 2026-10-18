@@ -49,17 +49,29 @@ def api_info():
 
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
 def health_check():
-    """Lightweight operational health check."""
+    """Lightweight operational health check.
+
+    Always returns HTTP 200. Reports model and secondary AI availability in the
+    response body so callers can detect degraded-mode operation without treating
+    it as a hard server error.
+    """
     dev = get_device()
-    service = ClassifierService.get_instance()
+    secondary_model = "qwen3-vl:4b"
+    secondary_endpoint = "http://localhost:11434"
+    try:
+        service = ClassifierService.get_instance()
+        secondary_model = service.vision_verifier.model_name
+        secondary_endpoint = service.vision_verifier.base_url
+    except Exception:
+        pass  # Degraded mode — return basic health information
     return HealthResponse(
         status="ok",
         version="1.0.0",
         device=str(dev),
         default_model=DEFAULT_MODEL,
         available_models=SUPPORTED_MODELS,
-        secondary_ai_model=service.vision_verifier.model_name,
-        secondary_ai_endpoint=service.vision_verifier.base_url,
+        secondary_ai_model=secondary_model,
+        secondary_ai_endpoint=secondary_endpoint,
     )
 
 

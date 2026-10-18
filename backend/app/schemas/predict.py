@@ -150,6 +150,34 @@ class HealthResponse(BaseModel):
     secondary_ai_endpoint: str = "http://localhost:11434"
 
 
+class ModelStatusItem(BaseModel):
+    model_name: str
+    architecture: str
+    finetuned_available: bool
+    pretrained_available: bool
+    status: str
+    description: str
+    expected_checkpoint: str
+    checkpoint_sha256: Optional[str] = None
+    evaluated: bool = False
+    metrics: Optional[dict[str, Any]] = None
+
+
+class ModelsListResponse(BaseModel):
+    total_models: int
+    available_models: list[str]
+    models: list[ModelStatusItem]
+
+
+class QwenHealthResponse(BaseModel):
+    status: str = "READY"  # READY, OLLAMA_UNREACHABLE, MODEL_NOT_INSTALLED, ERROR
+    available: bool = True
+    model_name: str = "qwen3-vl:4b"
+    base_url: str = "http://localhost:11434"
+    installed_models: list[str] = Field(default_factory=list)
+    message: str = "Qwen Vision secondary review is ready."
+
+
 class ApiInfoResponse(BaseModel):
     name: str = "Counterfeit Pharmaceutical Detection API"
     version: str = "1.0.0"

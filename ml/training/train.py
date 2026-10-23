@@ -167,7 +167,8 @@ def main() -> None:
     parser.add_argument("--raw-dir", default="data/raw")
     parser.add_argument("--split-dir", default="data/splits")
     parser.add_argument("--metadata")
-    parser.add_argument("--output-dir", default="runs")
+    default_runs = Path(__file__).resolve().parents[2] / "external_models" / "PharmaAssist" / "training_runs"
+    parser.add_argument("--output-dir", default=str(default_runs))
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--learning-rate", type=float, default=1e-3)

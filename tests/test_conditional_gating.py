@@ -215,6 +215,12 @@ def test_quality_gate_failure_skips_qwen_in_any_mode(monkeypatch):
     )
     assert result["secondary_executed"] is False
     verifier.verify_image.assert_not_called()
+    assert result["prediction"] == "UNKNOWN"
+    assert result["primary_prediction"] == "UNKNOWN"
+    assert result["confidence"] == 0.0
+    assert result["authentic_probability"] == 0.0
+    assert result["counterfeit_probability"] == 0.0
+    assert result["qwen"]["status"] == "SKIPPED"
     assert result["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
     assert result["needs_human_verification"] is True
     assert "quality check failed" in result["secondary_reason"]
@@ -250,7 +256,7 @@ def test_borderline_contradiction_yields_suspicious(monkeypatch):
 
 def test_qwen_unavailable_borderline_preserves_primary_with_warning(monkeypatch):
     """Borderline confidence with Qwen unavailable (attempted but failed) preserves primary
-    verdict with warning and requires manual review per README §Qwen3-VL graceful degradation."""
+    verdict with a warning; unavailability alone does not force manual review."""
     monkeypatch.setattr(
         "ml.inference.predict.predict",
         lambda *args, **kwargs: _mock_primary(confidence=0.84, predicted_class="authentic"),
@@ -265,8 +271,8 @@ def test_qwen_unavailable_borderline_preserves_primary_with_warning(monkeypatch)
     assert result["secondary_executed"] is True
     assert result["secondary_available"] is False
     assert result["final_result"] == "LIKELY AUTHENTIC"
-    # Rule 4a: secondary was invoked but returned available=False → needs_human=True
-    assert result["needs_human_verification"] is True
+    # An unavailable secondary opinion does not override an accepted primary class.
+    assert result["needs_human_verification"] is False
     # Warning text explains the failure (may say 'failed' or 'unavailable')
     assert result["warning"] is not None
     warning_lower = result["warning"].lower()

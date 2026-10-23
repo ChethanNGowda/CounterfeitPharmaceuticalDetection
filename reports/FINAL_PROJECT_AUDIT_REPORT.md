@@ -1,5 +1,7 @@
 # Counterfeit Pharmaceutical Detection
 
+> Historical audit: some benchmark and inventory sections below describe earlier artifact locations. The current model directory structure and local checkpoint availability are documented in `external_models/PharmaAssist/README.md` and `docs/project_cleanup_plan.md`.
+
 ## Final Project Audit & Technical Report
 
 ---
@@ -92,28 +94,28 @@ The end-to-end architecture is structured as a dual-pipeline screening system wi
 
 #### 1. EfficientNet-B0 (Primary Model)
 - **Role:** Primary deep feature classifier.
-- **Weights:** Base initialized from ImageNet-1k pretrained backbone (`models/efficientnet_b0.pth`, 20.4 MB); trained checkpoint fine-tuned on the pharmaceutical dataset (`outputs/full_data_training/checkpoints/20260922_183414_efficientnet_b0/best.pt`, 15.6 MB).
+- **Weights:** Base initialized from ImageNet-1k pretrained backbone (`external_models/PharmaAssist/weights/pretrained/efficientnet_b0.pth`, 20.4 MB); trained checkpoint fine-tuned on the pharmaceutical dataset (`external_models/PharmaAssist/weights/checkpoints/efficientnet_b0/best.pt`, 15.6 MB).
 - **Parameters:** ~4.0M trainable parameters; lightweight, highly efficient for edge and server inference.
 - **Contract:** Input resolution 224x224 RGB, output binary logits `[authentic, counterfeit]`.
 - **Status:** **ACTIVE / PRIMARY CLASSIFIER**.
 
 #### 2. MobileNetV3-Large (Comparison Benchmark)
 - **Role:** Lightweight mobile-optimized architectural benchmark.
-- **Weights:** Initialized from `models/mobilenet_v3_large.pth` (21.1 MB); fine-tuned checkpoint at `outputs/full_data_training/checkpoints/20260922_184205_mobilenet_v3_large/best.pt` (16.2 MB).
+- **Weights:** Initialized from `external_models/PharmaAssist/weights/pretrained/mobilenet_v3_large.pth` (21.1 MB); fine-tuned checkpoint at `external_models/PharmaAssist/weights/checkpoints/mobilenet_v3_large/best.pt` (16.2 MB).
 - **Parameters:** ~4.2M parameters.
 - **Contract:** Input resolution 224x224 RGB, output binary logits `[authentic, counterfeit]`.
 - **Status:** **ACTIVE / REGISTERED COMPARISON MODEL**.
 
 #### 3. Baseline CNN (Architectural Baseline)
 - **Role:** 3-layer convolutional network baseline (Conv-BN-ReLU-Pool $\times$ 3 + Dropout + Linear) to demonstrate the concrete performance gain provided by transfer learning backbones over vanilla CNNs.
-- **Weights:** Self-supervised pretraining at `outputs/full_data_training/pretraining/baseline_cnn.pt` (378 KB); fine-tuned checkpoint at `outputs/full_data_training/checkpoints/20260922_182858_baseline_cnn/best.pt` (375 KB).
+- **Weights:** Self-supervised pretraining at `external_models/PharmaAssist/weights/pretrained/baseline_cnn.pt` (378 KB); fine-tuned checkpoint at `external_models/PharmaAssist/weights/checkpoints/baseline_cnn/best.pt` (375 KB).
 - **Parameters:** ~94K parameters.
 - **Status:** **ACTIVE / REGISTERED BASELINE MODEL**.
 
 #### 4. GoldFormer / GoldNet (Cross-Domain Transfer Benchmark)
 - **Role:** Exploration of cross-domain counterfeit detection transfer from high-value physical goods (gold coins/bars) to pharmaceutical tablets.
 - **Architecture:** Hybrid ResNet50 convolutional backbone + Swin Transformer (Swin-T) branch fused with cross-attention.
-- **Weights:** Original gold-domain weights at `external_models/GoldNet/weights/GoldFormer_best.pth` (207.7 MB); fine-tuned pharmaceutical checkpoint at `outputs/external_pretrained/goldformer/checkpoint/goldformer_pharmaceutical_best.pt` (207.7 MB).
+- **Weights:** Original gold-domain weights at `external_models/GoldNet/weights/GoldFormer_best.pth` (207.7 MB); fine-tuned pharmaceutical checkpoint at `external_models/PharmaAssist/weights/checkpoints/goldformer/goldformer_pharmaceutical_best.pt` (207.7 MB).
 - **Parameters:** 54,297,277 parameters.
 - **Input/Output:** 224x224 RGB, 2 classes `[authentic, counterfeit]`.
 - **Status:** **ACTIVE / EXPERIMENTAL RESEARCH COMPARISON**.
@@ -199,7 +201,7 @@ The previously reported performance:
 - **Test Accuracy: 99.88%** on the project's held-out test set of 827 images.
 - **F1 Score: 99.82%** on the held-out test set.
 
-**VERIFIED.** These figures correspond directly to the test evaluation of `outputs/full_data_training/checkpoints/20260922_183414_efficientnet_b0/best.pt` on `data/full_training/test.csv`.
+**VERIFIED.** These figures correspond directly to the test evaluation of `external_models/PharmaAssist/weights/checkpoints/efficientnet_b0/best.pt` on `data/full_training/test.csv`.
 
 > [!NOTE]
 > 99.88% is the statistical accuracy on the held-out evaluation set of 827 images under laboratory-like photography conditions. It does not represent real-world pharmaceutical authenticity accuracy across uncontrolled field environments.
@@ -357,14 +359,14 @@ All model weights and fine-tuned checkpoints have been verified with SHA256 cryp
 
 | Model Architecture | Artifact Type | File Path | File Size | SHA256 Checksum |
 |---|---|---|---:|---|
-| **EfficientNet-B0** | Base Weights | `models/efficientnet_b0.pth` | 20.4 MB | `7f5810bc96def8f7552d5b7e68d53c4786f81167d28291b21c0d90e1fca14934` |
-| **EfficientNet-B0** | Fine-Tuned Checkpoint | `outputs/full_data_training/checkpoints/20260922_183414_efficientnet_b0/best.pt` | 15.6 MB | `50d6b87446545b74c4a45610e2d14cb80927956799052d9a6cbf84cb84e1b9b9` |
-| **MobileNetV3-Large** | Base Weights | `models/mobilenet_v3_large.pth` | 21.1 MB | `5c1a416349c4cf298f2a6a5e2600ed0ee55e604713578f5e74e6bc8bcaef7997` |
-| **MobileNetV3-Large** | Fine-Tuned Checkpoint | `outputs/full_data_training/checkpoints/20260922_184205_mobilenet_v3_large/best.pt` | 16.2 MB | `58d1c5a5ff79199d794685ff8a6f44d18fa7b2a65f57788426176378c257321e` |
-| **Baseline CNN** | Pretrained Checkpoint | `outputs/full_data_training/pretraining/baseline_cnn.pt` | 378 KB | `a90688856bc0a8677c7c34b8c66a4bc2c8d234bafe66db88ff96387063d91cf9` |
-| **Baseline CNN** | Fine-Tuned Checkpoint | `outputs/full_data_training/checkpoints/20260922_182858_baseline_cnn/best.pt` | 375 KB | `3b4c3ce3fa446506d2003cffeb426e257ef9a622a5509744c69818ae504958f3` |
+| **EfficientNet-B0** | Base Weights | `external_models/PharmaAssist/weights/pretrained/efficientnet_b0.pth` | 20.4 MB | `7f5810bc96def8f7552d5b7e68d53c4786f81167d28291b21c0d90e1fca14934` |
+| **EfficientNet-B0** | Fine-Tuned Checkpoint | `external_models/PharmaAssist/weights/checkpoints/efficientnet_b0/best.pt` | 15.6 MB | `50d6b87446545b74c4a45610e2d14cb80927956799052d9a6cbf84cb84e1b9b9` |
+| **MobileNetV3-Large** | Base Weights | `external_models/PharmaAssist/weights/pretrained/mobilenet_v3_large.pth` | 21.1 MB | `5c1a416349c4cf298f2a6a5e2600ed0ee55e604713578f5e74e6bc8bcaef7997` |
+| **MobileNetV3-Large** | Fine-Tuned Checkpoint | `external_models/PharmaAssist/weights/checkpoints/mobilenet_v3_large/best.pt` | 16.2 MB | `58d1c5a5ff79199d794685ff8a6f44d18fa7b2a65f57788426176378c257321e` |
+| **Baseline CNN** | Pretrained Checkpoint | `external_models/PharmaAssist/weights/pretrained/baseline_cnn.pt` | 378 KB | `a90688856bc0a8677c7c34b8c66a4bc2c8d234bafe66db88ff96387063d91cf9` |
+| **Baseline CNN** | Fine-Tuned Checkpoint | `external_models/PharmaAssist/weights/checkpoints/baseline_cnn/best.pt` | 375 KB | `3b4c3ce3fa446506d2003cffeb426e257ef9a622a5509744c69818ae504958f3` |
 | **GoldFormer** | Domain Base Weights | `external_models/GoldNet/weights/GoldFormer_best.pth` | 207.7 MB | `9544e642cbe86064f7dfa7322a30ca4d9a3b2b51ee2bc36bba7130206277b21e` |
-| **GoldFormer** | Fine-Tuned Checkpoint | `outputs/external_pretrained/goldformer/checkpoint/goldformer_pharmaceutical_best.pt` | 207.7 MB | `576add1a26b28d6fa8e95085e933446059b02a7b8ea01997d5a570081d0be64d` |
+| **GoldFormer** | Fine-Tuned Checkpoint | `external_models/PharmaAssist/weights/checkpoints/goldformer/goldformer_pharmaceutical_best.pt` | 207.7 MB | `576add1a26b28d6fa8e95085e933446059b02a7b8ea01997d5a570081d0be64d` |
 | **qwen3:8b** | Ollama Model Weights | Local Ollama manifest (`qwen3:8b`) | 5.2 GB | Managed via local Ollama daemon |
 
 ---
@@ -406,21 +408,16 @@ Failures:  0
 
 ### 12. Repository Cleanup Plan & Hygiene
 
-A dedicated cleanup plan has been documented in `docs/project_cleanup_plan.md`:
+The active model assets have been consolidated under `external_models/PharmaAssist/weights/`. GoldNet and TrueMeds remain intact as external reference projects. See `docs/project_cleanup_plan.md` for the current directory conventions and preservation rules.
 
-| Directory / File | Classification | Rationale |
-|---|---|---|
-| `outputs/checkpoints/` | **ARCHIVE / DELETE CANDIDATE** | Superseded by `outputs/full_data_training/checkpoints/` (Sept 22 runs). Older redundant checkpoints from Sept 21. |
-| `outputs/raw_training/` | **ARCHIVE / DELETE CANDIDATE** | Superseded by `outputs/full_data_training/`. Older exploratory raw run. |
-| `runs/` | **SAFE TO DELETE** | Historical tensorboard log artifacts; no active code references. |
-| `.venv/` | **PRESERVE (CRITICAL)** | Active Python 3.12 virtual environment. Must never be touched. |
-| `models/*.pth` | **PRESERVE** | Essential ImageNet pretrained base weights for EfficientNet-B0 and MobileNetV3. |
-| `outputs/full_data_training/` | **PRESERVE** | Primary active model checkpoints (`best.pt`), metrics, and reports. |
-| `outputs/external_pretrained/` | **PRESERVE** | GoldFormer fine-tuned pharmaceutical checkpoint and metrics. |
-| `external_models/GoldNet/` | **PRESERVE** | Source code and base weights required to instantiate GoldFormer architecture. |
-| `data/full_training/` | **PRESERVE** | Official leakage-controlled manifests (`train.csv`, `validation.csv`, `test.csv`). |
-| `test_images/` | **PRESERVE** | Reference test images for demonstration and regression testing. |
-| `.env.example` | **PRESERVE** | Environment template for local Ollama and server configuration. |
+| Directory | Current role |
+|---|---|
+| `external_models/PharmaAssist/weights/` | First-party pretrained weights and available fine-tuned classifiers |
+| `external_models/PharmaAssist/training_runs/` | Local generated model training artifacts |
+| `external_models/GoldNet/`, `external_models/TrueMeds/` | Preserved upstream project sources |
+| `ml/`, `backend/`, `frontend/flutter_app/` | Application and model source code |
+| `data/`, `reports/`, `docs/` | Datasets/manifests, evaluation artifacts, and project documentation |
+| `.venv/`, `.git/` | Preserve local environment and version history |
 
 ---
 

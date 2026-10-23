@@ -19,6 +19,9 @@ from torch.cuda.amp import GradScaler
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from torchvision import models, transforms
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+MODEL_WEIGHTS = PROJECT_ROOT / "external_models" / "PharmaAssist" / "weights"
+
 CLASS_NAMES = ["authentic", "counterfeit"]
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
@@ -75,7 +78,7 @@ def build_model(name: str, self_supervised_checkpoint: Path | None = None) -> nn
         return model
     if name == "efficientnet_b0":
         model = models.efficientnet_b0(weights=None)
-        checkpoint = torch.load("models/efficientnet_b0.pth", map_location="cpu", weights_only=True)
+        checkpoint = torch.load(MODEL_WEIGHTS / "pretrained" / "efficientnet_b0.pth", map_location="cpu", weights_only=True)
         model.load_state_dict({key: value for key, value in checkpoint.items() if not key.startswith("classifier.")}, strict=False)
         if self_supervised_checkpoint:
             checkpoint = torch.load(self_supervised_checkpoint, map_location="cpu", weights_only=False)
@@ -85,7 +88,7 @@ def build_model(name: str, self_supervised_checkpoint: Path | None = None) -> nn
         return model
     if name == "mobilenet_v3_large":
         model = models.mobilenet_v3_large(weights=None)
-        checkpoint = torch.load("models/mobilenet_v3_large.pth", map_location="cpu", weights_only=True)
+        checkpoint = torch.load(MODEL_WEIGHTS / "pretrained" / "mobilenet_v3_large.pth", map_location="cpu", weights_only=True)
         model.load_state_dict({key: value for key, value in checkpoint.items() if not key.startswith("classifier.")}, strict=False)
         if self_supervised_checkpoint:
             checkpoint = torch.load(self_supervised_checkpoint, map_location="cpu", weights_only=False)
@@ -197,7 +200,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--models", nargs="+", default=["baseline_cnn", "efficientnet_b0", "mobilenet_v3_large"])
     parser.add_argument("--manifest-dir", default="outputs/clean_dataset")
-    parser.add_argument("--output-dir", default="outputs/checkpoints")
+    parser.add_argument("--output-dir", default=str(PROJECT_ROOT / "external_models" / "PharmaAssist" / "training_runs"))
     parser.add_argument("--data-root", default="data/processed")
     parser.add_argument("--self-supervised-dir")
     parser.add_argument("--epochs", type=int, default=20)

@@ -92,8 +92,11 @@ def main():
     args = parser.parse_args()
     torch.manual_seed(args.seed); np.random.seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    output = Path("outputs/external_pretrained/goldformer")
-    for name in ("checkpoint", "metrics", "predictions", "confusion_matrix", "reports"): (output / name).mkdir(parents=True, exist_ok=True)
+    project_root = Path(__file__).resolve().parent.parent
+    output = project_root / "external_models" / "PharmaAssist" / "training_runs" / "goldformer"
+    checkpoint_output = project_root / "external_models" / "PharmaAssist" / "weights" / "checkpoints" / "goldformer"
+    for name in ("metrics", "predictions", "confusion_matrix", "reports"): (output / name).mkdir(parents=True, exist_ok=True)
+    checkpoint_output.mkdir(parents=True, exist_ok=True)
     rows = {name: read_manifest(Path("data/full_training") / f"{name}.csv") for name in ("train", "validation", "test")}
     loaders = {}
     counts = [sum(row["label"] == label for row in rows["train"]) for label in CLASS_NAMES]
@@ -104,7 +107,7 @@ def main():
     criterion = nn.CrossEntropyLoss(weight=torch.tensor([sum(counts) / (2 * count) for count in counts], device=device))
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=1e-4)
     scaler = GradScaler(enabled=device.type == "cuda")
-    best_path = output / "checkpoint" / "goldformer_pharmaceutical_best.pt"; history = []; best_f1 = -1; stale = 0; started = time.perf_counter()
+    best_path = checkpoint_output / "goldformer_pharmaceutical_best.pt"; history = []; best_f1 = -1; stale = 0; started = time.perf_counter()
     for epoch in range(1, args.epochs + 1):
         train_loss, _, _, _ = run_epoch(model, loaders["train"], criterion, device, optimizer, scaler, args.accumulation, True)
         val_loss, val_targets, val_probabilities, _ = run_epoch(model, loaders["validation"], criterion, device, optimizer, scaler, args.accumulation, False)

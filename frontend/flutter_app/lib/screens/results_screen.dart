@@ -75,7 +75,7 @@ class ResultsScreen extends StatelessWidget {
 
             // 5. Primary Confidence Gauge
             const SizedBox(height: 16),
-            if (result.prediction == 'UNKNOWN')
+            if (!result.imageQualityAccepted)
               _buildInferenceNotRunCard()
             else ...[
               ConfidenceGauge(
@@ -126,15 +126,8 @@ class ResultsScreen extends StatelessWidget {
   // ── Three Distinct Outcome States ───────────────────────────────────────────
 
   Widget _buildOutcomeBanner() {
-    final String verdict = result.finalResult.toUpperCase();
-    final bool isAuthentic =
-        verdict.contains('AUTHENTIC') &&
-        !verdict.contains('SUSPICIOUS') &&
-        !verdict.contains('VERIFICATION');
-    final bool isCounterfeit =
-        verdict.contains('COUNTERFEIT') &&
-        !verdict.contains('SUSPICIOUS') &&
-        !verdict.contains('VERIFICATION');
+    final bool isAuthentic = result.isLikelyAuthentic;
+    final bool isCounterfeit = result.isLikelyCounterfeit;
 
     Color outcomeColor;
     Color outcomeBg;
@@ -370,8 +363,8 @@ class ResultsScreen extends StatelessWidget {
         ? 'Retake photo before relying on this result'
         : 'Ask a pharmacist to review this result';
     final message = qualityFailed
-        ? 'The photo did not pass the sharpness check, so this screening is inconclusive. Retake it in bright, even light with the medicine in focus. Do not take or discard the medicine based only on this app.'
-        : 'This is a visual screening estimate, not proof of authenticity or safety. Do not take or discard the medicine based only on this app; ask a pharmacist or health authority to check it.';
+        ? 'The photo did not pass image quality screening${result.quality?.reason == null ? '' : ': ${result.quality!.reason}'}. This screening is inconclusive. Retake it in bright, even light with the medicine in focus. No authenticity prediction was made.'
+        : '${result.reason ?? (result.reasons.isNotEmpty ? result.reasons.first : 'This result needs a person to review it.') } Ask a pharmacist or health authority to check it.';
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -507,12 +500,12 @@ class ResultsScreen extends StatelessWidget {
     final qwen = result.qwen;
     final attempted = result.secondaryExecuted;
     final status = !attempted
-        ? 'NOT RUN'
+        ? ((qwen.status ?? '').toUpperCase() == 'SKIPPED' ? 'SKIPPED' : 'NOT RUN')
         : qwen.available
         ? qwen.assessment
         : 'UNAVAILABLE';
     final subtitle = !attempted
-        ? 'Not run for this image'
+        ? (status == 'SKIPPED' ? 'Skipped by screening policy' : 'Not run for this image')
         : qwen.available
         ? 'Review completed'
         : 'Review attempted but unavailable';

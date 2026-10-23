@@ -180,7 +180,39 @@ void main() {
       expect(response.qwen.available, isFalse);
       expect(response.quality, isNull);
       expect(response.visualAnalysis, isNull);
-      expect(response.confidenceDisplay, '52.0%');
+      expect(response.confidenceDisplay, 'N/A');
+    });
+
+    test('invalid quality blocks verdict display and hides skipped confidence', () {
+      final response = PredictionResponse.fromJson({
+        ..._authenticJson(),
+        'prediction': 'UNKNOWN',
+        'primary_prediction': 'UNKNOWN',
+        'confidence': 0.0,
+        'final_result': 'SUSPICIOUS / NEEDS VERIFICATION',
+        'status': 'NEEDS MANUAL REVIEW',
+        'needs_human_verification': true,
+        'quality': {
+          'is_valid': false,
+          'reason': 'Poor image quality: excessive blur (score 23.6 < 50.0)',
+          'blur_score': 23.64,
+          'brightness_mean': 120,
+          'dimensions': [225, 225],
+        },
+        'secondary_executed': false,
+        'qwen': {
+          'available': false,
+          'status': 'SKIPPED',
+          'assessment': 'SKIPPED',
+          'confidence': 0.0,
+        },
+      });
+
+      expect(response.isLikelyAuthentic, isFalse);
+      expect(response.isLikelyCounterfeit, isFalse);
+      expect(response.imageQualityAccepted, isFalse);
+      expect(response.confidenceDisplay, 'N/A');
+      expect(response.qwen.status, 'SKIPPED');
     });
 
     test('Parses HealthResponse accurately', () {
@@ -634,7 +666,7 @@ void main() {
     });
 
     testWidgets(
-      'moderate blur shows only a clearly provisional model suggestion',
+      'rejected blur blocks a verdict and requests a retake',
       (tester) async {
         tester.view.physicalSize = const Size(1080, 2400);
         tester.view.devicePixelRatio = 1.0;
@@ -642,9 +674,15 @@ void main() {
         addTearDown(tester.view.resetDevicePixelRatio);
 
         final json = _authenticJson(qwenAvailable: false)
-          ..['prediction'] = 'AUTHENTIC'
-          ..['confidence'] = 0.884
+          ..['prediction'] = 'UNKNOWN'
+          ..['primary_prediction'] = 'UNKNOWN'
+          ..['confidence'] = 0.0
+          ..['primary_confidence'] = 0.0
+          ..['authentic_probability'] = 0.0
+          ..['counterfeit_probability'] = 0.0
           ..['final_result'] = 'SUSPICIOUS / NEEDS VERIFICATION'
+          ..['status'] = 'NEEDS MANUAL REVIEW'
+          ..['needs_human_verification'] = true
           ..['quality'] = {
             'is_valid': false,
             'reason': 'Poor image quality: excessive blur (score 28.4 < 50.0)',
@@ -659,14 +697,12 @@ void main() {
         );
 
         expect(
-          find.textContaining('Preliminary model suggestion'),
+          find.textContaining('did not pass the image-quality check'),
           findsOneWidget,
         );
-        expect(
-          find.textContaining('Treat this suggestion and score as unreliable'),
-          findsOneWidget,
-        );
-        expect(find.text('88.4%'), findsOneWidget);
+        expect(find.text('88.4%'), findsNothing);
+        expect(find.text('SCREENING INDICATES AUTHENTIC'), findsNothing);
+        expect(find.text('SCREENING INDICATES COUNTERFEIT'), findsNothing);
         expect(find.text('RETAKE'), findsOneWidget);
       },
     );

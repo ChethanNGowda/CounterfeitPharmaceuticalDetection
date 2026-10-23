@@ -185,9 +185,9 @@ def test_rule4_unavailable_qwen_authentic_fallback(engine):
     qwen = _unavailable_qwen("Ollama service unreachable.")
     result = engine.evaluate(primary, qwen)
     assert result["final_result"] == "LIKELY AUTHENTIC"
-    assert result["needs_human_verification"] is True
-    assert "unavailable" in result["reason"].lower()
-    assert result["warning"] is not None
+    assert result["needs_human_verification"] is False
+    assert result["secondary_executed"] is True
+    assert "unavailable" in result["warning"].lower()
 
 
 def test_rule4_unavailable_qwen_counterfeit_fallback(engine):
@@ -197,7 +197,7 @@ def test_rule4_unavailable_qwen_counterfeit_fallback(engine):
     result = engine.evaluate(primary, qwen)
     assert result["final_result"] == "LIKELY COUNTERFEIT"
     assert result["needs_human_verification"] is True
-    assert "unavailable" in result["reason"].lower()
+    assert "unavailable" in result["warning"].lower()
 
 
 def test_rule4_none_qwen_review_is_treated_as_unavailable(engine):
@@ -282,18 +282,18 @@ def test_rule3d_qwen_uncertain_high_confidence_authentic_preserved(engine):
     qwen = _qwen(available=True, assessment="UNCERTAIN")
     result = engine.evaluate(primary, qwen)
     assert result["final_result"] == "LIKELY AUTHENTIC"
-    assert result["needs_human_verification"] is True
+    assert result["needs_human_verification"] is False
     assert "uncertain" in result["reason"].lower()
 
 
 def test_rule3d_qwen_uncertain_moderate_confidence_escalates(engine):
-    """Moderate primary confidence (< 90%) escalates to verification when Qwen is uncertain."""
+    """Accepted primary class is preserved when Qwen is uncertain."""
     primary = _primary(predicted_class="counterfeit", confidence=0.78)
     qwen = _qwen(available=True, assessment="UNCERTAIN")
     result = engine.evaluate(primary, qwen)
-    assert result["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+    assert result["final_result"] == "LIKELY COUNTERFEIT"
     assert result["needs_human_verification"] is True
-    assert "moderate" in result["reason"].lower()
+    assert "uncertain" in result["reason"].lower()
 
 
 
@@ -302,12 +302,12 @@ def test_rule3d_qwen_uncertain_moderate_confidence_escalates(engine):
 # ---------------------------------------------------------------------------
 
 def test_reg_rule3d_authentic_uncertain_needs_human(engine):
-    """REG-01: High-confidence AUTHENTIC + Qwen UNCERTAIN -> LIKELY AUTHENTIC, needs_human=True."""
+    """Accepted authentic primary remains accepted when Qwen is uncertain."""
     primary = _primary(predicted_class="authentic", confidence=0.92)
     qwen = _qwen(available=True, assessment="UNCERTAIN")
     result = engine.evaluate(primary, qwen)
     assert result["final_result"] == "LIKELY AUTHENTIC"
-    assert result["needs_human_verification"] is True
+    assert result["needs_human_verification"] is False
 
 
 def test_reg_rule3d_authentic_inconclusive_needs_human(engine):
@@ -316,7 +316,7 @@ def test_reg_rule3d_authentic_inconclusive_needs_human(engine):
     qwen = _qwen(available=True, assessment="INCONCLUSIVE")
     result = engine.evaluate(primary, qwen)
     assert result["final_result"] == "LIKELY AUTHENTIC"
-    assert result["needs_human_verification"] is True
+    assert result["needs_human_verification"] is False
 
 
 def test_reg_rule3c_authentic_vs_counterfeit_disagreement(engine):
@@ -340,12 +340,12 @@ def test_reg_rule3c_counterfeit_vs_authentic_disagreement(engine):
 
 
 def test_reg_rule3d_intermediate_authentic_uncertain_escalates(engine):
-    """REG-05: Intermediate (0.78) AUTHENTIC + Qwen UNCERTAIN -> SUSPICIOUS."""
+    """An accepted primary class is not escalated by uncertain Qwen output."""
     primary = _primary(predicted_class="authentic", confidence=0.78)
     qwen = _qwen(available=True, assessment="UNCERTAIN")
     result = engine.evaluate(primary, qwen)
-    assert result["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
-    assert result["needs_human_verification"] is True
+    assert result["final_result"] == "LIKELY AUTHENTIC"
+    assert result["needs_human_verification"] is False
 
 
 def test_reg_rule4b_secondary_never_invoked_authentic_no_manual(engine):
@@ -366,7 +366,7 @@ def test_reg_rule4a_qwen_failed_authentic_needs_human(engine):
     qwen = _unavailable_qwen()  # real dict → secondary_executed=True
     result = engine.evaluate(primary, qwen)
     assert result["final_result"] == "LIKELY AUTHENTIC"
-    assert result["needs_human_verification"] is True
+    assert result["needs_human_verification"] is False
     assert result["secondary_executed"] is True
 
 

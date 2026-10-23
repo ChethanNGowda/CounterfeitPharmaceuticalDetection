@@ -8,7 +8,7 @@ import pytest
 import torch
 
 from ml.inference.predict import predict
-from test import format_single_image_output, run_batch_directory
+from scripts.test import format_single_image_output, run_batch_directory
 
 
 def test_predict_single_image(tmp_path):

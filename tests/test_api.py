@@ -351,8 +351,9 @@ def test_predict_endpoint_qwen_unavailable_graceful_fallback(monkeypatch):
     assert data["secondary_executed"] is True
     assert data["qwen"]["available"] is False
     assert data["final_result"] == "LIKELY AUTHENTIC"
-    # Rule 4a: secondary was invoked but failed → needs_human=True per README §Qwen3-VL graceful degradation
-    assert data["needs_human_verification"] is True
+    # An unavailable secondary verifier warns but does not invalidate an
+    # otherwise accepted authentic primary result.
+    assert data["needs_human_verification"] is False
     assert "failed" in data["warning"].lower() or "unavailable" in data["warning"].lower()
 
 
@@ -393,8 +394,9 @@ def test_predict_endpoint_qwen_exception_handled_gracefully(monkeypatch):
     assert data["secondary_executed"] is True
     assert data["qwen"]["available"] is False
     assert data["final_result"] == "LIKELY AUTHENTIC"
-    # Rule 4a: verify_image raised → pipeline produces available=False dict → needs_human=True
-    assert data["needs_human_verification"] is True
+    # An unavailable secondary verifier warns but does not invalidate an
+    # otherwise accepted authentic primary result.
+    assert data["needs_human_verification"] is False
 
 
 def test_predict_endpoint_low_confidence_skips_qwen_and_requires_review(monkeypatch):

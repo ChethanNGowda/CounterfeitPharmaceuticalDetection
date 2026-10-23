@@ -79,7 +79,7 @@ class _FixedClassifier(nn.Module):
         return torch.tensor([[3.0, 0.0]], device=image.device)
 
 
-def test_moderate_blur_keeps_provisional_classifier_prediction():
+def test_moderate_blur_blocks_classifier_prediction():
     quality = QualityCheckResult(
         is_valid=False,
         reason="Poor image quality: excessive blur (score 18.3 < 50.0)",
@@ -95,8 +95,11 @@ def test_moderate_blur_keeps_provisional_classifier_prediction():
     with patch("ml.inference.predict.check_image_quality", return_value=quality):
         result = predict(image, model=_FixedClassifier(), device=torch.device("cpu"))
 
-    assert result["prediction"] == "AUTHENTIC"
-    assert result["confidence"] > 0.7
+    assert result["prediction"] == "UNKNOWN"
+    assert result["confidence"] == 0.0
+    assert result["authentic_probability"] == 0.0
+    assert result["counterfeit_probability"] == 0.0
+    assert result["status"] == "NEEDS MANUAL REVIEW"
     assert result["quality"]["is_valid"] is False
     assert "excessive blur" in result["quality"]["reason"]
 

@@ -11,7 +11,6 @@ from ml.config import (
     DEFAULT_CONFIDENCE_THRESHOLD,
     DEFAULT_HIGH_CONFIDENCE_THRESHOLD,
     DEFAULT_MODEL,
-    SUPPORTED_MODELS,
     get_device,
 )
 from ml.inference.predict import predict_pipeline

@@ -13,6 +13,8 @@ import torch
 from PIL import Image
 from torchvision import models, transforms
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
@@ -45,7 +47,7 @@ def main() -> None:
         images.append(path)
     device = torch.device("cuda" if torch.cuda.is_available() and not args.cpu else "cpu")
     model = models.efficientnet_b0(weights=None)
-    checkpoint = torch.load("models/efficientnet_b0.pth", map_location="cpu", weights_only=True)
+    checkpoint = torch.load(PROJECT_ROOT / "external_models" / "PharmaAssist" / "weights" / "pretrained" / "efficientnet_b0.pth", map_location="cpu", weights_only=True)
     model.load_state_dict(checkpoint, strict=False)
     model.classifier = torch.nn.Identity()
     model.to(device).eval()

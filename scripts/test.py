@@ -6,10 +6,10 @@ Integrates:
 3. Conservative Screening Synthesis
 
 Usage:
-    python test.py test_images\\fake_image.png
-    python test.py test_images\\sample_authentic_c3pi.jpg
-    python test.py test_images\\ --model all
-    python test.py test_images\\fake_image.png --no-vision
+    python -m scripts.test test_images\\fake_image.png
+    python -m scripts.test test_images\\sample_authentic_c3pi.jpg
+    python -m scripts.test test_images\\ --model all
+    python -m scripts.test test_images\\fake_image.png --no-vision
 """
 
 from __future__ import annotations

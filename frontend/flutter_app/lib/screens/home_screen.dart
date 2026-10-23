@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pharma_assist/core/constants.dart';
 import 'package:pharma_assist/core/theme.dart';
 import 'package:pharma_assist/models/scan_history_item.dart';
 import 'package:pharma_assist/screens/results_screen.dart';
@@ -272,9 +273,9 @@ class HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('PharmaAssist', style: AppTheme.headingSmall()),
+              Text(AppConstants.appName, style: AppTheme.headingSmall()),
               Text(
-                'AI-assisted pharmaceutical screening',
+                'Smart Medicine, Safer Choices',
                 style: AppTheme.bodyText(
                   color: AppTheme.textMuted,
                   fontSize: 10,

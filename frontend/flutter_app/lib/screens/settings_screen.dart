@@ -47,7 +47,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       text: widget.storage.getBackendUrl(),
     );
     _threshold = widget.storage.getThreshold();
-    _modelName = widget.storage.getModelName();
+    // Older app builds may have stored a retired experimental architecture.
+    _modelName = AppConstants.defaultModel;
     _visionMode = widget.storage.getVisionMode();
     _enableQwen = widget.storage.getEnableQwen();
     _themeMode = widget.storage.getThemeMode() == 'light' ? 'light' : 'dark';

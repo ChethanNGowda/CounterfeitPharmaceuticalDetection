@@ -196,11 +196,11 @@ def test_synthesize_final_result_qwen_uncertain_high_confidence_authentic():
     }
     synth = synthesize_final_result(primary, qwen)
     assert synth["final_result"] == "LIKELY AUTHENTIC"
-    assert synth["needs_human_verification"] is True
+    assert synth["needs_human_verification"] is False
 
 
-def test_synthesize_final_result_qwen_uncertain_moderate_confidence_escalates():
-    """Moderate primary confidence (70% - 89.9%) escalates to verification when Qwen is uncertain."""
+def test_synthesize_final_result_qwen_uncertain_preserves_valid_primary_prediction():
+    """An uncertain secondary opinion does not replace a valid primary class."""
     primary = {
         "prediction": "COUNTERFEIT",
         "confidence": 0.78,
@@ -213,13 +213,12 @@ def test_synthesize_final_result_qwen_uncertain_moderate_confidence_escalates():
         "confidence": "LOW",
     }
     synth = synthesize_final_result(primary, qwen)
-    assert synth["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+    assert synth["final_result"] == "LIKELY COUNTERFEIT"
     assert synth["needs_human_verification"] is True
 
 
 def test_synthesize_final_result_unavailable_fallback():
-    """Qwen available=False dict (secondary was invoked but failed) → Rule 4a → needs_human=True.
-    Per README §Qwen3-VL graceful degradation: when Qwen times out or fails, needs_human=True."""
+    """Qwen outage warns, while a valid primary authentic result is preserved."""
     primary = {
         "prediction": "AUTHENTIC",
         "confidence": 0.88,
@@ -232,8 +231,8 @@ def test_synthesize_final_result_unavailable_fallback():
     }
     synth = synthesize_final_result(primary, qwen)
     assert synth["final_result"] == "LIKELY AUTHENTIC"
-    assert synth["needs_human_verification"] is True
-    assert "unavailable" in synth["reason"].lower()
+    assert synth["needs_human_verification"] is False
+    assert "unavailable" in synth["warning"].lower()
 
 
 def test_format_final_screening_result():

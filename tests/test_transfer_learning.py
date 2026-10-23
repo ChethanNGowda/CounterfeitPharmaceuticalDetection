@@ -110,7 +110,7 @@ def test_inference_returns_probabilities_and_manual_review(tmp_path):
     from pathlib import Path
 
     # Build a fresh mobilenetv3 model and save a temporary checkpoint
-    model = build_model("mobilenet_v3_large", Path("models/mobilenet_v3_large.pth"))
+    model = build_model("mobilenet_v3_large", Path("external_models/PharmaAssist/weights/pretrained/mobilenet_v3_large.pth"))
     checkpoint_path = tmp_path / "checkpoint.pt"
     torch.save(
         {

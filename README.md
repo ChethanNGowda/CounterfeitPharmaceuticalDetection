@@ -62,7 +62,7 @@ Phone / Image Input
 | `LIKELY COUNTERFEIT` | One or both classifiers indicate characteristics inconsistent with authentic samples. |
 | `SUSPICIOUS / NEEDS VERIFICATION` | Conflicting evidence, low confidence, or image quality failure — manual laboratory verification is required. |
 
-`needs_human_verification: true` is set whenever the result is not a clear high-confidence authentic determination, or when the secondary verifier and primary classifier disagree.
+Manual review is required when quality screening fails, the primary confidence is below the configured threshold, the primary class is counterfeit, or an executed secondary reviewer raises a documented suspicious concern or directly disagrees with the primary model. A skipped or unavailable secondary reviewer does not by itself change an otherwise accepted primary prediction.
 
 ### Qwen Vision is a secondary verifier, not the primary classifier
 
@@ -72,9 +72,11 @@ Qwen Vision inspects the **actual image** — it is not given only JSON metadata
 
 ## Model Performance
 
+EfficientNet-B0 is the default primary classifier. All model architectures remain registered for research and evaluation; the API reports which fine-tuned checkpoints are actually available. Model weights and model training outputs are kept under `external_models/PharmaAssist/`, while the original GoldNet and TrueMeds projects remain in `external_models/`. Qwen remains an optional secondary visual reviewer.
+
 ### EfficientNet-B0 (Primary Classifier — Production)
 
-> **Metrics reproduced** from checkpoint `outputs/full_data_training/checkpoints/20260922_183414_efficientnet_b0/best.pt`
+> **Metrics reproduced** from checkpoint `external_models/PharmaAssist/weights/checkpoints/efficientnet_b0/best.pt`
 > on `data/splits/test_clean.csv` — 2026-10-18, CPU.
 
 | Metric | Reproduced Value |
@@ -99,7 +101,7 @@ Actual Authentic     553          2       ← 2 authentic misclassified
 Actual Counterfeit     0        284       ← 0 counterfeit missed (100% recall)
 ```
 
-Benchmark comparison from original training logs (only EfficientNet-B0 checkpoint is present on disk):
+Historical benchmark comparison from original training logs (non-EfficientNet figures are not independently reproduced and are not production model choices):
 
 | Model | Accuracy | F1 | ROC-AUC | Params | Checkpoint |
 |---|---:|---:|---:|---:|---:|
@@ -117,7 +119,7 @@ Benchmark comparison from original training logs (only EfficientNet-B0 checkpoin
 | Input size | 224 × 224 |
 | Colour space | RGB |
 | Normalization | ImageNet (mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) |
-| Checkpoint | `outputs/full_data_training/checkpoints/20260922_183414_efficientnet_b0/best.pt` |
+| Checkpoint | `external_models/PharmaAssist/weights/checkpoints/efficientnet_b0/best.pt` |
 | Classification threshold | 0.70 (lower → NEEDS MANUAL REVIEW) |
 | High-confidence threshold | 0.90 (≥ 0.90 → fast path, Qwen skipped in auto mode) |
 
@@ -171,14 +173,14 @@ ollama pull qwen3.5:4b
 
 ```bash
 # Auto mode: Qwen Vision invoked for borderline confidence [0.70, 0.90)
-python test.py test_images/sample_authentic_c3pi.jpg
+python -m scripts.test test_images/sample_authentic_c3pi.jpg
 
 # Always run Qwen Vision secondary verification
-python test.py image.jpg --vision-mode always
+python -m scripts.test image.jpg --vision-mode always
 
 # Fast path: skip Qwen Vision
-python test.py image.jpg --vision-mode never
-python test.py image.jpg --no-vision   # alias
+python -m scripts.test image.jpg --vision-mode never
+python -m scripts.test image.jpg --no-vision   # alias
 ```
 
 ### FastAPI Backend
@@ -200,8 +202,8 @@ Endpoints:
 |---|---|---|---|
 | `GET` | `/` | `ApiInfoResponse` | Basic API information, supported models, and usage guidance |
 | `GET` | `/health` | `HealthResponse` | Operational health check, active device, and Ollama status |
-| `GET` | `/models` | `ModelsListResponse` | Model registry status, runnable checkpoint availability, SHA-256, and benchmarks |
-| `POST` | `/predict` | `PredictionResponse` | Upload tablet image, receive dual-model screening report |
+| `GET` | `/models` | `ModelsListResponse` | Production EfficientNet-B0 checkpoint status, SHA-256, and benchmark |
+| `POST` | `/predict` | `PredictionResponse` | Upload tablet image, receive EfficientNet-B0 screening and optional Qwen review |
 | `POST` | `/verify` | `PredictionResponse` | Fully compatible alias for `/predict` |
 
 #### Upload Constraints
@@ -302,30 +304,22 @@ A Flutter client designed for point-of-dispense visual screening of oral solid d
 
 ```
 .
-├── ml/
-│   ├── config.py                  # Thresholds, paths, checkpoint registry
-│   ├── inference/
-│   │   └── predict.py             # predict() + predict_pipeline() — production inference
-│   ├── models/
-│   │   └── transfer_learning.py   # EfficientNet-B0 / MobileNetV3 loader
-│   ├── preprocessing/
-│   │   ├── quality_checker.py     # OpenCV image quality gate (production)
-│   │   └── image_preprocessor.py  # [LEGACY] 512×512 CLAHE pipeline — NOT used in inference
-│   ├── verification/
-│   │   ├── decision_engine.py     # Authoritative verdict synthesis
-│   │   ├── qwen_verifier.py       # QwenVisionVerifier — production (qwen3.5:4b)
-│   │   └── qwen_reviewer.py       # [LEGACY] QwenReviewer — text-evidence reviewer (qwen3:8b)
-│   ├── features/                  # [LEGACY] Hand-crafted colour/texture/shape features
-│   ├── evaluation/                # Evaluation scripts and metrics
-│   └── training/                  # Training pipeline
-├── backend/
-│   └── app/                       # FastAPI application
-├── tests/                         # Pytest test suite (169 tests, 15 files)
-├── scripts/                       # Dataset preparation and evaluation utilities
-├── data/splits/                   # Dataset manifests (CSV)
-├── outputs/                       # Model checkpoints
-├── reports/                       # Evaluation reports and metrics
-└── test_images/                   # Sample images for manual testing
+|-- ml/                    # Config, inference, models, preprocessing, verification, training
+|-- backend/app/           # FastAPI application
+|-- frontend/flutter_app/   # Flutter application
+|-- tests/                 # Python test suite
+|-- scripts/               # CLI, dataset utilities, training and evaluation tools
+|-- data/splits/           # Dataset manifests
+|-- external_models/
+|   |-- PharmaAssist/
+|   |   |-- weights/pretrained/  # Generic backbone initialization weights
+|   |   |-- weights/checkpoints/ # Fine-tuned PharmaAssist classifiers
+|   |   `-- training_runs/       # Training logs and generated artifacts
+|   |-- GoldNet/           # Preserved upstream project
+|   `-- TrueMeds/          # Preserved upstream project
+|-- outputs/               # Evaluation and runtime outputs
+|-- reports/               # Evaluation reports and metrics
+`-- test_images/           # Sample images for manual testing
 ```
 
 ---
@@ -342,7 +336,7 @@ A Flutter client designed for point-of-dispense visual screening of oral solid d
 
 ### Qwen Vision graceful degradation
 
-If Qwen Vision times out or is unavailable, the pipeline returns the primary classifier result with `needs_human_verification: True` and an explicit warning. No inference is blocked by Qwen Vision availability.
+If Qwen Vision times out or is unavailable, the pipeline preserves an otherwise accepted primary classifier result and includes an explicit warning. An intentional skip is reported as `SKIPPED`; it is not treated as an Ollama outage. No inference is blocked by Qwen Vision availability.
 
 ---
 

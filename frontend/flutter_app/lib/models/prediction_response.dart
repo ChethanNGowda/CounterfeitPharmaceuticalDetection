@@ -544,17 +544,20 @@ class PredictionResponse {
     );
   }
 
+  bool get imageQualityAccepted => quality?.isValid != false && prediction.toUpperCase() != 'UNKNOWN';
+
   bool get isLikelyAuthentic =>
-      finalResult.toUpperCase().contains('AUTHENTIC') && !isSuspicious;
+      imageQualityAccepted && finalResult.toUpperCase().contains('AUTHENTIC') && !isSuspicious;
 
   bool get isLikelyCounterfeit =>
-      finalResult.toUpperCase().contains('COUNTERFEIT') && !isSuspicious;
+      imageQualityAccepted && finalResult.toUpperCase().contains('COUNTERFEIT') && !isSuspicious;
 
   bool get isSuspicious =>
       finalResult.toUpperCase().contains('SUSPICIOUS') ||
       finalResult.toUpperCase().contains('VERIFICATION');
 
   String get confidenceDisplay {
+    if (!imageQualityAccepted) return 'N/A';
     final double normalized = confidence <= 1.0 ? confidence * 100.0 : confidence;
     return '${normalized.toStringAsFixed(1)}%';
   }

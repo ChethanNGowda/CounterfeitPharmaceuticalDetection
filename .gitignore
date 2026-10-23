@@ -19,8 +19,9 @@ data/processed/valid/
 data/processed/test/
 
 # Local model artifacts and training runs
-models/*.pth
 runs/
+external_models/PharmaAssist/weights/pretrained/*.pth
+external_models/PharmaAssist/training_runs/
 outputs/checkpoints/
 outputs/raw_training/
 
@@ -60,7 +61,3 @@ desktop.ini
 
 # Python notebook checkpoints
 .ipynb_checkpoints/
-
-# Large generated checkpoint directories (fine-tuned weights should be tracked separately)
-outputs/full_data_training/checkpoints/
-outputs/external_pretrained/

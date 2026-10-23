@@ -56,7 +56,7 @@ Physical Android Phone (PharmaAssist App)
         ▼
 FastAPI Backend (backend.app.main:app)
   ├── OpenCV Quality Gate (Resolution, Blur ≥ 50, Brightness 15-245)
-  ├── EfficientNet-B0 Classifier (outputs/full_data_training/checkpoints/...)
+  ├── EfficientNet-B0 Classifier (external_models/PharmaAssist/weights/checkpoints/efficientnet_b0/best.pt)
   ├── QwenVisionVerifier (qwen3.5:4b via local Ollama at http://localhost:11434)
   └── DecisionEngine (Conservative 4-rule verdict synthesizer)
 ```

@@ -38,7 +38,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--gold-checkpoint", type=Path, default=Path("external_models/GoldNet/weights/GoldFormer_best.pth"))
     parser.add_argument("--truemeds-checkpoint", type=Path, default=Path("external_models/TrueMeds/ml_service/model/best_cls_resnet18.pt"))
-    parser.add_argument("--output", type=Path, default=Path("outputs/external_pretrained/checkpoint_verification.json"))
+    parser.add_argument("--output", type=Path, default=Path("reports/external_checkpoint_verification.json"))
     args = parser.parse_args()
     result = {"goldformer": {}, "truemeds_resnet18": {}}
     if not args.gold_checkpoint.is_file():

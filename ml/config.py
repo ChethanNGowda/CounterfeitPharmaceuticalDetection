@@ -9,7 +9,8 @@ import torch
 # Base directories
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
-MODELS_DIR = PROJECT_ROOT / "models"
+EXTERNAL_PHARMA_MODELS_DIR = PROJECT_ROOT / "external_models" / "PharmaAssist"
+MODELS_DIR = EXTERNAL_PHARMA_MODELS_DIR / "weights" / "pretrained"  # Backward-compatible alias
 OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 REPORTS_DIR = PROJECT_ROOT / "reports"
 TEST_IMAGES_DIR = PROJECT_ROOT / "test_images"
@@ -36,33 +37,37 @@ IMAGENET_STD = [0.229, 0.224, 0.225]
 DEFAULT_CONFIDENCE_THRESHOLD = 0.70
 DEFAULT_HIGH_CONFIDENCE_THRESHOLD = 0.90
 
+# EfficientNet-B0 is the default production model. Every registered architecture
+# remains available to research tools and is listed by the API with checkpoint status.
+DEFAULT_MODEL = "efficientnet_b0"
+
 # Checkpoint Registry
 # Accurately reflects existing fine-tuned weights on disk.
 # Generic ImageNet pretrained weights are NEVER claimed as trained pharmaceutical classifiers.
-_EFF_CHECKPOINT = OUTPUTS_DIR / "full_data_training" / "checkpoints" / "20260922_183414_efficientnet_b0" / "best.pt"
-_MOB_CHECKPOINT = OUTPUTS_DIR / "full_data_training" / "checkpoints" / "20260922_184205_mobilenet_v3_large" / "best.pt"
-_BASE_CHECKPOINT = OUTPUTS_DIR / "full_data_training" / "checkpoints" / "20260922_182858_baseline_cnn" / "best.pt"
-_GOLD_CHECKPOINT = OUTPUTS_DIR / "external_pretrained" / "goldformer" / "checkpoint" / "goldformer_pharmaceutical_best.pt"
+_EFF_CHECKPOINT = EXTERNAL_PHARMA_MODELS_DIR / "weights" / "checkpoints" / "efficientnet_b0" / "best.pt"
+_MOB_CHECKPOINT = EXTERNAL_PHARMA_MODELS_DIR / "weights" / "checkpoints" / "mobilenet_v3_large" / "best.pt"
+_BASE_CHECKPOINT = EXTERNAL_PHARMA_MODELS_DIR / "weights" / "checkpoints" / "baseline_cnn" / "best.pt"
+_GOLD_CHECKPOINT = EXTERNAL_PHARMA_MODELS_DIR / "weights" / "checkpoints" / "goldformer" / "goldformer_pharmaceutical_best.pt"
 
 CHECKPOINT_REGISTRY = {
     "efficientnet_b0": {
         "checkpoint": _EFF_CHECKPOINT if _EFF_CHECKPOINT.is_file() else None,
         "expected_checkpoint": _EFF_CHECKPOINT,
-        "pretrained": MODELS_DIR / "efficientnet_b0.pth",
+        "pretrained": EXTERNAL_PHARMA_MODELS_DIR / "weights" / "pretrained" / "efficientnet_b0.pth",
         "architecture": "efficientnet_b0",
         "input_size": (IMAGE_SIZE, IMAGE_SIZE),
         "finetuned_available": _EFF_CHECKPOINT.is_file(),
-        "pretrained_available": (MODELS_DIR / "efficientnet_b0.pth").is_file(),
+        "pretrained_available": (EXTERNAL_PHARMA_MODELS_DIR / "weights" / "pretrained" / "efficientnet_b0.pth").is_file(),
         "description": "Fine-tuned EfficientNet-B0 pharmaceutical classifier (Active/Primary)",
     },
     "mobilenet_v3_large": {
         "checkpoint": _MOB_CHECKPOINT if _MOB_CHECKPOINT.is_file() else None,
         "expected_checkpoint": _MOB_CHECKPOINT,
-        "pretrained": MODELS_DIR / "mobilenet_v3_large.pth",
+        "pretrained": EXTERNAL_PHARMA_MODELS_DIR / "weights" / "pretrained" / "mobilenet_v3_large.pth",
         "architecture": "mobilenet_v3_large",
         "input_size": (IMAGE_SIZE, IMAGE_SIZE),
         "finetuned_available": _MOB_CHECKPOINT.is_file(),
-        "pretrained_available": (MODELS_DIR / "mobilenet_v3_large.pth").is_file(),
+        "pretrained_available": (EXTERNAL_PHARMA_MODELS_DIR / "weights" / "pretrained" / "mobilenet_v3_large.pth").is_file(),
         "description": "MobileNetV3-Large (Backbone weights present; fine-tuned pharmaceutical checkpoint unavailable)",
     },
     "baseline_cnn": {
@@ -89,7 +94,6 @@ CHECKPOINT_REGISTRY = {
 
 SUPPORTED_MODELS = list(CHECKPOINT_REGISTRY.keys())
 AVAILABLE_MODELS = [name for name, cfg in CHECKPOINT_REGISTRY.items() if cfg["finetuned_available"]]
-DEFAULT_MODEL = "efficientnet_b0"
 
 # Image Quality Check Thresholds
 QUALITY_CONFIG = {

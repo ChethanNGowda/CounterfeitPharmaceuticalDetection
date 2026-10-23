@@ -245,7 +245,7 @@ _BENCHMARK_METRICS: dict = {
 
 @router.get("/models", response_model=ModelsListResponse, tags=["Information"])
 def list_models():
-    """Return registration status, checkpoint availability, and benchmark metrics for all models.
+    """Return registered model statuses and benchmark metrics.
 
     Metrics for models whose checkpoints are no longer present on disk are historical results
     from the original benchmark run (2026-09-23, test.csv, 827 images). Only efficientnet_b0

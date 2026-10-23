@@ -13,10 +13,10 @@ SEED = 42
 random.seed(SEED)
 torch.manual_seed(SEED)
 
-ROOT = Path(".")
+ROOT = Path(__file__).resolve().parents[2]
 SPLIT_DIR = ROOT / "data" / "pharmassist_splits"
-PRETRAINED = ROOT / "models" / "mobilenet_v3_large.pth"
-RUN_DIR = ROOT / "runs" / "pharmassist_mobilenet_v3_large"
+PRETRAINED = ROOT / "external_models" / "PharmaAssist" / "weights" / "pretrained" / "mobilenet_v3_large.pth"
+RUN_DIR = ROOT / "external_models" / "PharmaAssist" / "training_runs" / "pharmassist_mobilenet_v3_large"
 RUN_DIR.mkdir(parents=True, exist_ok=True)
 
 BATCH_SIZE = 16

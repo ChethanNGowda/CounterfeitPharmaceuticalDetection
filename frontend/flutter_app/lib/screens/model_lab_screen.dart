@@ -277,9 +277,8 @@ class _ModelLabScreenState extends State<ModelLabScreen>
             ),
           ),
           child: Text(
-            'Historical benchmark metrics are from the original training run (2026-09-23, test.csv, 827 images). '
-            'Only EfficientNet-B0 has been reproduced from the current checkpoint. '
-            'No fine-tuned checkpoints exist for MobileNetV3, GoldFormer, or Baseline CNN.',
+            'EfficientNet-B0 is the default screening classifier. Other architectures and external model sources are retained for research. '
+            'Only models with a fine-tuned pharmaceutical checkpoint can run. Historical benchmark figures may not be reproduced.',
             style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 10.5),
           ),
         ),

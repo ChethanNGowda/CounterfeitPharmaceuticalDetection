@@ -139,13 +139,13 @@ class ResultsScreen extends StatelessWidget {
       outcomeColor = AppTheme.authenticGreen;
       outcomeBg = AppTheme.authenticBg;
       outcomeIcon = Icons.verified_outlined;
-      outcomeHeader = 'SCREENING INDICATES AUTHENTIC';
+      outcomeHeader = 'AUTHENTIC INDICATED';
       outcomeSubtitle = 'The main model found visual patterns that resemble its reference examples. This is a screening estimate, not proof that the medicine is genuine or safe.';
     } else if (isCounterfeit) {
       outcomeColor = AppTheme.counterfeitRed;
       outcomeBg = AppTheme.counterfeitBg;
       outcomeIcon = Icons.gpp_bad_outlined;
-      outcomeHeader = 'SCREENING INDICATES COUNTERFEIT';
+      outcomeHeader = 'COUNTERFEIT INDICATED';
       outcomeSubtitle = 'The model found visual patterns that need checking. Do not take or discard the medicine based only on this result. Keep its packaging and ask a pharmacist or health authority to inspect it.';
     } else {
       outcomeColor = AppTheme.suspiciousAmber;

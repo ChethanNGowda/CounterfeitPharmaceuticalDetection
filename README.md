@@ -4,6 +4,32 @@
 
 > ⚠️ **Screening system only.** This tool flags suspicious samples for further investigation. It does not perform chemical analysis and cannot confirm or deny the identity of active pharmaceutical ingredients. A positive screen is not a laboratory result.
 
+## At a glance
+
+This repository contains a local image-screening pipeline and a Flutter client for reviewing tablet and package photographs. The backend checks image quality, runs a fine-tuned EfficientNet-B0 classifier, optionally asks a local Qwen vision model to review borderline cases, and returns one of three outcomes:
+
+| App outcome | Display | What it means |
+|---|---|---|
+| `LIKELY AUTHENTIC` | Green | The screening model found a high-confidence visual match to its authentic reference class. This is not proof of authenticity. |
+| `LIKELY COUNTERFEIT` | Red | The screening model found a high-confidence visual match to its counterfeit reference class. Keep the product and packaging, and request a pharmacist or authority review. |
+| `SUSPICIOUS / NEEDS VERIFICATION` | Amber | Quality checks failed, confidence was low, or reviewers disagreed. No clear result should be inferred. |
+
+The app uses direct **AUTHENTIC INDICATED** and **COUNTERFEIT INDICATED** result labels with green and red styling. Low-confidence and inconclusive cases remain a separate manual-review outcome. An image model cannot guarantee that a medicine is authentic or counterfeit; chemical testing is needed for confirmation.
+
+### Real sample images
+
+These photographs are included in `test_images/` and can be used to try the pipeline. They illustrate the input types the project accepts; their appearance or filenames do not establish a medicine's identity or ground-truth authenticity.
+
+<table>
+  <tr>
+    <td align="center"><img src="test_images/sample_authentic_c3pi.jpg" width="280" alt="Capsule reference image from the sample set"><br><sub>Capsule reference image</sub></td>
+    <td align="center"><img src="test_images/verified_counterfeit.jpg" width="280" alt="Packaged tablet image from the sample set"><br><sub>Packaged tablet sample</sub></td>
+    <td align="center"><img src="test_images/fake_image.png" width="280" alt="Paracetamol package and blister image from the sample set"><br><sub>Package and blister sample</sub></td>
+  </tr>
+</table>
+
+To try an image locally, follow the [CLI quick start](#cli-single-image) below. Use `--vision-mode never` to run only the local classifier without Ollama.
+
 ---
 
 ## Problem Statement
@@ -245,19 +271,20 @@ curl.exe -X POST "http://127.0.0.1:8000/predict" `
 
 ### Run Tests
 
-#### Python Backend Tests (174 tests)
+Run the Python backend suite from the repository root:
+
 ```powershell
 .venv\Scripts\python.exe -m pytest -q
 ```
-Current Test Status: **174 passed / 0 failed / 0 skipped / 9 warnings** (100% pass rate in ~16s across 16 test files)
 
-#### Flutter Mobile Application Tests (33 tests)
+Run the Flutter client tests from its app directory:
+
 ```powershell
 cd frontend\flutter_app
 flutter test
 ```
-Current Test Status: **33 passed / 0 failed** (100% pass rate across widget, state, parser, ModelLab, and service tests)
-Code Analysis: `flutter analyze` reports **No issues found!**
+
+The commands above report the current results for the checkout being tested.
 
 ---
 

@@ -632,7 +632,7 @@ void main() {
         );
 
         expect(find.text('Field Screening Report'), findsOneWidget);
-        expect(find.text('SCREENING INDICATES AUTHENTIC'), findsOneWidget);
+        expect(find.text('AUTHENTIC INDICATED'), findsOneWidget);
         expect(
           find.text('Main model prediction: likely authentic'),
           findsOneWidget,
@@ -701,8 +701,8 @@ void main() {
           findsOneWidget,
         );
         expect(find.text('88.4%'), findsNothing);
-        expect(find.text('SCREENING INDICATES AUTHENTIC'), findsNothing);
-        expect(find.text('SCREENING INDICATES COUNTERFEIT'), findsNothing);
+        expect(find.text('AUTHENTIC INDICATED'), findsNothing);
+        expect(find.text('COUNTERFEIT INDICATED'), findsNothing);
         expect(find.text('RETAKE'), findsOneWidget);
       },
     );
@@ -727,7 +727,7 @@ void main() {
           ),
         );
 
-        expect(find.text('SCREENING INDICATES COUNTERFEIT'), findsOneWidget);
+        expect(find.text('COUNTERFEIT INDICATED'), findsOneWidget);
         expect(
           find.text('Ask a pharmacist to review this result'),
           findsOneWidget,

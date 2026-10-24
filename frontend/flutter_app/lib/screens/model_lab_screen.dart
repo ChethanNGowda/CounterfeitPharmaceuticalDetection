@@ -703,12 +703,12 @@ class _ModelLabScreenState extends State<ModelLabScreen>
             '✅ SUSPICIOUS / NEEDS VERIFICATION result',
           ),
           (
-            'Low primary confidence (<0.70)',
-            '✅ SUSPICIOUS without secondary invocation',
+            'Authentic probability in 50%-70% review band',
+            '✅ SUSPICIOUS / NEEDS VERIFICATION; Qwen may run in auto mode',
           ),
           (
-            'High primary confidence (≥0.90, auto mode)',
-            '✅ Qwen skipped, fast path used',
+            'Authentic probability above 70% (default cutoff)',
+            '✅ LIKELY AUTHENTIC; Qwen skipped in auto mode',
           ),
         ]),
         const SizedBox(height: 12),

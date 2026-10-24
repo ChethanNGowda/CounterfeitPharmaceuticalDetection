@@ -10,9 +10,9 @@ This repository contains a local image-screening pipeline and a Flutter client f
 
 | App outcome | Display | What it means |
 |---|---|---|
-| `LIKELY AUTHENTIC` | Green | The screening model found a high-confidence visual match to its authentic reference class. This is not proof of authenticity. |
-| `LIKELY COUNTERFEIT` | Red | The screening model found a high-confidence visual match to its counterfeit reference class. Keep the product and packaging, and request a pharmacist or authority review. |
-| `SUSPICIOUS / NEEDS VERIFICATION` | Amber | Quality checks failed, confidence was low, or reviewers disagreed. No clear result should be inferred. |
+| Authentic probability below 50% | Red — `LIKELY COUNTERFEIT` | The model's counterfeit probability exceeds 50%. Keep the product and packaging, and request pharmacist or authority review. |
+| Authentic probability from 50% through the configured cutoff (70% by default) | Amber — `SUSPICIOUS / NEEDS VERIFICATION` | The score is in the manual-review band. No clear result should be inferred. |
+| Authentic probability above the configured cutoff | Green — `LIKELY AUTHENTIC` | The model score is above the authentic cutoff. This is not proof of authenticity. |
 
 The app uses direct **AUTHENTIC INDICATED** and **COUNTERFEIT INDICATED** result labels with green and red styling. Low-confidence and inconclusive cases remain a separate manual-review outcome. An image model cannot guarantee that a medicine is authentic or counterfeit; chemical testing is needed for confirmation.
 
@@ -42,57 +42,21 @@ This project provides an **image-based screening approach** that uses a smartpho
 
 ## How It Works
 
-A photograph of a pharmaceutical tablet is submitted to a two-stage AI pipeline:
+A photo passes through image validation and an OpenCV quality gate before EfficientNet-B0 estimates the authentic and counterfeit probabilities. The decision engine applies the authentic-probability bands below. Qwen Vision can inspect images in the manual-review band, but it cannot turn a banded review result into an automatic verdict. Poor image quality or, outside the below-50% band, conflicting/suspicious secondary evidence also sends the scan to manual review. Below 50%, the counterfeit indication remains red and secondary concerns appear as warnings; pharmacist verification is still required.
 
-```
-Phone / Image Input
-        │
-        ▼
- Image Validation (format, file integrity)
-        │
-        ▼
- OpenCV Quality Gate
- (resolution, blur, brightness)
-        │
-        ▼
- EfficientNet-B0  ← fine-tuned pharmaceutical classifier
-        │
-        ▼
- Confidence Gate
- ┌──────────────────────────────────────────────┐
- │  confidence < 0.70                           │
- │  → SUSPICIOUS / NEEDS VERIFICATION          │
- │  (low primary confidence, manual review)    │
- │                                              │
- │  0.70 ≤ confidence < 0.90                   │
- │  → QwenVisionVerifier (qwen3.5:4b)         │
- │    inspects the actual image                 │
- │                                              │
- │  confidence ≥ 0.90                           │
- │  → High-confidence fast path                │
- │    (Qwen skipped in auto mode)              │
- └──────────────────────────────────────────────┘
-        │
-        ▼
- DecisionEngine  ← single authoritative verdict
-        │
-        ▼
- Final Result
-```
+### Authentic-probability decision bands
 
-### Final result states
+| Authentic probability | Screening outcome | App color |
+|---:|---|---|
+| `< 50%` | `LIKELY COUNTERFEIT`; human verification is still required | Red |
+| `50%` through the configured cutoff (70% by default) | `SUSPICIOUS / NEEDS VERIFICATION` | Amber |
+| `> 70%` (or above the configured cutoff) | `LIKELY AUTHENTIC` | Green |
 
-| Result | Meaning |
-|---|---|
-| `LIKELY AUTHENTIC` | Primary classifier and (if run) secondary vision agree the sample appears consistent with authentic characteristics. |
-| `LIKELY COUNTERFEIT` | One or both classifiers indicate characteristics inconsistent with authentic samples. |
-| `SUSPICIOUS / NEEDS VERIFICATION` | Conflicting evidence, low confidence, or image quality failure — manual laboratory verification is required. |
+The cutoff can be configured in the app or API. Its default is 70%; the counterfeit boundary remains fixed at 50%. At exactly 50% and exactly the upper cutoff, the result goes to manual review. These are image-model screening estimates, not guarantees of medicine identity or safety.
 
-Manual review is required when quality screening fails, the primary confidence is below the configured threshold, the primary class is counterfeit, or an executed secondary reviewer raises a documented suspicious concern or directly disagrees with the primary model. A skipped or unavailable secondary reviewer does not by itself change an otherwise accepted primary prediction.
+### Qwen Vision is a secondary reviewer
 
-### Qwen Vision is a secondary verifier, not the primary classifier
-
-Qwen Vision inspects the **actual image** — it is not given only JSON metadata. It provides a supporting opinion when the primary EfficientNet-B0 confidence falls in the borderline zone (0.70–0.90). If Qwen Vision is unavailable or times out, the system degrades safely and returns the primary classifier result with an explicit warning.
+Qwen Vision inspects the **actual image**, rather than receiving only JSON metadata. In `auto` mode it runs in the manual-review band. Its agreement does not remove the human-review requirement. A disagreement or suspicious assessment in that band requires review; below 50%, the red counterfeit indication remains while the secondary concern is shown as a warning. If Qwen is unavailable, the result remains manual review when the image is in that band.
 
 ---
 
@@ -146,12 +110,13 @@ Historical benchmark comparison from original training logs (non-EfficientNet fi
 | Colour space | RGB |
 | Normalization | ImageNet (mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) |
 | Checkpoint | `external_models/PharmaAssist/weights/checkpoints/efficientnet_b0/best.pt` |
-| Classification threshold | 0.70 (lower → NEEDS MANUAL REVIEW) |
-| High-confidence threshold | 0.90 (≥ 0.90 → fast path, Qwen skipped in auto mode) |
+| Counterfeit indication | Authentic probability < 0.50 |
+| Manual-review band | 0.50 ≤ authentic probability ≤ configured cutoff (0.70 by default) |
+| Authentic indication | Authentic probability > configured cutoff |
 
 ### Secondary Verifier — Qwen Vision (`qwen3.5:4b`)
 
-Qwen Vision is a **vision-language model** that inspects the actual pharmaceutical image. It is invoked only for borderline-confidence predictions (0.70 ≤ confidence < 0.90 in `auto` mode). It runs locally via [Ollama](https://ollama.com) and does not send images to external servers.
+Qwen Vision is a **vision-language model** that inspects the actual pharmaceutical image. In `auto` mode it is invoked when authentic probability is from 50% through the configured cutoff (70% by default). It runs locally via [Ollama](https://ollama.com) and does not send images to external servers.
 
 ---
 
@@ -198,7 +163,7 @@ ollama pull qwen3.5:4b
 ### CLI — Single Image
 
 ```bash
-# Auto mode: Qwen Vision invoked for borderline confidence [0.70, 0.90)
+# Auto mode: Qwen Vision invoked when authentic probability is in the review band
 python -m scripts.test test_images/sample_authentic_c3pi.jpg
 
 # Always run Qwen Vision secondary verification
@@ -317,7 +282,7 @@ A Flutter client designed for point-of-dispense visual screening of oral solid d
 | **Comparative Benchmarking** | **Completed** | 10% | 10% / 10% | MobileNetV3-Large (99.40%), GoldFormer (99.27%), Baseline CNN (86.58%) |
 | **Image Quality & Visual Inspection** | **Completed** | 10% | 10% / 10% | Resolution, blur, exposure gates + 17 color centroids inspector |
 | **Secondary AI Verification (Ollama)** | **Completed** | 10% | 10% / 10% | qwen3.5:4b vision verifier + qwen3:8b evidence reviewer |
-| **Conservative Decision Engine** | **Completed** | 5% | 5% / 5% | 4 deterministic rules, 0.70 & 0.90 thresholds, conflict safety |
+| **Conservative Decision Engine** | **Completed** | 5% | 5% / 5% | 50% counterfeit boundary, 70% default authentic cutoff, conflict safety |
 | **FastAPI Backend & API Contract** | **Completed** | 10% | 10% / 10% | GET /, GET /health, POST /predict, POST /verify, validation |
 | **Automated Testing Suite** | **Completed** | 5% | 5% / 5% | 169 tests passing across unit, integration, API, and schema suites |
 | **Frontend Mobile/Web GUI** | **Completed** | 10% | 10% / 10% | PharmaAssist Flutter Android Field Screening App (`frontend/flutter_app/`) |

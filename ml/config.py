@@ -33,8 +33,12 @@ IMAGE_SIZE = 224
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]
 
-# Decision Thresholds
+# Authentic-probability decision bands: below 50% indicates counterfeit,
+# 50%-70% requires review, and strictly above 70% indicates authentic.
+COUNTERFEIT_AUTHENTIC_PROBABILITY_CUTOFF = 0.50
 DEFAULT_CONFIDENCE_THRESHOLD = 0.70
+# Retained for backward-compatible callers; auto review now follows the
+# authentic-probability manual-review band instead of a second confidence gate.
 DEFAULT_HIGH_CONFIDENCE_THRESHOLD = 0.90
 
 # EfficientNet-B0 is the default production model. Every registered architecture

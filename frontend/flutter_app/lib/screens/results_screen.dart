@@ -83,6 +83,7 @@ class ResultsScreen extends StatelessWidget {
                 authenticProb: result.authenticProbability,
                 counterfeitProb: result.counterfeitProbability,
                 provisional: result.quality != null && !result.quality!.isValid,
+                finalResult: result.finalResult,
               ),
               if (result.quality != null && !result.quality!.isValid) ...[
                 const SizedBox(height: 8),
@@ -135,7 +136,14 @@ class ResultsScreen extends StatelessWidget {
     String outcomeHeader;
     String outcomeSubtitle;
 
-    if (isAuthentic) {
+    final bool needsMedicinePhoto = result.finalResult.toUpperCase().contains('UPLOAD A MEDICINE TABLET');
+    if (needsMedicinePhoto) {
+      outcomeColor = AppTheme.suspiciousAmber;
+      outcomeBg = AppTheme.suspiciousBg;
+      outcomeIcon = Icons.medication_outlined;
+      outcomeHeader = 'MEDICINE PHOTO REQUIRED';
+      outcomeSubtitle = 'Please upload a clear photo of a medicine tablet. No authenticity screening was performed.';
+    } else if (isAuthentic) {
       outcomeColor = AppTheme.authenticGreen;
       outcomeBg = AppTheme.authenticBg;
       outcomeIcon = Icons.verified_outlined;
@@ -470,8 +478,12 @@ class ResultsScreen extends StatelessWidget {
           _detailRow('Main model', 'Fine-tuned EfficientNet-B0'),
           _detailRow('Model prediction', _plainPrediction(result.prediction)),
           _detailRow(
-            'Review threshold',
+            'Authentic cutoff',
             '${(result.threshold * 100).toStringAsFixed(0)}%',
+          ),
+          _detailRow(
+            'Manual-review band',
+            '50%-${(result.threshold * 100).toStringAsFixed(0)}% authentic probability',
           ),
           _detailRow(
             'Additional AI review',
@@ -649,6 +661,15 @@ class ResultsScreen extends StatelessWidget {
     }
     if (lower.contains('quality check failed')) {
       return 'Not run because the photo did not pass the image-quality check.';
+    }
+    if (lower.contains('authentic probability is below 50%')) {
+      return 'Not needed: authentic probability is below 50%, so the screening indicates counterfeit.';
+    }
+    if (lower.contains('authentic probability') && lower.contains('above the')) {
+      return 'Not needed: authentic probability is above the configured authentic cutoff.';
+    }
+    if (lower.contains('manual-review band')) {
+      return 'Additional AI review was considered in the manual-review band; a human review is still required.';
     }
     if (lower.contains("vision mode 'never'")) {
       return 'Turned off in screening settings.';

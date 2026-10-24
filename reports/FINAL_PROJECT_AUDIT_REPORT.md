@@ -1,6 +1,6 @@
 # Counterfeit Pharmaceutical Detection
 
-> Historical audit: some benchmark and inventory sections below describe earlier artifact locations. The current model directory structure and local checkpoint availability are documented in `external_models/PharmaAssist/README.md` and `docs/project_cleanup_plan.md`.
+> Historical audit: some benchmark and inventory sections below describe earlier artifact locations. The current model directory structure and local checkpoint availability are documented in `external_models/PharmaAssist/README.md`.
 
 ## Final Project Audit & Technical Report
 
@@ -408,7 +408,7 @@ Failures:  0
 
 ### 12. Repository Cleanup Plan & Hygiene
 
-The active model assets have been consolidated under `external_models/PharmaAssist/weights/`. GoldNet and TrueMeds remain intact as external reference projects. See `docs/project_cleanup_plan.md` for the current directory conventions and preservation rules.
+The active model assets have been consolidated under `external_models/PharmaAssist/weights/`. GoldNet and TrueMeds remain intact as external reference projects. See `external_models/PharmaAssist/README.md` for the current directory conventions and preserved model inventory.
 
 | Directory | Current role |
 |---|---|
@@ -416,7 +416,7 @@ The active model assets have been consolidated under `external_models/PharmaAssi
 | `external_models/PharmaAssist/training_runs/` | Local generated model training artifacts |
 | `external_models/GoldNet/`, `external_models/TrueMeds/` | Preserved upstream project sources |
 | `ml/`, `backend/`, `frontend/flutter_app/` | Application and model source code |
-| `data/`, `reports/`, `docs/` | Datasets/manifests, evaluation artifacts, and project documentation |
+| `data/`, `reports/` | Datasets/manifests and evaluation artifacts |
 | `.venv/`, `.git/` | Preserve local environment and version history |
 
 ---

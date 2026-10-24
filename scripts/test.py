@@ -391,14 +391,14 @@ def main() -> None:
     )
     parser.add_argument("target", help="Path to image file or directory containing images")
     parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Primary model to use ({', '.join(SUPPORTED_MODELS)}) or 'all'")
-    parser.add_argument("--threshold", type=float, default=DEFAULT_CONFIDENCE_THRESHOLD, help="Confidence threshold (default: 0.70)")
+    parser.add_argument("--threshold", type=float, default=DEFAULT_CONFIDENCE_THRESHOLD, help="Authentic-probability cutoff (default: 0.70; scores from 0.50 through the cutoff require review)")
     parser.add_argument("--output", default=None, help="Output CSV path for batch testing")
     parser.add_argument("--cpu", action="store_true", help="Force CPU inference for primary ML model")
     parser.add_argument(
         "--vision-mode",
         choices=["auto", "always", "never"],
         default="auto",
-        help="Vision verification mode: 'auto' (conditional gating [0.70, 0.90)), 'always' (force Qwen), 'never' (skip Qwen)",
+        help="Vision verification mode: 'auto' (runs Qwen in the authentic-probability review band), 'always' (force Qwen), 'never' (skip Qwen)",
     )
     parser.add_argument("--no-vision", action="store_true", help="Disable secondary Qwen Vision verification (alias for --vision-mode never)")
     parser.add_argument("--vision-model", default=None, help="Ollama vision model (default: auto-detected, e.g. qwen3-vl:4b)")

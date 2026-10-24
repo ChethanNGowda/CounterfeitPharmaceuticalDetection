@@ -134,7 +134,10 @@ class PredictionResponse(BaseModel):
     status: str = Field(..., description="AUTHENTIC, COUNTERFEIT, or NEEDS MANUAL REVIEW")
     reason: Optional[str] = Field(None, description="Explanation when status is NEEDS MANUAL REVIEW")
     model_name: str = "efficientnet_b0"
-    threshold: float = 0.70
+    threshold: float = Field(
+        0.70,
+        description="Authentic-probability cutoff; 50% through this value is manual review, above it indicates authentic.",
+    )
     authentic_probability: float = Field(0.0, ge=0.0, le=1.0)
     counterfeit_probability: float = Field(0.0, ge=0.0, le=1.0)
     quality: Optional[QualityMetrics] = None
@@ -199,13 +202,13 @@ class ApiInfoResponse(BaseModel):
     default_model: str = "efficientnet_b0"
     thresholds: dict[str, float] = Field(
         default_factory=lambda: {
-            "screening_threshold": 0.70,
-            "high_confidence_threshold": 0.90,
+            "counterfeit_authentic_probability_cutoff": 0.50,
+            "authentic_probability_cutoff": 0.70,
         }
     )
     usage: str = (
         "Submit a multipart/form-data POST request to /predict or /verify with an image 'file'. "
-        "Optional parameters: 'threshold' (0.0-1.0), 'model' (model name), 'vision_mode' ('auto'|'always'|'never'), "
+        "Optional parameters: 'threshold' (authentic-probability cutoff, 0.50-1.0; default 0.70), 'model' (model name), 'vision_mode' ('auto'|'always'|'never'), "
         "'enable_qwen' (bool)."
     )
     disclaimer: str = (

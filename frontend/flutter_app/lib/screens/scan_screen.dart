@@ -904,7 +904,7 @@ class ScanScreenState extends State<ScanScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Confidence Threshold',
+                        'Authentic-Probability Cutoff',
                         style: AppTheme.bodyText(
                           color: AppTheme.textSecondary,
                           fontSize: 11.5,
@@ -925,6 +925,13 @@ class ScanScreenState extends State<ScanScreen> {
                     max: 0.95,
                     divisions: 9,
                     onChanged: (v) => setState(() => _threshold = v),
+                  ),
+                  Text(
+                    'Below 50% authentic: counterfeit indication. 50% through this cutoff: manual review. Above the cutoff: authentic indication.',
+                    style: AppTheme.bodyText(
+                      color: AppTheme.textMuted,
+                      fontSize: 10,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Material(

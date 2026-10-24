@@ -625,7 +625,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Screening Confidence Threshold',
+                'Authentic-Probability Cutoff',
                 style: AppTheme.bodyText(
                   color: AppTheme.textSecondary,
                   fontSize: 11.5,
@@ -648,7 +648,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: (val) => setState(() => _threshold = val),
           ),
           Text(
-            'Samples scoring below this threshold escalate to mandatory physical inspection. Standard: 70%.',
+            'Below 50% authentic indicates counterfeit. From 50% through this cutoff requires review; above it indicates authentic. Default cutoff: 70%.',
             style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 10),
           ),
         ],

@@ -29,7 +29,12 @@ MAX_UPLOAD_SIZE = 15 * 1024 * 1024  # 15 MB
 @router.post("/verify", response_model=PredictionResponse, status_code=status.HTTP_200_OK)
 async def predict_pharmaceutical(
     file: UploadFile = File(..., description="Multipart tablet image file"),
-    threshold: float = Form(DEFAULT_CONFIDENCE_THRESHOLD, description="Confidence threshold between 0.0 and 1.0"),
+    threshold: float = Form(
+        DEFAULT_CONFIDENCE_THRESHOLD,
+        ge=0.50,
+        le=1.0,
+        description="Authentic-probability cutoff: below 50% indicates counterfeit; 50% through this cutoff requires review; above it indicates authentic.",
+    ),
     model: Optional[str] = Form(DEFAULT_MODEL, description=f"Model name ({', '.join(SUPPORTED_MODELS)})"),
     enable_qwen: bool = Form(True, description="Enable secondary AI verification via local Ollama Qwen Vision"),
     enable_vision: Optional[bool] = Form(None, description="Alias for enable_qwen for backward compatibility"),
@@ -39,8 +44,9 @@ async def predict_pharmaceutical(
 
     - Primary Model: EfficientNet-B0 visual classifier (99.88% test accuracy).
     - Secondary Review: configured Qwen Vision model (via local Ollama).
-    - Decision Engine: Conservative synthesis yielding LIKELY AUTHENTIC, LIKELY COUNTERFEIT,
-      or SUSPICIOUS / NEEDS VERIFICATION.
+    - Decision Engine: authentic probability below 50% indicates counterfeit; 50%
+      through the configured cutoff (70% by default) requires manual review; above
+      that cutoff indicates authentic (subject to review safeguards).
     """
     if model:
         norm_model = normalize_model_name(model)

@@ -57,7 +57,7 @@ class ReportService {
     }
     buffer.writeln('Primary Model    : ${result.primaryModel}');
     buffer.writeln(
-      'Threshold Used   : ${(result.threshold * 100).toStringAsFixed(0)}%',
+      'Authentic Cutoff  : ${(result.threshold * 100).toStringAsFixed(0)}%',
     );
     buffer.writeln(
       '----------------------------------------------------------------',

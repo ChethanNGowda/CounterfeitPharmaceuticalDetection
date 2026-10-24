@@ -1,6 +1,7 @@
 """Populate test_images/ with diverse real-world and synthetic evaluation images."""
 
 from pathlib import Path
+import csv
 import shutil
 import cv2
 import numpy as np
@@ -14,10 +15,26 @@ c3pi_sample = Path("data/c3pi/image/images/gallery/1024/00002-3228-30_RXNAVIMAGE
 if c3pi_sample.is_file():
     shutil.copy(c3pi_sample, TEST_DIR / "sample_authentic_c3pi.jpg")
 
-# 2. Counterfeit sample from counterfeit test directory
-counterfeit_sample = Path("data/counterfeit/test/0109_jpg.rf.ce60ce9f3d6a3267b4f006140e3fddf5.jpg")
-if counterfeit_sample.is_file():
-    shutil.copy(counterfeit_sample, TEST_DIR / "sample_counterfeit.jpg")
+# 2. Counterfeit-labeled sample from the authoritative clean test manifest.
+# The old hard-coded file also appears in the clean manifest as authentic, so it
+# cannot be used as a reliable counterfeit demo.
+manifest = Path("data/splits/test_clean.csv")
+processed_root = Path("data/processed")
+counterfeit_sample = None
+if manifest.is_file():
+    with manifest.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            if row.get("label") != "counterfeit":
+                continue
+            candidate = processed_root / row["image_path"]
+            if candidate.is_file():
+                counterfeit_sample = candidate
+                break
+
+if counterfeit_sample is not None:
+    shutil.copy2(counterfeit_sample, TEST_DIR / "sample_counterfeit.jpg")
+else:
+    print("Warning: no existing counterfeit-labeled image found in test_clean.csv")
 
 # 3. Create simulated condition variations using medicine1.jpg if it exists
 base_img_path = TEST_DIR / "medicine1.jpg"

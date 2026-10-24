@@ -6,6 +6,7 @@ class ConfidenceGauge extends StatelessWidget {
   final double? authenticProb;
   final double? counterfeitProb;
   final bool provisional;
+  final String? finalResult;
 
   const ConfidenceGauge({
     super.key,
@@ -13,6 +14,7 @@ class ConfidenceGauge extends StatelessWidget {
     this.authenticProb,
     this.counterfeitProb,
     this.provisional = false,
+    this.finalResult,
   });
 
   @override
@@ -24,6 +26,12 @@ class ConfidenceGauge extends StatelessWidget {
 
     Color progressColor;
     if (provisional) {
+      progressColor = AppTheme.suspiciousAmber;
+    } else if ((finalResult ?? '').toUpperCase().contains('COUNTERFEIT')) {
+      progressColor = AppTheme.counterfeitRed;
+    } else if ((finalResult ?? '').toUpperCase().contains('AUTHENTIC')) {
+      progressColor = AppTheme.authenticGreen;
+    } else if (finalResult != null) {
       progressColor = AppTheme.suspiciousAmber;
     } else if (clamped >= 0.90) {
       progressColor = AppTheme.authenticGreen;

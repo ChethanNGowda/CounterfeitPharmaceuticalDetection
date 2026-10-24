@@ -16,6 +16,7 @@ from torchvision import transforms
 
 from ml.config import (
     CLASS_NAMES,
+    COUNTERFEIT_AUTHENTIC_PROBABILITY_CUTOFF,
     DEFAULT_CONFIDENCE_THRESHOLD,
     DEFAULT_HIGH_CONFIDENCE_THRESHOLD,
     DEFAULT_MODEL,
@@ -141,20 +142,25 @@ def predict(
 
     p_auth = float(probabilities[0].item())
     p_fake = float(probabilities[1].item())
+    if not COUNTERFEIT_AUTHENTIC_PROBABILITY_CUTOFF <= threshold <= 1.0:
+        raise ValueError("Authentic probability threshold must be between 0.50 and 1.00.")
 
     pred_idx = int(probabilities.argmax().item())
     predicted_class = CLASS_NAMES[pred_idx]
     confidence = float(probabilities.max().item())
 
-    # 5. Confidence threshold routing.
-    if confidence >= threshold:
-        status = predicted_class.upper()
+    # 5. Route by authentic-probability bands.
+    if p_auth < COUNTERFEIT_AUTHENTIC_PROBABILITY_CUTOFF:
+        status = "COUNTERFEIT"
+        reason = None
+    elif p_auth > threshold:
+        status = "AUTHENTIC"
         reason = None
     else:
         status = "NEEDS MANUAL REVIEW"
         reason = (
-            f"Confidence {confidence * 100:.1f}% is below "
-            f"screening threshold {threshold * 100:.1f}%."
+            f"Authentic probability {p_auth * 100:.1f}% is in the "
+            f"50.0%-{threshold * 100:.1f}% manual-review band."
         )
 
     return {
@@ -209,6 +215,43 @@ def predict_pipeline(
             "Must be 'auto', 'always', or 'never'."
         )
 
+    # Reject photos where the visual preflight cannot isolate a tablet-shaped
+    # foreground object. This is a conservative upload guard, not an
+    # authenticity decision; low-quality photos continue through the existing
+    # quality-review flow below.
+    visual_analysis = None
+    if quality_check:
+        preflight_quality = check_image_quality(image_input)
+        if preflight_quality.is_valid:
+            try:
+                from ml.inference.visual_inspector import analyze_visual_features
+
+                visual_analysis = analyze_visual_features(image_input)
+            except Exception:
+                visual_analysis = None
+            shape = (visual_analysis or {}).get("shape", {})
+            if shape.get("object_detected") == "Uncertain / Background dominant":
+                prompt = "Please upload a clear photo of a medicine tablet."
+                return {
+                    "image_path": str(image_input) if isinstance(image_input, (str, Path)) else "in_memory",
+                    "prediction": "UNKNOWN", "predicted_class": "UNKNOWN",
+                    "authentic_probability": 0.0, "counterfeit_probability": 0.0,
+                    "confidence": 0.0, "status": "NEEDS MANUAL REVIEW",
+                    "reason": prompt, "probabilities": {"authentic": 0.0, "counterfeit": 0.0},
+                    "model_name": normalize_model_name(str(model if isinstance(model, str) else getattr(model, "model_name", DEFAULT_MODEL))),
+                    "threshold": threshold, "quality": preflight_quality.to_dict(),
+                    "needs_human_verification": True, "final_result": "PLEASE UPLOAD A MEDICINE TABLET",
+                    "final_status": "UPLOAD REQUIRED", "warning": prompt,
+                    "primary_prediction": "UNKNOWN", "primary_confidence": 0.0,
+                    "primary_model": normalize_model_name(str(model if isinstance(model, str) else getattr(model, "model_name", DEFAULT_MODEL))),
+                    "qwen": {"available": False, "status": "SKIPPED", "assessment": "SKIPPED", "confidence": 0.0, "reasoning": [], "needs_human_verification": False, "warning": prompt, "image_quality": "GOOD", "recommendation": "UPLOAD MEDICINE TABLET", "model_name": None, "raw_text": None},
+                    "secondary_executed": False, "secondary_available": False,
+                    "secondary_assessment": "SKIPPED", "secondary_reason": "Skipped: upload did not appear to contain an isolated tablet.",
+                    "vision_mode": norm_vision_mode, "disagreement": False,
+                    "reasons": [prompt], "disclaimer": "Upload a medicine tablet image to begin screening.",
+                    "visual_analysis": visual_analysis,
+                }
+
     # 1. Primary classifier and image-quality gate.
     primary_res = predict(
         image_input=image_input,
@@ -222,7 +265,7 @@ def predict_pipeline(
 
     quality = primary_res.get("quality") or {}
     quality_is_valid = quality.get("is_valid", True)
-    primary_conf = float(primary_res.get("confidence", 0.0))
+    authentic_probability = float(primary_res.get("authentic_probability", 0.0))
 
     # 2. Decide whether secondary vision verification should run.
     if not quality_is_valid:
@@ -248,28 +291,22 @@ def predict_pipeline(
             "'always'."
         )
     else:
-        if primary_conf < threshold:
-            should_run_vision = False
-            secondary_reason = (
-                f"Skipped: low primary confidence "
-                f"({primary_conf * 100:.1f}% < "
-                f"{threshold * 100:.1f}% threshold)."
-            )
-        elif primary_conf < high_threshold:
+        if COUNTERFEIT_AUTHENTIC_PROBABILITY_CUTOFF <= authentic_probability <= threshold:
             should_run_vision = True
             secondary_reason = (
-                f"Executed: primary confidence "
-                f"({primary_conf * 100:.1f}%) within secondary "
-                f"review range [{threshold * 100:.1f}%, "
-                f"{high_threshold * 100:.1f}%)."
+                f"Executed: authentic probability "
+                f"({authentic_probability * 100:.1f}%) is in the "
+                f"50.0%-{threshold * 100:.1f}% manual-review band."
             )
         else:
             should_run_vision = False
-            secondary_reason = (
-                f"Skipped: high-confidence primary prediction "
-                f"({primary_conf * 100:.1f}% >= "
-                f"{high_threshold * 100:.1f}%)."
-            )
+            if authentic_probability < COUNTERFEIT_AUTHENTIC_PROBABILITY_CUTOFF:
+                secondary_reason = "Skipped: authentic probability is below 50%; primary result indicates counterfeit."
+            else:
+                secondary_reason = (
+                    f"Skipped: authentic probability ({authentic_probability * 100:.1f}%) "
+                    f"is above the {threshold * 100:.1f}% authentic cutoff."
+                )
 
     # 3. Run secondary vision review if required.
     qwen_review = None
@@ -322,7 +359,7 @@ def predict_pipeline(
     try:
         from ml.inference.visual_inspector import analyze_visual_features
 
-        visual_analysis = analyze_visual_features(image_input)
+        visual_analysis = visual_analysis or analyze_visual_features(image_input)
     except Exception as vis_exc:
         visual_analysis = {
             "error": f"Visual analysis unavailable: {vis_exc}"
@@ -436,7 +473,7 @@ def main() -> None:
         "--threshold",
         type=float,
         default=DEFAULT_CONFIDENCE_THRESHOLD,
-        help="Confidence threshold",
+        help="Authentic-probability cutoff (default 0.70; scores in [0.50, cutoff] require review)",
     )
     parser.add_argument(
         "--cpu",

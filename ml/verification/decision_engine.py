@@ -10,21 +10,25 @@ Standardized Output Contract:
     * 'SUSPICIOUS / NEEDS VERIFICATION'
 - needs_human_verification: bool
 
-Decision policy (threshold comparisons are inclusive):
+Decision policy uses authentic probability:
 1. Invalid image quality always returns UNKNOWN and requires a retake/manual review.
-2. Invalid or below-threshold primary output requires manual review.
-3. Accepted primary labels are preserved when Qwen agrees, is uncertain, is skipped,
-   or is unavailable. Unavailability adds a warning; a skip is not an outage.
-4. A direct primary/Qwen class conflict or an explicit Qwen suspicious concern requires
-   manual review. A counterfeit primary result is retained and flagged for human review.
+2. Below 50% authentic probability indicates counterfeit; 50%-70% requires review;
+   above the configured 70% cutoff indicates authentic.
+3. In the below-50% band, secondary concerns remain warnings and the red counterfeit
+   indication is retained; all counterfeit indications still require human verification.
+   Above that band, direct class conflicts or explicit Qwen suspicious concerns require
+   manual review.
 """
 
 from __future__ import annotations
 
 from typing import Any, Optional
 
-DEFAULT_CONFIDENCE_THRESHOLD = 0.70
-DEFAULT_HIGH_CONFIDENCE_THRESHOLD = 0.90
+from ml.config import (
+    COUNTERFEIT_AUTHENTIC_PROBABILITY_CUTOFF,
+    DEFAULT_CONFIDENCE_THRESHOLD,
+    DEFAULT_HIGH_CONFIDENCE_THRESHOLD,
+)
 
 DISCLAIMER_TEXT = (
     "AI-assisted preliminary screening only. Visual and convolutional appearance "
@@ -42,10 +46,14 @@ class DecisionEngine:
         high_confidence_threshold: float = DEFAULT_HIGH_CONFIDENCE_THRESHOLD,
     ):
         self.threshold = float(confidence_threshold)
+        if not COUNTERFEIT_AUTHENTIC_PROBABILITY_CUTOFF <= self.threshold <= 1.0:
+            raise ValueError("Authentic probability threshold must be between 0.50 and 1.00.")
+        # Kept for callers using the legacy constructor; final routing now uses
+        # the authentic-probability bands, so this value no longer changes it.
         self.high_threshold = float(high_confidence_threshold)
 
     def evaluate(self, primary_result: dict[str, Any], qwen_review: Optional[dict[str, Any]] = None) -> dict[str, Any]:
-        """Apply the deterministic screening policy; threshold comparison is inclusive (>=)."""
+        """Apply 50% / configured authentic-probability screening bands."""
         primary_model = primary_result.get("model_name", "efficientnet_b0")
         raw_pred = str(primary_result.get("predicted_class") or primary_result.get("prediction", "UNKNOWN")).upper()
         primary_pred = "COUNTERFEIT" if "COUNTERFEIT" in raw_pred else "AUTHENTIC" if "AUTHENTIC" in raw_pred else "UNKNOWN"
@@ -55,6 +63,26 @@ class DecisionEngine:
                 primary_conf = 0.0
         except (TypeError, ValueError):
             primary_conf = 0.0
+        probabilities = primary_result.get("probabilities") or {}
+        try:
+            raw_auth_probability = primary_result.get(
+                "authentic_probability", probabilities.get("authentic")
+            )
+            authentic_probability = (
+                float(raw_auth_probability)
+                if raw_auth_probability is not None
+                else None
+            )
+            if authentic_probability is not None and not 0.0 <= authentic_probability <= 1.0:
+                authentic_probability = None
+        except (TypeError, ValueError):
+            authentic_probability = None
+        # Older callers may provide only class and confidence.
+        if authentic_probability is None:
+            if primary_pred == "AUTHENTIC":
+                authentic_probability = primary_conf
+            elif primary_pred == "COUNTERFEIT":
+                authentic_probability = 1.0 - primary_conf
         quality = primary_result.get("quality") or {}
         quality_valid = quality.get("is_valid", True)
         executed = qwen_review is not None
@@ -75,10 +103,23 @@ class DecisionEngine:
             prediction, conf, primary_conf = "UNKNOWN", 0.0, 0.0
             final, needs, executed, available, assessment = "SUSPICIOUS / NEEDS VERIFICATION", True, False, False, "SKIPPED"
             warning = reason + ". Upload a clearer, focused, well-lit image."
-        elif primary_conf < self.threshold or primary_pred == "UNKNOWN":
-            reason = f"Primary model confidence ({primary_conf*100:.1f}%) is below screening threshold ({self.threshold*100:.1f}%), or model output was invalid."
+        elif primary_pred == "UNKNOWN" or authentic_probability is None:
+            reason = "The primary model returned an invalid class or authentic probability. Manual review is required."
             prediction, final, needs = primary_pred, "SUSPICIOUS / NEEDS VERIFICATION", True
             warning = reason
+        elif authentic_probability < COUNTERFEIT_AUTHENTIC_PROBABILITY_CUTOFF:
+            reason = (
+                f"Authentic probability is {authentic_probability * 100:.1f}% "
+                "(below 50%); counterfeit is indicated."
+            )
+            prediction, final, needs = "COUNTERFEIT", "LIKELY COUNTERFEIT", True
+            # A secondary disagreement can prompt a human check, but does not
+            # change the requested <50% counterfeit headline or red UI state.
+            if available and assessment == "AUTHENTIC":
+                disagreement = True
+                warning = "Secondary visual review disagreed; the red counterfeit indication follows the below-50% authentic probability, and a pharmacist should verify the medicine."
+            elif available and assessment == "SUSPICIOUS":
+                warning = "Secondary visual review raised a concern; have a pharmacist verify the medicine."
         elif available and assessment in ("AUTHENTIC", "COUNTERFEIT") and assessment != primary_pred:
             reason = f"Conflicting evidence: primary classifier predicts {primary_pred}, but secondary AI reviewer assessed {assessment}."
             prediction, final, needs, disagreement = primary_pred, "SUSPICIOUS / NEEDS VERIFICATION", True, True
@@ -86,14 +127,32 @@ class DecisionEngine:
         elif available and assessment == "SUSPICIOUS":
             reason = "Secondary AI reviewer raised a suspicious visual concern; manual verification is required."
             prediction, final, needs, warning = primary_pred, "SUSPICIOUS / NEEDS VERIFICATION", True, reason
+        elif COUNTERFEIT_AUTHENTIC_PROBABILITY_CUTOFF <= authentic_probability <= self.threshold:
+            reason = (
+                f"Authentic probability ({authentic_probability * 100:.1f}%) is in the "
+                f"50.0%-{self.threshold * 100:.1f}% manual-review band."
+            )
+            prediction, final, needs = primary_pred, "SUSPICIOUS / NEEDS VERIFICATION", True
+            if executed and not available:
+                warning = "Secondary AI verification was attempted but unavailable; manual review is still required."
         else:
-            prediction = primary_pred
-            final = "LIKELY AUTHENTIC" if primary_pred == "AUTHENTIC" else "LIKELY COUNTERFEIT"
-            needs = primary_pred == "COUNTERFEIT"
-            if available and assessment == primary_pred:
-                reason = f"Primary visual classifier and secondary AI review corroborate {primary_pred.lower()} evidence."
+            accepted_class = (
+                "COUNTERFEIT"
+                if authentic_probability < COUNTERFEIT_AUTHENTIC_PROBABILITY_CUTOFF
+                else "AUTHENTIC"
+            )
+            prediction = accepted_class
+            final = "LIKELY AUTHENTIC" if accepted_class == "AUTHENTIC" else "LIKELY COUNTERFEIT"
+            needs = accepted_class == "COUNTERFEIT"
+            if available and assessment == accepted_class:
+                reason = f"Primary visual classifier and secondary AI review corroborate {accepted_class.lower()} evidence."
+            elif accepted_class == "COUNTERFEIT":
+                reason = (
+                    f"Authentic probability is {authentic_probability * 100:.1f}% "
+                    "(below 50%); counterfeit is indicated."
+                )
             else:
-                reason = f"Primary classifier prediction accepted at {primary_conf*100:.1f}% confidence."
+                reason = f"Authentic probability is {authentic_probability * 100:.1f}%."
             if executed and not available:
                 warning = "Secondary AI verification was attempted but unavailable; decision uses the primary classifier."
             elif available and assessment in ("UNCERTAIN", "INCONCLUSIVE"):

@@ -384,7 +384,7 @@ def main():
         "",
         "1. **MobileNetV3-Large vs EfficientNet-B0:** Both transfer learning models achieve outstanding performance on this dataset. MobileNetV3-Large is exceptionally compact (~16MB checkpoint, ~4.2M params) and suitable for direct on-device mobile inference (CoreML / TFLite / ONNX). EfficientNet-B0 achieves slightly higher precision with 0 false negatives on the test split.",
         "2. **GoldFormer:** GoldFormer brings hybrid CNN-Transformer attention features (54.3M parameters, ~217MB checkpoint). While effective, its parameter count and latency are substantially higher than MobileNetV3-Large, making it heavier for mobile edge deployment.",
-        "3. **Operational Reality:** Even with high test accuracy, high confidence is never considered a chemical proof of authenticity. A confidence score < 0.70 triggers an explicit 'NEEDS MANUAL REVIEW' status to guard against misclassification.",
+        "3. **Operational Reality:** Even with high test accuracy, high confidence is never considered a chemical proof of authenticity. Authentic probability below 0.50 indicates counterfeit; probability from 0.50 through the configured cutoff (0.70 by default) requires manual review; above the cutoff indicates authentic.",
     ])
 
     md_path.write_text("\n".join(md_lines), encoding="utf-8")

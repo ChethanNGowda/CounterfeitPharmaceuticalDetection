@@ -74,10 +74,9 @@ class AboutScreen extends StatelessWidget {
                       'exposure validation (mean 15–245), and minimum 64×64 pixel resolution gate.',
                 ),
                 _InfoItem(
-                  label: 'Conservative Decision Engine',
+                  label: 'Authentic-Probability Decision Bands',
                   body:
-                      'Deterministic multi-tier synthesis. Automatically enforces mandatory physical laboratory verification '
-                      'if primary confidence < 0.70, models disagree, or secondary verifier is uncertain.',
+                      'Below 50% authentic probability indicates counterfeit; 50% through the configured cutoff (70% by default) requires manual review; above the cutoff indicates authentic. Poor image quality or conflicting secondary review still requires manual review.',
                 ),
               ],
             ),

@@ -13,7 +13,7 @@ PharmaAssist is an Android mobile screening instrument inspired by the field usa
 - **Primary Classifier:** Fine-tuned EfficientNet-B0 (99.88% test accuracy, 100% recall).
 - **Secondary AI Inspector:** Local Ollama Qwen Vision (4B parameters) vision-language verifier for tablet shape, color consistency, imprint legibility, and packaging inspection.
 - **Image Quality Pre-Screen:** OpenCV Laplacian variance blur check, brightness mean, RMS contrast, and 64×64 pixel resolution gate.
-- **Conservative Decision Engine:** Deterministic 4-rule synthesis engine enforcing mandatory physical laboratory review for low-confidence, uncertain, or conflicting evidence.
+- **Probability-Band Decision Engine:** Authentic probability below 50% indicates counterfeit; 50% through the configured cutoff (70% by default) requires manual review; above the cutoff indicates authentic. Quality failures and secondary-review concerns require human attention; below 50%, they appear as warnings while the counterfeit indication stays red.
 - **Persistent Local Archive:** Encrypted local storage of completed inspections (up to 50 records), sample IDs, medicine names, inspection notes, and generated field reports.
 
 ---
@@ -29,9 +29,9 @@ PharmaAssist is an Android mobile screening instrument inspired by the field usa
    - Multi-stage screening progress bar (`Transmitting` → `Quality Gate` → `Neural Inference` → `Decision Synthesis`).
 
 2. **Three Distinct Instrument Outcomes:**
-   - **`SCREENING INDICATES AUTHENTIC`** (Forest Green `#22C55E`): Surface pattern matches authentic reference models.
-   - **`SCREENING INDICATES COUNTERFEIT`** (Crimson Red `#EF4444`): Pattern anomalies, imprint defects, or classifier flags detected. Sample quarantine advised.
-   - **`INCONCLUSIVE / REVIEW REQUIRED`** (Amber `#F59E0B`): Borderline confidence, optical variance, or verifier disagreement. Physical laboratory testing required.
+   - **`AUTHENTIC INDICATED`** (Forest Green): Authentic probability is above the configured cutoff. This is not a guarantee of authenticity.
+   - **`COUNTERFEIT INDICATED`** (Danger Red): Authentic probability is below 50%. Human verification is still required.
+   - **`INCONCLUSIVE / REVIEW REQUIRED`** (Amber): Authentic probability is from 50% through the configured cutoff, or image quality/verifier conflict requires review.
 
 3. **Inspection Report Generation & Export:**
    - Structured plain-text field inspection reports.
@@ -137,7 +137,7 @@ adb install -r "frontend\flutter_app\build\app\outputs\flutter-apk\app-debug.apk
 
 The backend integrates an optional secondary vision-language inspection model (`qwen3.5:4b`) hosted via local [Ollama](https://ollama.com):
 
-- **Auto Mode (Default):** Qwen Vision is conditionally invoked only when primary EfficientNet-B0 confidence is in the borderline zone (`0.70 ≤ confidence < 0.90`).
+- **Auto Mode (Default):** Qwen Vision is invoked when authentic probability falls in the manual-review band (`0.50 ≤ p(authentic) ≤ configured cutoff`, 0.70 by default). That band remains manual review even if Qwen agrees with the primary model.
 - **Always Mode:** Force Qwen Vision review on every sample for deep physical feature extraction.
 - **Never Mode:** Fast-path execution; primary classifier only (~35 ms latency).
 - **Graceful Degradation:** If Ollama is offline or times out, the backend gracefully flags `needs_human_verification: true` with an operational warning. Mobile app screening remains operational.

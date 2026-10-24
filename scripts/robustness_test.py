@@ -54,7 +54,7 @@ def run_robustness_audit(
         "",
         f"**Evaluation Date:** {time.strftime('%Y-%m-%d %H:%M:%S')}  ",
         f"**Model Evaluated:** `{model_name}`  ",
-        f"**Screening Threshold:** {threshold:.2f}  ",
+        f"**Authentic-Probability Cutoff:** {threshold:.2f}  ",
         "",
         "## Tested Image Conditions",
         "",
@@ -78,7 +78,7 @@ def run_robustness_audit(
         elif "c3pi" in fname:
             cond = "Standard Studio Authentic"
         elif "counterfeit" in fname:
-            cond = "Physical Counterfeit Sample"
+            cond = "Counterfeit-Labeled Sample"
         else:
             cond = "Baseline Real Capture"
 
@@ -94,7 +94,7 @@ def run_robustness_audit(
         "## Key Findings & Safety Insights",
         "",
         "1. **Quality Check Screening:** The pre-inference quality checker accurately intercepts severe blur, extreme underexposure, and corrupted inputs before they reach the model.",
-        "2. **Threshold Guardrails:** Under degraded conditions (e.g. shadows or angle shifts), when probability drops below 70%, the system issues `NEEDS MANUAL REVIEW` instead of emitting a false confident classification.",
+        "2. **Probability-Band Guardrails:** Authentic probability below 50% indicates counterfeit; from 50% through the configured cutoff it requires manual review; above the cutoff it indicates authentic. Image-quality failures and verifier conflicts remain review cases.",
         "3. **Non-Tablet / OOD Handling:** Arbitrary non-pharmaceutical scenes cannot chemically prove authenticity; the system's low confidence or manual review safeguard prevents unconditional authentic classification.",
         "4. **Smartphone Practicality:** Controlled rotation and moderate compression retain feature integrity, demonstrating preliminary suitability for mobile triage.",
     ])

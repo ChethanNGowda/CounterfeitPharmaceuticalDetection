@@ -25,19 +25,35 @@ def load_test_manifest(split_dir: Path, test_manifest: str | None) -> list[dict[
 
 def evaluate(args: argparse.Namespace) -> dict:
     device = torch.device("cuda" if torch.cuda.is_available() and not args.cpu else "cpu")
-    checkpoint = torch.load(args.checkpoint, map_location=device, weights_only=False)
-    metadata = checkpoint["metadata"]
-    model = build_model(metadata["model_name"], Path(args.pretrained_checkpoint)).to(device)
-    model.load_state_dict(checkpoint["model_state_dict"])
+    checkpoint = torch.load(args.checkpoint, map_location=device, weights_only=True)
+    metadata = checkpoint.get("metadata", {})
+    model_name = metadata.get("model_name") or checkpoint.get("model")
+    if not model_name:
+        raise ValueError("Checkpoint does not identify a supported model.")
+    state_dict = checkpoint.get("model_state_dict")
+    if state_dict is None:
+        state_dict = checkpoint.get("state_dict")
+    if state_dict is None:
+        raise ValueError("Checkpoint does not contain model weights.")
+    model = build_model(model_name, Path(args.pretrained_checkpoint)).to(device)
+    model.load_state_dict(state_dict)
     model.eval()
     split = load_test_manifest(Path(args.split_dir), args.test_manifest)
     loader = DataLoader(PharmaceuticalImageDataset(split, Path(args.raw_dir), evaluation_transform()), batch_size=args.batch_size, shuffle=False)
-    targets, predictions = [], []
+    targets, predictions, counterfeit_probabilities = [], [], []
     with torch.no_grad():
         for images, labels in loader:
-            predictions.extend(model(images.to(device)).argmax(dim=1).cpu().tolist())
+            logits = model(images.to(device))
+            probabilities = torch.softmax(logits, dim=1)
+            predictions.extend(probabilities.argmax(dim=1).cpu().tolist())
+            counterfeit_probabilities.extend(probabilities[:, 1].cpu().tolist())
             targets.extend(labels.tolist())
-    result = classification_metrics(targets, predictions, CLASS_NAMES)
+    result = classification_metrics(
+        targets,
+        predictions,
+        CLASS_NAMES,
+        probabilities=counterfeit_probabilities,
+    )
     if args.output:
         save_metrics(result, Path(args.output))
     print(json.dumps(result, indent=2))

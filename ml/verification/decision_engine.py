@@ -35,6 +35,13 @@ DISCLAIMER_TEXT = (
     "analysis CANNOT certify chemical purity, active pharmaceutical ingredients (API), "
     "or bioequivalence. Laboratory chemical testing remains the sole definitive standard."
 )
+VALID_SECONDARY_ASSESSMENTS = {
+    "AUTHENTIC",
+    "COUNTERFEIT",
+    "SUSPICIOUS",
+    "UNCERTAIN",
+    "INCONCLUSIVE",
+}
 
 
 class DecisionEngine:
@@ -48,8 +55,9 @@ class DecisionEngine:
         self.threshold = float(confidence_threshold)
         if not COUNTERFEIT_AUTHENTIC_PROBABILITY_CUTOFF <= self.threshold <= 1.0:
             raise ValueError("Authentic probability threshold must be between 0.50 and 1.00.")
-        # Kept for callers using the legacy constructor; final routing now uses
-        # the authentic-probability bands, so this value no longer changes it.
+        # Kept for callers using the legacy constructor. Current routing uses
+        # authentic-probability bands; the 0.90 value is not a second decision
+        # threshold and must not override the 0.50/0.70 policy.
         self.high_threshold = float(high_confidence_threshold)
 
     def evaluate(self, primary_result: dict[str, Any], qwen_review: Optional[dict[str, Any]] = None) -> dict[str, Any]:
@@ -85,6 +93,8 @@ class DecisionEngine:
                 authentic_probability = 1.0 - primary_conf
         quality = primary_result.get("quality") or {}
         quality_valid = quality.get("is_valid", True)
+        if not isinstance(quality_valid, bool):
+            quality_valid = False
         executed = qwen_review is not None
         payload = dict(qwen_review) if qwen_review is not None else {
             "available": False, "status": "SKIPPED", "assessment": "SKIPPED", "confidence": 0.0,
@@ -92,6 +102,7 @@ class DecisionEngine:
         }
         available = bool(payload.get("available", False) and payload.get("status") != "UNAVAILABLE")
         assessment = str(payload.get("assessment", "UNCERTAIN")).strip().upper()
+        malformed_secondary = available and assessment not in VALID_SECONDARY_ASSESSMENTS
         warning = None
         disagreement = False
 
@@ -103,6 +114,18 @@ class DecisionEngine:
             prediction, conf, primary_conf = "UNKNOWN", 0.0, 0.0
             final, needs, executed, available, assessment = "SUSPICIOUS / NEEDS VERIFICATION", True, False, False, "SKIPPED"
             warning = reason + ". Upload a clearer, focused, well-lit image."
+        elif malformed_secondary:
+            reason = "The secondary AI returned an unrecognized assessment. Manual verification is required."
+            payload.update({
+                "available": False,
+                "status": "INVALID",
+                "assessment": "UNCERTAIN",
+                "needs_human_verification": True,
+                "warning": "Secondary AI response was invalid; manual verification is required.",
+            })
+            available, assessment = False, "UNCERTAIN"
+            prediction, final, needs = primary_pred, "SUSPICIOUS / NEEDS VERIFICATION", True
+            warning = "Secondary AI response was invalid; manual verification is required."
         elif primary_pred == "UNKNOWN" or authentic_probability is None:
             reason = "The primary model returned an invalid class or authentic probability. Manual review is required."
             prediction, final, needs = primary_pred, "SUSPICIOUS / NEEDS VERIFICATION", True

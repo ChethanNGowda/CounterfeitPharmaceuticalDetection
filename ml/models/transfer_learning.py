@@ -94,7 +94,7 @@ def build_model(
     if norm_name == "mobilenet_v3_large":
         model = mobilenet_v3_large(weights=None)
         if pretrained and pretrained.is_file():
-            ckpt = torch.load(pretrained, map_location="cpu", weights_only=False)
+            ckpt = torch.load(pretrained, map_location="cpu", weights_only=True)
             state = ckpt.get("model_state_dict", ckpt.get("state_dict", ckpt))
             state = {k.removeprefix("module."): v for k, v in state.items() if not k.startswith("classifier.")}
             model.load_state_dict(state, strict=False)
@@ -107,7 +107,7 @@ def build_model(
     if norm_name == "efficientnet_b0":
         model = efficientnet_b0(weights=None)
         if pretrained and pretrained.is_file():
-            ckpt = torch.load(pretrained, map_location="cpu", weights_only=False)
+            ckpt = torch.load(pretrained, map_location="cpu", weights_only=True)
             state = ckpt.get("model_state_dict", ckpt.get("state_dict", ckpt))
             state = {k.removeprefix("module."): v for k, v in state.items() if not k.startswith("classifier.")}
             model.load_state_dict(state, strict=False)
@@ -120,7 +120,7 @@ def build_model(
     if norm_name == "baseline_cnn":
         model = _build_baseline_cnn(num_classes)
         if pretrained and pretrained.is_file():
-            ckpt = torch.load(pretrained, map_location="cpu", weights_only=False)
+            ckpt = torch.load(pretrained, map_location="cpu", weights_only=True)
             state = ckpt.get("model_state_dict", ckpt.get("state_dict", ckpt))
             state = {k.removeprefix("module."): v for k, v in state.items() if not k.startswith("14.")}
             model.load_state_dict(state, strict=False)
@@ -208,7 +208,7 @@ def load_classifier(
         norm_name = normalize_model_name(model_name)
     elif checkpoint_path:
         # Probe checkpoint dictionary
-        probe = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+        probe = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
         if isinstance(probe, dict):
             raw_name = probe.get("model") or probe.get("metadata", {}).get("model_name")
             if raw_name:
@@ -245,7 +245,7 @@ def load_classifier(
     model = build_model(norm_name, pretrained_path=pre_file, num_classes=num_classes)
 
     # 3. Load trained fine-tuned state
-    checkpoint = torch.load(ckpt_file, map_location=dev, weights_only=False)
+    checkpoint = torch.load(ckpt_file, map_location=dev, weights_only=True)
     state = checkpoint.get("model_state_dict", checkpoint.get("state_dict", checkpoint))
     state = {k.removeprefix("module."): v for k, v in state.items()}
 

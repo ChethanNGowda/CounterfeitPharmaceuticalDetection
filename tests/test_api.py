@@ -6,7 +6,7 @@ PredictionResponse schema (post-qwen3:8b integration).
 
 import io
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 import pytest
 from fastapi.testclient import TestClient
 
@@ -17,10 +17,10 @@ client = TestClient(app)
 
 def _make_synthetic_image_buf():
     """Create a synthetic tablet-like JPEG image as BytesIO."""
-    arr = np.random.randint(50, 200, (224, 224, 3), dtype=np.uint8)
-    arr[50:150, 50:150] = 255
-    arr[100:120, 100:120] = 0
-    img = Image.fromarray(arr)
+    img = Image.new("RGB", (224, 224), (0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.ellipse((48, 48, 176, 176), fill=(240, 240, 240), outline=(40, 40, 40), width=4)
+    draw.line((86, 112, 138, 112), fill=(40, 40, 40), width=4)
     buf = io.BytesIO()
     img.save(buf, format="JPEG")
     buf.seek(0)
@@ -90,18 +90,15 @@ def test_predict_endpoint_corrupted_image():
     assert response.status_code == 400
 
 
-def test_predict_endpoint_high_threshold_triggers_manual_review():
-    """Threshold > 1.0 can never be met → NEEDS MANUAL REVIEW."""
+def test_predict_endpoint_rejects_threshold_above_supported_range():
+    """Thresholds above 1.0 are rejected by request validation."""
     buf = _make_synthetic_image_buf()
     response = client.post(
         "/predict",
         files={"file": ("tablet.jpg", buf, "image/jpeg")},
         data={"threshold": 1.01, "model": "efficientnet_b0"},
     )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "NEEDS MANUAL REVIEW"
-    assert "below" in data["reason"].lower()
+    assert response.status_code == 422
 
 
 # ---------------------------------------------------------------------------
@@ -241,24 +238,24 @@ def test_predict_endpoint_high_confidence_auto_mode_skips_qwen(monkeypatch):
     data = response.json()
     assert data["confidence"] == 0.95
     assert data["secondary_executed"] is False
-    assert "high-confidence" in data["secondary_reason"]
+    assert "above" in data["secondary_reason"]
     assert data["final_result"] == "LIKELY AUTHENTIC"
     assert data["needs_human_verification"] is False
 
 
-def test_predict_endpoint_borderline_confidence_auto_mode_executes_qwen(monkeypatch):
-    """Primary confidence in [0.70, 0.90) must automatically invoke Qwen3-VL."""
+def test_predict_endpoint_manual_review_band_auto_mode_executes_qwen(monkeypatch):
+    """Authentic probability in the manual-review band invokes Qwen Vision."""
     def fake_predict(*args, **kwargs):
         return {
             "image_path": "fake.jpg",
             "prediction": "AUTHENTIC",
             "predicted_class": "authentic",
-            "authentic_probability": 0.82,
-            "counterfeit_probability": 0.18,
-            "confidence": 0.82,
-            "status": "AUTHENTIC",
+            "authentic_probability": 0.62,
+            "counterfeit_probability": 0.38,
+            "confidence": 0.62,
+            "status": "NEEDS MANUAL REVIEW",
             "reason": None,
-            "probabilities": {"authentic": 0.82, "counterfeit": 0.18},
+            "probabilities": {"authentic": 0.62, "counterfeit": 0.38},
             "model_name": "efficientnet_b0",
             "threshold": 0.70,
             "quality": {"is_valid": True, "reason": None, "blur_score": 100.0, "brightness_mean": 128.0, "dimensions": [224, 224]},
@@ -293,12 +290,12 @@ def test_predict_endpoint_borderline_confidence_auto_mode_executes_qwen(monkeypa
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["confidence"] == 0.82
+    assert data["confidence"] == 0.62
     assert data["secondary_executed"] is True
     assert data["qwen"]["available"] is True
     assert data["qwen"]["assessment"] == "AUTHENTIC"
-    assert data["final_result"] == "LIKELY AUTHENTIC"
-    assert data["needs_human_verification"] is False
+    assert data["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+    assert data["needs_human_verification"] is True
 
 
 def test_predict_endpoint_qwen_unavailable_graceful_fallback(monkeypatch):
@@ -308,12 +305,12 @@ def test_predict_endpoint_qwen_unavailable_graceful_fallback(monkeypatch):
             "image_path": "fake.jpg",
             "prediction": "AUTHENTIC",
             "predicted_class": "authentic",
-            "authentic_probability": 0.85,
-            "counterfeit_probability": 0.15,
-            "confidence": 0.85,
-            "status": "AUTHENTIC",
+            "authentic_probability": 0.62,
+            "counterfeit_probability": 0.38,
+            "confidence": 0.62,
+            "status": "NEEDS MANUAL REVIEW",
             "reason": None,
-            "probabilities": {"authentic": 0.85, "counterfeit": 0.15},
+            "probabilities": {"authentic": 0.62, "counterfeit": 0.38},
             "model_name": "efficientnet_b0",
             "threshold": 0.70,
             "quality": {"is_valid": True, "reason": None, "blur_score": 100.0, "brightness_mean": 128.0, "dimensions": [224, 224]},
@@ -350,10 +347,8 @@ def test_predict_endpoint_qwen_unavailable_graceful_fallback(monkeypatch):
     data = response.json()
     assert data["secondary_executed"] is True
     assert data["qwen"]["available"] is False
-    assert data["final_result"] == "LIKELY AUTHENTIC"
-    # An unavailable secondary verifier warns but does not invalidate an
-    # otherwise accepted authentic primary result.
-    assert data["needs_human_verification"] is False
+    assert data["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+    assert data["needs_human_verification"] is True
     assert "failed" in data["warning"].lower() or "unavailable" in data["warning"].lower()
 
 
@@ -364,12 +359,12 @@ def test_predict_endpoint_qwen_exception_handled_gracefully(monkeypatch):
             "image_path": "fake.jpg",
             "prediction": "AUTHENTIC",
             "predicted_class": "authentic",
-            "authentic_probability": 0.85,
-            "counterfeit_probability": 0.15,
-            "confidence": 0.85,
-            "status": "AUTHENTIC",
+            "authentic_probability": 0.62,
+            "counterfeit_probability": 0.38,
+            "confidence": 0.62,
+            "status": "NEEDS MANUAL REVIEW",
             "reason": None,
-            "probabilities": {"authentic": 0.85, "counterfeit": 0.15},
+            "probabilities": {"authentic": 0.62, "counterfeit": 0.38},
             "model_name": "efficientnet_b0",
             "threshold": 0.70,
             "quality": {"is_valid": True, "reason": None, "blur_score": 100.0, "brightness_mean": 128.0, "dimensions": [224, 224]},
@@ -393,14 +388,12 @@ def test_predict_endpoint_qwen_exception_handled_gracefully(monkeypatch):
     data = response.json()
     assert data["secondary_executed"] is True
     assert data["qwen"]["available"] is False
-    assert data["final_result"] == "LIKELY AUTHENTIC"
-    # An unavailable secondary verifier warns but does not invalidate an
-    # otherwise accepted authentic primary result.
-    assert data["needs_human_verification"] is False
+    assert data["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+    assert data["needs_human_verification"] is True
 
 
-def test_predict_endpoint_low_confidence_skips_qwen_and_requires_review(monkeypatch):
-    """Primary confidence < 0.70 must skip Qwen in auto mode and mark for review."""
+def test_predict_endpoint_below_50_authentic_probability_skips_qwen(monkeypatch):
+    """Authentic probability below 50% keeps the counterfeit indication."""
     def fake_predict(*args, **kwargs):
         return {
             "image_path": "fake.jpg",
@@ -428,8 +421,8 @@ def test_predict_endpoint_low_confidence_skips_qwen_and_requires_review(monkeypa
     assert response.status_code == 200
     data = response.json()
     assert data["secondary_executed"] is False
-    assert "low primary confidence" in data["secondary_reason"]
-    assert data["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+    assert "below 50%" in data["secondary_reason"]
+    assert data["final_result"] == "LIKELY COUNTERFEIT"
     assert data["needs_human_verification"] is True
 
 

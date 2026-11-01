@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import logging
 from typing import Optional
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from PIL import Image
@@ -13,6 +14,7 @@ from backend.app.schemas.predict import ModelsListResponse, ModelStatusItem, Pre
 from backend.app.services.classifier import ClassifierService
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 ALLOWED_MIME_TYPES = {
     "image/jpeg",
@@ -23,6 +25,34 @@ ALLOWED_MIME_TYPES = {
 }
 ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP", "BMP"}
 MAX_UPLOAD_SIZE = 15 * 1024 * 1024  # 15 MB
+MAX_IMAGE_DIMENSION = 10000
+
+
+def _validate_image_content(content: bytes) -> None:
+    """Validate the decoded image without exposing parser details to clients."""
+    try:
+        with Image.open(io.BytesIO(content)) as probe_img:
+            img_format = (probe_img.format or "").upper()
+            if img_format not in ALLOWED_IMAGE_FORMATS:
+                raise HTTPException(
+                    status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                    detail="Unsupported image format. Allowed formats: JPEG, PNG, WEBP, BMP.",
+                )
+            width, height = probe_img.size
+            if width <= 0 or height <= 0 or max(width, height) > MAX_IMAGE_DIMENSION:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Image dimensions are invalid or exceed the supported limit.",
+                )
+            probe_img.verify()
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Uploaded image failed decoding or verification")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Corrupted or invalid image data.",
+        )
 
 
 @router.post("/predict", response_model=PredictionResponse, status_code=status.HTTP_200_OK)
@@ -55,18 +85,19 @@ async def predict_pharmaceutical(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Unsupported model '{model}'. Supported models: {', '.join(SUPPORTED_MODELS)}.",
             )
-    if file.content_type and file.content_type.lower() not in ALLOWED_MIME_TYPES:
+    if not file.content_type or file.content_type.lower() not in ALLOWED_MIME_TYPES:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail=f"Unsupported file format '{file.content_type}'. Allowed types: JPEG, PNG, WEBP, BMP.",
+            detail="Unsupported or missing file format. Allowed types: JPEG, PNG, WEBP, BMP.",
         )
 
     try:
         content = await file.read()
-    except Exception as err:
+    except Exception:
+        logger.exception("Failed to read uploaded file")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to read uploaded file: {err}",
+            detail="Failed to read uploaded file.",
         )
 
     if not content:
@@ -81,27 +112,27 @@ async def predict_pharmaceutical(
             detail=f"Image upload exceeds maximum allowed size of 15MB ({len(content) / (1024 * 1024):.1f}MB uploaded).",
         )
 
-    # Validate image readability and real format (do not trust content_type header alone)
-    try:
-        with Image.open(io.BytesIO(content)) as probe_img:
-            img_format = (probe_img.format or "").upper()
-            if img_format not in ALLOWED_IMAGE_FORMATS:
-                raise HTTPException(
-                    status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-                    detail=f"Unsupported image format '{img_format}'. Allowed formats: JPEG, PNG, WEBP, BMP.",
-                )
-    except HTTPException:
-        raise
-    except Exception as img_err:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Corrupted or invalid image data: {img_err}",
-        )
+    # Validate decoded content rather than trusting the multipart MIME header.
+    _validate_image_content(content)
 
     # Use enable_vision if explicitly provided, otherwise enable_qwen
     run_qwen = enable_vision if enable_vision is not None else enable_qwen
 
-    service = ClassifierService.get_instance()
+    try:
+        service = ClassifierService.get_instance()
+    except (CheckpointUnavailableError, ImportError, ModuleNotFoundError, OSError, RuntimeError):
+        logger.exception("Screening model could not be initialized")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Screening service is temporarily unavailable.",
+        )
+    except Exception:
+        logger.exception("Unexpected screening service initialization failure")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Screening service failed to initialize.",
+        )
+
     try:
         result = service.predict_image_bytes(
             image_bytes=content,
@@ -111,20 +142,35 @@ async def predict_pharmaceutical(
             vision_mode=vision_mode,
             enable_qwen=run_qwen,
         )
-    except ValueError as val_err:
+    except ValueError:
+        logger.exception("Invalid screening request or image data")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(val_err),
+            detail="Invalid screening request or image data.",
         )
     except CheckpointUnavailableError as ckpt_err:
+        logger.warning("Requested screening checkpoint is unavailable: %s", ckpt_err)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Requested model checkpoint is unavailable: {ckpt_err}",
+            detail="Requested screening model is unavailable.",
         )
-    except Exception as exc:
+    except (ImportError, ModuleNotFoundError, OSError):
+        logger.exception("Screening dependency or resource is unavailable")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Screening service is temporarily unavailable.",
+        )
+    except RuntimeError:
+        logger.exception("Screening inference failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Inference error: {exc}",
+            detail="Screening failed unexpectedly. Please try again.",
+        )
+    except Exception:
+        logger.exception("Unexpected screening failure")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Screening failed unexpectedly. Please try again.",
         )
 
     return PredictionResponse(
@@ -204,14 +250,15 @@ def qwen_diagnostics():
             installed_models=[],
             message=f"Cannot connect to Ollama at {base_url}. Ensure the Ollama service is running.",
         )
-    except Exception as exc:
+    except Exception:
+        logger.exception("Qwen diagnostic failed")
         return QwenHealthResponse(
             status="ERROR",
             available=False,
             model_name=model_name,
             base_url=base_url,
             installed_models=[],
-            message=f"Diagnostic error: {exc}",
+            message="Qwen diagnostic failed. Check the backend logs for details.",
         )
 
 

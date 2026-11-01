@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import logging
 from pathlib import Path
 from typing import Any, Optional, Union
 
@@ -27,6 +28,8 @@ from ml.config import (
 )
 from ml.models.transfer_learning import load_classifier, normalize_model_name
 from ml.preprocessing.quality_checker import check_image_quality
+
+logger = logging.getLogger(__name__)
 
 
 def get_inference_transform() -> transforms.Compose:
@@ -240,8 +243,8 @@ def predict_pipeline(
                     "reason": prompt, "probabilities": {"authentic": 0.0, "counterfeit": 0.0},
                     "model_name": normalize_model_name(str(model if isinstance(model, str) else getattr(model, "model_name", DEFAULT_MODEL))),
                     "threshold": threshold, "quality": preflight_quality.to_dict(),
-                    "needs_human_verification": True, "final_result": "PLEASE UPLOAD A MEDICINE TABLET",
-                    "final_status": "UPLOAD REQUIRED", "warning": prompt,
+                    "needs_human_verification": True, "final_result": "SUSPICIOUS / NEEDS VERIFICATION",
+                    "final_status": "NEEDS MANUAL REVIEW", "warning": prompt,
                     "primary_prediction": "UNKNOWN", "primary_confidence": 0.0,
                     "primary_model": normalize_model_name(str(model if isinstance(model, str) else getattr(model, "model_name", DEFAULT_MODEL))),
                     "qwen": {"available": False, "status": "SKIPPED", "assessment": "SKIPPED", "confidence": 0.0, "reasoning": [], "needs_human_verification": False, "warning": prompt, "image_quality": "GOOD", "recommendation": "UPLOAD MEDICINE TABLET", "model_name": None, "raw_text": None},
@@ -319,7 +322,8 @@ def predict_pipeline(
 
         try:
             qwen_review = vision_verifier.verify_image(image_input)
-        except Exception as exc:
+        except Exception:
+            logger.exception("Secondary vision verification failed")
             qwen_review = {
                 "available": False,
                 "status": "UNAVAILABLE",
@@ -327,10 +331,8 @@ def predict_pipeline(
                 "confidence": "LOW",
                 "image_quality": "POOR",
                 "recommendation": "MANUAL REVIEW",
-                "reason": f"Secondary vision verification error: {exc}",
-                "reasoning": [
-                    f"Secondary vision verification error: {exc}"
-                ],
+                "reason": "Secondary vision verification failed.",
+                "reasoning": ["Secondary vision verification failed."],
                 "needs_human_verification": True,
                 "warning": (
                     "Secondary AI verification unavailable. "

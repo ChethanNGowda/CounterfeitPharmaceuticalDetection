@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import logging
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,11 +13,16 @@ from backend.app.routes.predict import router as predict_router
 from backend.app.schemas.predict import ApiInfoResponse, HealthResponse
 from backend.app.services.classifier import ClassifierService
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Preload default model on startup
-    ClassifierService.get_instance()
+    try:
+        ClassifierService.get_instance()
+    except Exception:
+        logger.exception("Default screening model could not be preloaded")
     yield
 
 
@@ -29,11 +36,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Enable CORS for mobile and web clients
+def _cors_origins() -> list[str]:
+    configured = os.getenv("CORS_ALLOWED_ORIGINS", "")
+    return [origin.strip() for origin in configured.split(",") if origin.strip()]
+
+
+# Mobile clients do not require CORS. Browser clients must opt in explicitly.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_cors_origins(),
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -63,7 +75,7 @@ def health_check():
         secondary_model = service.vision_verifier.model_name
         secondary_endpoint = service.vision_verifier.base_url
     except Exception:
-        pass  # Degraded mode — return basic health information
+        logger.exception("Health check could not inspect the screening service")
     return HealthResponse(
         status="ok",
         version="1.0.0",

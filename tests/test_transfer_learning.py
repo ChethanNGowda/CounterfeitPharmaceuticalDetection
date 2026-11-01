@@ -111,6 +111,9 @@ def test_inference_returns_probabilities_and_manual_review(tmp_path):
 
     # Build a fresh mobilenetv3 model and save a temporary checkpoint
     model = build_model("mobilenet_v3_large", Path("external_models/PharmaAssist/weights/pretrained/mobilenet_v3_large.pth"))
+    with torch.no_grad():
+        model.classifier[3].weight.zero_()
+        model.classifier[3].bias.zero_()
     checkpoint_path = tmp_path / "checkpoint.pt"
     torch.save(
         {
@@ -126,7 +129,7 @@ def test_inference_returns_probabilities_and_manual_review(tmp_path):
     result = predict(
         image_input=image_path,
         model=model,
-        threshold=1.01,               # Always below 1.0 confidence -> NEEDS MANUAL REVIEW
+        threshold=0.99,               # Keep the threshold within the supported range
         quality_check=False,           # Skip quality gate so we test the threshold path
         device=torch.device("cpu"),
     )

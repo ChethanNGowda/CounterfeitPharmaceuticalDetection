@@ -1,8 +1,8 @@
 # Counterfeit Pharmaceutical Detection Repository Audit
 
-**Audit date:** 2026-11-01  
-**Repository:** `ChethanNGowda/CounterfeitPharmaceuticalDetection`  
-**Audited branch:** `main`  
+**Audit date:** 2026-11-01
+**Repository:** `ChethanNGowda/CounterfeitPharmaceuticalDetection`
+**Audited branch:** `main`
 **Scope:** Git state, FastAPI and ML pipeline, Qwen/Ollama integration, Flutter workflows, tests, evaluation and split safeguards, configuration, documentation, and security posture.
 
 ## Executive summary

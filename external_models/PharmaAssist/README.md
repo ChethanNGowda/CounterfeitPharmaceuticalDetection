@@ -20,4 +20,9 @@ First-party model weights and model-training outputs are grouped here. Architect
 | GoldFormer | Base model in `../GoldNet/weights/` | GoldNet source preserved; pharmaceutical fine-tune absent here |
 | TrueMeds | `../TrueMeds/` upstream source | No model checkpoint present in this checkout |
 
-Large weights and run outputs are excluded from Git and retained locally. The API derives classifier availability from the files actually present and never treats generic pretrained weights as pharmaceutical predictions.
+Generic pretrained weights and training-run outputs are excluded from Git and
+must be obtained from an authorized internal artifact store or supplied
+locally. The fine-tuned EfficientNet-B0 deployment checkpoint is the only
+large model artifact currently tracked for the default application path. The
+API derives classifier availability from files actually present and never
+treats generic pretrained weights as pharmaceutical predictions.

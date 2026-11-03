@@ -3,6 +3,8 @@ __pycache__/
 .pytest_cache/
 .venv/
 .env
+.env.*
+!.env.example
 
 # Coverage and test artifacts
 .coverage
@@ -44,7 +46,6 @@ frontend/flutter_app/ios/.symlinks/
 frontend/flutter_app/ios/Pods/
 frontend/flutter_app/ios/Flutter/Flutter.framework
 frontend/flutter_app/ios/Flutter/Flutter.podspec
-frontend/flutter_app/pubspec.lock
 
 # IDE / Editor artifacts
 .idea/

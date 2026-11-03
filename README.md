@@ -111,7 +111,9 @@ py -3.12 -m venv .venv
 PyTorch may select CUDA automatically when a compatible installation and
 driver are available. Otherwise the application uses CPU inference. Do not
 install a CUDA wheel blindly; choose the PyTorch build appropriate for the
-machine from the official PyTorch installation instructions.
+machine from the official PyTorch installation instructions. Direct Python
+dependencies are pinned in `requirements.txt`; recreate the virtual
+environment rather than mixing packages into a system interpreter.
 
 ### Flutter and Android
 
@@ -350,6 +352,40 @@ policy; report any failures rather than weakening tests. On 2026-11-03, the
 full Python run reported **179 passed and 19 failed**; the failures are in
 legacy conditional-gating, decision-engine, and Qwen verifier expectations,
 not silently ignored.
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on pushes to `main` and pull requests. It
+installs the pinned Python dependencies, runs the current backend/ML contract
+tests, installs the locked Flutter dependencies, and runs Flutter analysis and
+tests. CI does not require private datasets, model downloads, a GPU, secrets,
+or an Ollama daemon. A failed command fails its job; no check is converted to
+a success-shaped fallback.
+
+## Manual real-device release checklist
+
+Automated checks cannot validate camera hardware, Android permissions, local
+network routing, or the complete field workflow. Before distributing an APK,
+perform these checks on a real, non-production test device:
+
+1. Grant camera permission and capture a clear medicine image.
+2. Select an image from the gallery, preview it, retake/replace it, and verify
+   that unsupported, empty, tiny, or oversized files are rejected.
+3. Configure an HTTPS backend, test the connection, and confirm the health
+   status and model registry display.
+4. Configure a private-LAN HTTP backend only for a debug build; verify that the
+   phone and host share the same network and that Windows Firewall permits the
+   private profile.
+5. Complete a successful scan and confirm the result, sample ID, medicine
+   name, notes, image preview, disclaimer, report copy, and history record.
+6. Stop the backend or disable the network and confirm a timeout/connection
+   error does not create a false success or history record; retry afterward.
+7. Exercise authentic-indicated, counterfeit-indicated, inconclusive,
+   poor-quality, and manual-review responses using controlled test fixtures.
+8. Verify history deletion, the 50-record limit, CSV export, app restart
+   persistence, and navigation back to Home/Scan/History/Settings.
+9. Confirm no sensitive patient or prescription information is entered into
+   sample IDs, notes, logs, or exported metadata.
 
 ## Privacy, security, and responsible use
 

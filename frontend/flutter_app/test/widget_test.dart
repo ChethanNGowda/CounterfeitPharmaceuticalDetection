@@ -248,14 +248,14 @@ void main() {
 
     test('Persists and retrieves custom backend URL', () async {
       final storage = await StorageService.getInstance();
-      await storage.setBackendUrl('http://192.168.1.55:8000');
-      expect(storage.getBackendUrl(), 'http://192.168.1.55:8000');
+      await storage.setBackendUrl('http://192.0.2.55:8000');
+      expect(storage.getBackendUrl(), 'http://192.0.2.55:8000');
     });
 
     test('Normalizes URL formats correctly', () {
       expect(
-        StorageService.normalizeUrl('192.168.1.100:8000'),
-        'http://192.168.1.100:8000',
+        StorageService.normalizeUrl('192.0.2.100:8000'),
+        'http://192.0.2.100:8000',
       );
       expect(
         StorageService.normalizeUrl('http://10.0.2.2:8000/'),

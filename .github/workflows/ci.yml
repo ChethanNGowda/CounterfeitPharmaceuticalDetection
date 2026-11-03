@@ -1,0 +1,72 @@
+name: Repository checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: Python regression checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
+
+      # These are the current backend/ML contract tests. Legacy tests that
+      # assert the retired confidence-band policy remain visible in local
+      # full-suite results and are documented in the release audit.
+      - name: Run backend and ML regression tests
+        run: >
+          python -m pytest -q
+          tests/test_api.py
+          tests/test_backend_hardening.py
+          tests/test_current_decision_policy.py
+          tests/test_dataset.py
+          tests/test_evaluate.py
+          tests/test_features.py
+          tests/test_ml_audit.py
+          tests/test_preprocessing.py
+          tests/test_quality.py
+          tests/test_schema_consistency.py
+          tests/test_transfer_learning.py
+          tests/test_unified_models.py
+          tests/test_visual_inspector.py
+
+  flutter:
+    name: Flutter analysis and tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/flutter_app
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.7"
+          channel: stable
+          cache: true
+
+      - name: Install Flutter dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Analyze Flutter code
+        run: flutter analyze
+
+      - name: Run Flutter tests
+        run: flutter test --reporter compact

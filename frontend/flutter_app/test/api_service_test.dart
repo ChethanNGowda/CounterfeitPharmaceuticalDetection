@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -17,6 +18,42 @@ void main() {
     StorageService.resetForTesting();
     storage = await StorageService.getInstance();
   });
+
+  test(
+    'prediction server failures do not become a successful result',
+    () async {
+      final file = File(
+        '${Directory.systemTemp.path}${Platform.pathSeparator}pharma-test.jpg',
+      );
+      await file.writeAsBytes([1, 2, 3]);
+      final client = MockClient(
+        (request) async => http.Response(
+          jsonEncode({'detail': 'internal stack trace and private path'}),
+          500,
+        ),
+      );
+
+      await expectLater(
+        ApiService(storage, client).predictImage(imageFile: file),
+        throwsA(
+          allOf(
+            isA<ApiException>().having(
+              (error) => error.message,
+              'message',
+              contains('Server error (500)'),
+            ),
+            isA<ApiException>().having(
+              (error) => error.message,
+              'message',
+              isNot(contains('private path')),
+            ),
+          ),
+        ),
+      );
+      await file.delete();
+      client.close();
+    },
+  );
 
   test('health response uses backend reported fields', () async {
     final client = MockClient((request) async {

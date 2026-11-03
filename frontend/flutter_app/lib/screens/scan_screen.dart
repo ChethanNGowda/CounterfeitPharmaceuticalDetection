@@ -154,7 +154,9 @@ class ScanScreenState extends State<ScanScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _errorMessage = 'Could not acquire image: $e');
+        setState(
+          () => _errorMessage = 'Could not acquire the image. Check the selected source and try again.',
+        );
       }
     }
   }
@@ -249,7 +251,12 @@ class ScanScreenState extends State<ScanScreen> {
 
       _generateDefaultSampleId();
     } catch (e) {
-      setState(() => _errorMessage = e.toString());
+      if (!mounted) return;
+      setState(
+        () => _errorMessage = e is ApiException
+            ? e.message
+            : 'The screening request failed. No result was saved; try again.',
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -1038,6 +1045,17 @@ class ScanScreenState extends State<ScanScreen> {
                     color: Color(0xFFFCA5A5),
                     fontSize: 11.5,
                     height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: _selectedImage != null && !_isAnalyzing
+                        ? _analyzeMedicine
+                        : null,
+                    icon: const Icon(Icons.refresh, size: 16),
+                    label: const Text('Retry screening'),
                   ),
                 ),
               ],

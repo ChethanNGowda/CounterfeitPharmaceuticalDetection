@@ -91,13 +91,20 @@ Run the following in Windows PowerShell from the repository root:
 ### Step 2: Configure Physical Device Network
 
 1. Connect your Android phone to the **same Wi-Fi network** as your laptop.
-2. Note your laptop's local IPv4 address (e.g. `10.152.189.167` or `192.168.1.x`):
+2. Note your laptop's local IPv4 address (for example `192.168.1.x`):
    ```powershell
    Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -like '*Wi-Fi*' }
    ```
 3. In PharmaAssist on the phone:
    - Navigate to **Settings**.
-   - Set **Backend URL** to `http://10.152.189.167:8000` (or tap the **Physical Dev** preset chip).
+   - Set **Backend URL** to `http://<your-laptop-lan-ip>:8000` in Settings.
+
+For emulator or local development, the build default can be overridden without
+editing source code:
+
+```powershell
+cmd /c run_flutter.bat run --dart-define=PHARMA_API_BASE_URL=http://10.0.2.2:8000
+```
    - Tap **Test Backend Connection**. When green, tap **Save**.
 
 ---

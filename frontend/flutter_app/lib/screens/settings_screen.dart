@@ -474,7 +474,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             style: TextStyle(fontSize: 13, color: AppTheme.textPrimary),
             decoration: const InputDecoration(
               labelText: 'Backend Base URL',
-              hintText: 'http://10.152.189.167:8000',
+              hintText: 'https://your-screening-server.example',
               prefixIcon: Icon(Icons.link, size: 18),
             ),
           ),
@@ -485,7 +485,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             runSpacing: 6,
             children: [
               _presetChip(
-                'Physical Dev (${AppConstants.defaultDevUrl})',
+                'Build default (${AppConstants.defaultDevUrl})',
                 AppConstants.defaultDevUrl,
               ),
               _presetChip(

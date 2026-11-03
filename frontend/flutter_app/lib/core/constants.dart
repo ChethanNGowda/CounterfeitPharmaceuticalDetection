@@ -4,9 +4,12 @@ class AppConstants {
   static const String appSubtitle = 'Field-Screening & Quality Triage System';
   static const String appVersion = '1.2.0';
 
-  // Default connection targets
-  // Physical device development address (editable in Settings)
-  static const String defaultDevUrl = 'http://10.152.189.167:8000';
+  // Override for a build or configure at runtime in Settings. The default is
+  // loopback so a developer's private LAN address is never shipped.
+  static const String defaultDevUrl = String.fromEnvironment(
+    'PHARMA_API_BASE_URL',
+    defaultValue: 'http://127.0.0.1:8000',
+  );
   static const String defaultEmulatorUrl = 'http://10.0.2.2:8000';
   static const String defaultLocalhostUrl = 'http://127.0.0.1:8000';
 

@@ -64,22 +64,22 @@ class ApiService {
           statusCode: response.statusCode,
         );
       }
-    } on SocketException catch (e) {
+    } on SocketException {
       throw ApiException(
         'Unable to connect to $targetUrl.\n'
         '• If using an Android Emulator, use http://10.0.2.2:8000\n'
         '• If using a physical phone, ensure phone and laptop are on the same Wi-Fi and use your laptop\'s LAN IP.\n'
-        'Error: ${e.message}',
+        'Check the backend URL in Settings and try again.',
       );
     } on TimeoutException {
       throw ApiException(
         'Connection timed out while reaching $targetUrl after 8 seconds.',
       );
-    } on FormatException catch (e) {
-      throw ApiException('Invalid response format from server: ${e.message}');
+    } on FormatException {
+      throw ApiException('The backend returned an invalid health response.');
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException('Network error connecting to $targetUrl: $e');
+      throw ApiException('Network error connecting to the configured backend.');
     }
   }
 
@@ -206,17 +206,17 @@ class ApiService {
           );
         default:
           throw ApiException(
-            'Server error (${response.statusCode}): ${errorDetail.isNotEmpty ? errorDetail : response.reasonPhrase}',
+            'Server error (${response.statusCode}). Please try again or contact the backend administrator.',
             statusCode: response.statusCode,
             detail: errorDetail,
           );
       }
-    } on SocketException catch (e) {
+    } on SocketException {
       throw ApiException(
         'Unable to connect to backend at $targetUrl.\n'
         '• Ensure FastAPI is running (e.g. uvicorn backend.app.main:app --host 0.0.0.0 --port 8000)\n'
         '• If using a physical phone, ensure both devices are on the same Wi-Fi.\n'
-        'Details: ${e.message}',
+        'Check the backend URL in Settings and try again.',
       );
     } on TimeoutException {
       throw ApiException(
@@ -224,7 +224,9 @@ class ApiService {
       );
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException('Unexpected screening error: $e');
+      throw ApiException(
+        'The screening request could not be completed. No result was saved; try again.',
+      );
     }
   }
 
@@ -251,7 +253,7 @@ class ApiService {
       throw ApiException('Model registry request timed out.');
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException('Error fetching model registry: $e');
+      throw ApiException('The model registry could not be loaded.');
     }
   }
 
@@ -278,7 +280,9 @@ class ApiService {
       throw ApiException('Qwen status check timed out.');
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException('Error fetching Qwen status: $e');
+      throw ApiException(
+        'The optional visual-review status could not be loaded.',
+      );
     }
   }
 }

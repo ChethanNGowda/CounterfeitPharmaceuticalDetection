@@ -685,20 +685,14 @@ def test_models_endpoint_only_efficientnet_available():
             assert m["checkpoint_sha256"] is None
 
 
-def test_models_endpoint_all_models_have_metrics():
-    """All four models must have benchmark metrics (efficientnet_b0: reproduced; others: historical)."""
+def test_models_endpoint_does_not_claim_unverified_metrics():
+    """The availability endpoint must not present unsupported performance claims."""
     response = client.get("/models")
     assert response.status_code == 200
     data = response.json()
     for m in data["models"]:
-        assert m["evaluated"] is True, f"{m['model_name']} should have metrics"
-        metrics = m["metrics"]
-        assert metrics is not None
-        assert "accuracy" in metrics
-        assert "recall" in metrics
-        assert "roc_auc" in metrics
-        assert "test_samples" in metrics
-        assert "note" in metrics
+        assert m["evaluated"] is False
+        assert m["metrics"] is None
 
 
 def test_models_endpoint_unavailable_models_have_correct_status():

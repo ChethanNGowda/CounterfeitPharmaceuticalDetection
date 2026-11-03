@@ -262,49 +262,9 @@ def qwen_diagnostics():
         )
 
 
-# ── Saved benchmark metrics for unavailable models ─────────────────────────
-# Sourced from reports/model_comparison.md (benchmark run 2026-09-23, test.csv, 827 images)
-# These are NOT current reproduced metrics — treat as historical benchmarks only.
-_BENCHMARK_METRICS: dict = {
-    "efficientnet_b0": {
-        "accuracy": 0.9988, "precision": 0.9965, "recall": 1.0000,
-        "macro_f1": 0.9982, "specificity": 0.9982, "roc_auc": 0.9993,
-        "test_samples": 827,
-        "note": (
-            "REPRODUCED 2026-10-18 on test_clean.csv (839 images): "
-            "accuracy=99.76%, recall=100.00%, specificity=99.64%, ROC-AUC=0.99999"
-        ),
-    },
-    "mobilenet_v3_large": {
-        "accuracy": 0.9940, "precision": 0.9929, "recall": 0.9893,
-        "macro_f1": 0.9911, "specificity": 0.9963, "roc_auc": 0.9993,
-        "test_samples": 827,
-        "note": "Historical benchmark 2026-09-23 — fine-tuned checkpoint not on disk",
-    },
-    "goldformer": {
-        "accuracy": 0.9927, "precision": 0.9791, "recall": 1.0000,
-        "macro_f1": 0.9894, "specificity": 0.9890, "roc_auc": 0.9993,
-        "test_samples": 827,
-        "note": "Historical benchmark 2026-09-23 — fine-tuned checkpoint not on disk",
-    },
-    "baseline_cnn": {
-        "accuracy": 0.8658, "precision": 0.7457, "recall": 0.9181,
-        "macro_f1": 0.8230, "specificity": 0.8388, "roc_auc": 0.9456,
-        "test_samples": 827,
-        "note": "Historical benchmark 2026-09-23 — fine-tuned checkpoint not on disk",
-    },
-}
-
-
 @router.get("/models", response_model=ModelsListResponse, tags=["Information"])
 def list_models():
-    """Return registered model statuses and benchmark metrics.
-
-    Metrics for models whose checkpoints are no longer present on disk are historical results
-    from the original benchmark run (2026-09-23, test.csv, 827 images). Only efficientnet_b0
-    has been reproduced from the current checkpoint (2026-10-18, test_clean.csv, 839 images).
-    Checkpoint paths are not exposed in full to avoid leaking filesystem layout.
-    """
+    """Return registered model availability without unverified performance claims."""
     import hashlib
 
     def _sha256(path) -> str | None:
@@ -323,7 +283,6 @@ def list_models():
         ckpt_path = reg.get("expected_checkpoint")
         ckpt_exists = ckpt_path and ckpt_path.is_file()
         sha = _sha256(str(ckpt_path)) if ckpt_exists else None
-        metrics = _BENCHMARK_METRICS.get(name)
         items.append(ModelStatusItem(
             model_name=name,
             architecture=reg.get("architecture", name),
@@ -333,8 +292,8 @@ def list_models():
             description=reg.get("description", ""),
             expected_checkpoint="<registry path>",  # Do not expose full filesystem path
             checkpoint_sha256=sha,
-            evaluated=metrics is not None,
-            metrics=metrics,
+            evaluated=False,
+            metrics=None,
         ))
 
     return ModelsListResponse(

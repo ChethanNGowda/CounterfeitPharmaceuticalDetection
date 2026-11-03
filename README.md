@@ -1,347 +1,381 @@
-# Counterfeit Pharmaceutical Detection
+# PharmaAssist
 
-**Image-Based Pharmaceutical Screening with Deep Learning and Vision-Language Verification**
+PharmaAssist is an image-based **preliminary pharmaceutical screening** system.
+It accepts a medicine photograph, validates the upload and image quality, runs
+the available visual classifier, and returns a confidence-qualified screening
+outcome for human follow-up. It is not a laboratory authentication instrument.
 
-> ⚠️ **Screening system only.** This tool flags suspicious samples for further investigation. It does not perform chemical analysis and cannot confirm or deny the identity of active pharmaceutical ingredients. A positive screen is not a laboratory result.
+> **Safety limitation:** Image-based predictions cannot establish a medicine's
+> chemical composition, active pharmaceutical ingredient, dosage, safety,
+> regulatory approval, or definitive authenticity. Do not take, discard,
+> quarantine, release, or prescribe a medicine based only on this application.
+> Suspicious, inconclusive, and poor-quality cases require a pharmacist,
+> health-authority, or certified laboratory review.
 
-## At a glance
+## Repository layout
 
-This repository contains a local image-screening pipeline and a Flutter client for reviewing tablet and package photographs. The backend checks image quality, runs a fine-tuned EfficientNet-B0 classifier, optionally asks a local Qwen vision model to review borderline cases, and returns one of three outcomes:
-
-| App outcome | Display | What it means |
-|---|---|---|
-| Authentic probability below 50% | Red — `LIKELY COUNTERFEIT` | The model's counterfeit probability exceeds 50%. Keep the product and packaging, and request pharmacist or authority review. |
-| Authentic probability from 50% through the configured cutoff (70% by default) | Amber — `SUSPICIOUS / NEEDS VERIFICATION` | The score is in the manual-review band. No clear result should be inferred. |
-| Authentic probability above the configured cutoff | Green — `LIKELY AUTHENTIC` | The model score is above the authentic cutoff. This is not proof of authenticity. |
-
-The app uses direct **AUTHENTIC INDICATED** and **COUNTERFEIT INDICATED** result labels with green and red styling. Low-confidence and inconclusive cases remain a separate manual-review outcome. An image model cannot guarantee that a medicine is authentic or counterfeit; chemical testing is needed for confirmation.
-
-### Real sample images
-
-These photographs are included in `test_images/` and can be used to try the pipeline. They illustrate the input types the project accepts; their appearance or filenames do not establish a medicine's identity or ground-truth authenticity.
-
-<table>
-  <tr>
-    <td align="center"><img src="test_images/sample_authentic_c3pi.jpg" width="280" alt="Capsule reference image from the sample set"><br><sub>Capsule reference image</sub></td>
-    <td align="center"><img src="test_images/verified_counterfeit.jpg" width="280" alt="Packaged tablet image from the sample set"><br><sub>Packaged tablet sample</sub></td>
-    <td align="center"><img src="test_images/fake_image.png" width="280" alt="Paracetamol package and blister image from the sample set"><br><sub>Package and blister sample</sub></td>
-  </tr>
-</table>
-
-To try an image locally, follow the [CLI quick start](#cli-single-image) below. Use `--vision-mode never` to run only the local classifier without Ollama.
-
----
-
-## Problem Statement
-
-Counterfeit medicines are a global public-health threat. Visual differences between genuine and counterfeit tablets — such as irregular coatings, incorrect imprints, inconsistent coloration, or non-standard shapes — can be too subtle for reliable unaided inspection, especially at scale.
-
-This project provides an **image-based screening approach** that uses a smartphone photograph and machine learning to flag samples warranting closer examination. It is designed as a decision-support tool, not a replacement for laboratory authentication.
-
----
-
-## How It Works
-
-A photo passes through image validation and an OpenCV quality gate before EfficientNet-B0 estimates the authentic and counterfeit probabilities. The decision engine applies the authentic-probability bands below. Qwen Vision can inspect images in the manual-review band, but it cannot turn a banded review result into an automatic verdict. Poor image quality or, outside the below-50% band, conflicting/suspicious secondary evidence also sends the scan to manual review. Below 50%, the counterfeit indication remains red and secondary concerns appear as warnings; pharmacist verification is still required.
-
-### Authentic-probability decision bands
-
-| Authentic probability | Screening outcome | App color |
-|---:|---|---|
-| `< 50%` | `LIKELY COUNTERFEIT`; human verification is still required | Red |
-| `50%` through the configured cutoff (70% by default) | `SUSPICIOUS / NEEDS VERIFICATION` | Amber |
-| `> 70%` (or above the configured cutoff) | `LIKELY AUTHENTIC` | Green |
-
-The cutoff can be configured in the app or API. Its default is 70%; the counterfeit boundary remains fixed at 50%. At exactly 50% and exactly the upper cutoff, the result goes to manual review. These are image-model screening estimates, not guarantees of medicine identity or safety.
-
-### Qwen Vision is a secondary reviewer
-
-Qwen Vision inspects the **actual image**, rather than receiving only JSON metadata. In `auto` mode it runs in the manual-review band. Its agreement does not remove the human-review requirement. A disagreement or suspicious assessment in that band requires review; below 50%, the red counterfeit indication remains while the secondary concern is shown as a warning. If Qwen is unavailable, the result remains manual review when the image is in that band.
-
----
-
-## Model Performance
-
-EfficientNet-B0 is the default primary classifier. All model architectures remain registered for research and evaluation; the API reports which fine-tuned checkpoints are actually available. Model weights and model training outputs are kept under `external_models/PharmaAssist/`, while the original GoldNet and TrueMeds projects remain in `external_models/`. Qwen remains an optional secondary visual reviewer.
-
-### EfficientNet-B0 (Primary Classifier — Production)
-
-> **Metrics reproduced** from checkpoint `external_models/PharmaAssist/weights/checkpoints/efficientnet_b0/best.pt`
-> on `data/splits/test_clean.csv` — 2026-10-18, CPU.
-
-| Metric | Reproduced Value |
+| Path | Purpose |
 |---|---|
-| Accuracy | **99.76%** |
-| Precision (counterfeit) | 99.30% |
-| Recall / Sensitivity | **100.00%** |
-| Specificity | 99.64% |
-| Macro F1 | 99.73% |
-| F1 — Authentic | 99.82% |
-| F1 — Counterfeit | 99.65% |
-| ROC-AUC | **0.99999** |
-| PR-AUC | **0.99998** |
-| Test split size | 839 images (555 authentic, 284 counterfeit) |
+| `backend/app/` | FastAPI application, routes, schemas, and service integration |
+| `ml/` | preprocessing, model registry, inference, decision engine, training, evaluation, and explainability |
+| `data/splits/` | Binary authentic/counterfeit CSV manifests |
+| `data/processed/` | Images referenced by the binary manifests |
+| `external_models/PharmaAssist/` | Pretrained and fine-tuned model artifacts |
+| `scripts/` | Dataset, duplicate, CLI, and audit utilities |
+| `frontend/flutter_app/` | Android Flutter client |
+| `tests/` | Python backend and ML regression tests |
+| `reports/` | Evidence-based audits and historical reports |
 
-Confusion matrix on `test_clean` split:
+## Architecture
 
-```
-                  Predicted
-                  Authentic  Counterfeit
-Actual Authentic     553          2       ← 2 authentic misclassified
-Actual Counterfeit     0        284       ← 0 counterfeit missed (100% recall)
+```text
+Flutter Android client
+    │ multipart HTTP
+    ▼
+FastAPI /predict or /verify
+    ├─ MIME, size, decode, and dimension validation
+    ├─ OpenCV image-quality checks
+    ├─ registered primary classifier
+    ├─ optional local Ollama/Qwen advisory review
+    └─ confidence-qualified decision engine
 ```
 
-Historical benchmark comparison from original training logs (non-EfficientNet figures are not independently reproduced and are not production model choices):
+The default registered primary model is `efficientnet_b0`. The API model
+registry also knows about `mobilenet_v3_large`, `baseline_cnn`, and `goldformer`,
+but a registered architecture is not necessarily a usable fine-tuned
+pharmaceutical checkpoint.
 
-| Model | Accuracy | F1 | ROC-AUC | Params | Checkpoint |
-|---|---:|---:|---:|---:|---:|
-| **EfficientNet-B0** | **99.76%** ✓ | **99.73%** | **0.99999** | 4.0M | ✅ Fine-tuned |
-| MobileNetV3-Large | 99.40% † | 99.11% † | 0.9993 † | 4.2M | ❌ Backbone only |
-| GoldFormer | 99.27% † | 98.94% † | 0.9993 † | 54.3M | ❌ Not available |
-| Baseline CNN | 86.58% † | 82.30% † | 0.9456 † | 94K | ❌ Not available |
+## Current verified state
 
-✓ = Reproduced 2026-10-18 on `test_clean.csv`. † = From original training-time reports only; cannot be independently verified.
+### Model artifacts
 
-### EfficientNet-B0 — Preprocessing
+The current checkout contains:
 
-| Property | Value |
-|---|---|
-| Input size | 224 × 224 |
-| Colour space | RGB |
-| Normalization | ImageNet (mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) |
-| Checkpoint | `external_models/PharmaAssist/weights/checkpoints/efficientnet_b0/best.pt` |
-| Counterfeit indication | Authentic probability < 0.50 |
-| Manual-review band | 0.50 ≤ authentic probability ≤ configured cutoff (0.70 by default) |
-| Authentic indication | Authentic probability > configured cutoff |
+- Fine-tuned EfficientNet-B0:
+  `external_models/PharmaAssist/weights/checkpoints/efficientnet_b0/best.pt`
+- Generic/pretrained EfficientNet-B0 and MobileNetV3-Large weights under
+  `external_models/PharmaAssist/weights/pretrained/`
+- GoldNet/GoldFormer weights under
+  `external_models/GoldNet/weights/`
 
-### Secondary Verifier — Qwen Vision (`qwen3.5:4b`)
+Fine-tuned MobileNetV3-Large, baseline CNN, and GoldFormer pharmaceutical
+checkpoints are **not present** in the current checkout. Their historical
+metrics must not be presented as current or reproduced results. Missing
+checkpoints cause the API to return an unavailable-service error rather than a
+fallback prediction.
 
-Qwen Vision is a **vision-language model** that inspects the actual pharmaceutical image. In `auto` mode it is invoked when authentic probability is from 50% through the configured cutoff (70% by default). It runs locally via [Ollama](https://ollama.com) and does not send images to external servers.
+### Dataset manifests
 
----
+The binary manifests currently resolve against `data/processed/` and all
+referenced files exist:
 
-## Dataset
-
-| Split | Images | Authentic | Counterfeit |
+| Manifest | Authentic | Counterfeit | Total |
 |---|---:|---:|---:|
-| Train | 3,850 | — | — |
-| Validation | 850 | — | — |
-| Test | 844 | 558 | 286 |
-| Test (clean, dedup) | 839 | 555 | 284 |
+| `data/splits/train.csv` | 2,500 | 1,350 | 3,850 |
+| `data/splits/validation.csv` | 558 | 292 | 850 |
+| `data/splits/test.csv` | 558 | 286 | 844 |
+| `data/splits/test_clean.csv` | 555 | 284 | 839 |
 
-Manifests: `data/splits/{train,validation,test,test_clean}.csv` · Data root: `data/processed/`
+`data/pharmassist_splits/` is a separate 53-class medicine-identity dataset,
+not the binary classifier dataset.
 
-### Dataset Integrity Audit (2026-10-18)
+The leakage audit found 12 exact duplicate groups crossing the original
+binary splits: 7 train/validation and 5 train/test. `test_clean.csv` removes
+the five exact duplicate test files and has no SHA-256 overlap with train or
+validation. It still retains 184 cross-split perceptual-hash candidates;
+these are similarity candidates, not confirmed duplicates. Therefore no
+leakage-free generalization claim should be made from the current artifacts.
+See [`reports/ML_PIPELINE_AUDIT_2026-11-02.md`](reports/ML_PIPELINE_AUDIT_2026-11-02.md)
+and [`reports/duplicate_leakage_audit.md`](reports/duplicate_leakage_audit.md).
 
-A hash-based cross-split duplicate check was run against all 5,544 manifest rows:
+### Reproduction status
 
-| Check | Result |
-|---|---|
-| Train ↔ Validation (sha256 overlap) | **7 identical images** |
-| Train ↔ Test (sha256 overlap) | **5 identical images** |
-| Validation ↔ Test (sha256 overlap) | 0 |
-| Group ID cross-split overlap | **0** (source-level grouping respected) |
+This audit did not retrain models or claim to reproduce historical accuracy,
+ROC-AUC, PR-AUC, or benchmark-comparison figures. The verified results above
+are manifest counts, file existence, split-overlap checks, artifact
+availability, and automated test results.
 
-**Explanation:** The dataset was exported by Roboflow, which generates multiple augmented filenames from each source photograph. The 12 hash-level overlaps are exact-pixel duplicates appearing in different splits under different Roboflow-generated filenames. The group ID split (the original split criterion) shows 0 leakage — source images were never shared between train and test. The `test_clean.csv` split already excludes the 5 train↔test exact duplicates.
+## Windows setup
 
----
+### Python backend
 
-## Quick Start
-
-### Prerequisites
-
-```bash
-pip install -r requirements.txt
-```
-
-For secondary Qwen Vision verification, install [Ollama](https://ollama.com) and pull the preferred model:
-
-```bash
-ollama pull qwen3.5:4b
-```
-
-### CLI — Single Image
-
-```bash
-# Auto mode: Qwen Vision invoked when authentic probability is in the review band
-python -m scripts.test test_images/sample_authentic_c3pi.jpg
-
-# Always run Qwen Vision secondary verification
-python -m scripts.test image.jpg --vision-mode always
-
-# Fast path: skip Qwen Vision
-python -m scripts.test image.jpg --vision-mode never
-python -m scripts.test image.jpg --no-vision   # alias
-```
-
-### FastAPI Backend
+Use Python 3.12 (the validated local environment) and PowerShell from the
+repository root:
 
 ```powershell
-# Start backend API server (Windows, using venv)
-.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
-
-# Start on localhost only (for local testing)
-.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
-
-# Interactive Swagger UI documentation
-# http://127.0.0.1:8000/docs
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-Endpoints:
+PyTorch may select CUDA automatically when a compatible installation and
+driver are available. Otherwise the application uses CPU inference. Do not
+install a CUDA wheel blindly; choose the PyTorch build appropriate for the
+machine from the official PyTorch installation instructions.
 
-| Method | Path | Response Type | Description |
-|---|---|---|---|
-| `GET` | `/` | `ApiInfoResponse` | Basic API information, supported models, and usage guidance |
-| `GET` | `/health` | `HealthResponse` | Operational health check, active device, and Ollama status |
-| `GET` | `/models` | `ModelsListResponse` | Production EfficientNet-B0 checkpoint status, SHA-256, and benchmark |
-| `POST` | `/predict` | `PredictionResponse` | Upload tablet image, receive EfficientNet-B0 screening and optional Qwen review |
-| `POST` | `/verify` | `PredictionResponse` | Fully compatible alias for `/predict` |
+### Flutter and Android
 
-#### Upload Constraints
-- **Max File Size:** 15 MB (enforced with HTTP 413)
-- **Supported Formats:** JPEG, PNG, WEBP, BMP (enforced with HTTP 415)
-- **Quality Requirements:** Minimum 64×64 px, blur variance ≥ 50.0, brightness 15–245
+Install Flutter 3.47.7 or a compatible stable release, Android SDK tools,
+Android platform/build tools, and Java 17. Verify:
 
-#### Example Request (PowerShell)
+```powershell
+flutter --version
+flutter doctor
+cd frontend\flutter_app
+flutter pub get
+```
+
+The Android application ID is
+`com.chethan.pharmaassist.pharma_assist`. Camera and internet permissions are
+declared in the main Android manifest. Debug builds may use cleartext HTTP for
+local development; production deployments should use HTTPS.
+
+## Model installation
+
+The default deployment checkpoint must exist at:
+
+```text
+external_models\PharmaAssist\weights\checkpoints\efficientnet_b0\best.pt
+```
+
+The generic pretrained file used by model construction is:
+
+```text
+external_models\PharmaAssist\weights\pretrained\efficientnet_b0.pth
+```
+
+Do not commit private or redistributable weights. If a checkpoint is absent or
+cannot be loaded, the backend logs the detailed server-side failure and
+returns a sanitized `503` response. It never fabricates a prediction.
+
+## Run the backend
+
+From the repository root:
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+```
+
+For a phone on the same private LAN, bind to all interfaces and configure the
+phone with the host's LAN address:
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+```
+
+Health and documentation endpoints:
+
+```powershell
+curl.exe http://127.0.0.1:8000/
+curl.exe http://127.0.0.1:8000/health
+curl.exe http://127.0.0.1:8000/models
+curl.exe http://127.0.0.1:8000/health/qwen
+```
+
+Swagger UI is available at `http://127.0.0.1:8000/docs`.
+
+### Screening request
+
+`/verify` is a compatibility alias for `/predict`. The upload field is
+`file`; optional form fields include `threshold`, `model`, `enable_qwen`,
+`enable_vision`, and `vision_mode`.
+
 ```powershell
 curl.exe -X POST "http://127.0.0.1:8000/predict" `
-  -F "file=@test_images/sample_authentic_c3pi.jpg" `
-  -F "vision_mode=auto"
+  -F "file=@test_images\sample_authentic_c3pi.jpg" `
+  -F "vision_mode=never"
 ```
 
-#### Example Prediction Response
-```json
-{
-  "primary_model": "efficientnet_b0",
-  "prediction": "AUTHENTIC",
-  "confidence": 0.872,
-  "final_result": "LIKELY AUTHENTIC",
-  "needs_human_verification": false,
-  "status": "AUTHENTIC",
-  "secondary_executed": false,
-  "secondary_reason": "Skipped: secondary verification disabled by vision mode 'never'",
-  "visual_analysis": {
-    "color": {
-      "dominant_color": "Light Pink",
-      "average_rgb": [212.4, 185.1, 192.3],
-      "consistency": "Uniform"
-    },
-    "shape": { "shape_type": "Round / Circular", "circularity": 0.88 },
-    "edges": { "edge_integrity": "Intact", "cracks": "None detected" },
-    "packaging": { "status": "Single Tablet / No Blister" }
-  },
-  "disclaimer": "AI-assisted preliminary screening only. Visual and convolutional appearance analysis CANNOT certify chemical purity, active pharmaceutical ingredients (API), or bioequivalence."
-}
-```
+Accepted upload types are JPEG, PNG, WEBP, and BMP. Uploads are limited to
+15 MB, decoded and verified server-side, and limited to a maximum image
+dimension of 10,000 pixels. Image-quality checks use the configured minimum
+64×64 dimensions, Laplacian sharpness threshold 50.0, and brightness range
+15–245. Invalid requests return explicit 4xx responses; model or dependency
+failures return sanitized 5xx responses.
 
-### Run Tests
+## Decision semantics
 
-Run the Python backend suite from the repository root:
+The decision engine uses authentic probability, not a generic confidence
+label:
+
+| Authentic probability | Result | Human review |
+|---:|---|---|
+| `< 0.50` | `LIKELY COUNTERFEIT` / counterfeit indication | Required |
+| `0.50` through configured cutoff | `SUSPICIOUS / NEEDS VERIFICATION` | Required |
+| `> configured cutoff` (default `0.70`) | `LIKELY AUTHENTIC` / authentic indication | Review safeguards still apply |
+
+Exact boundaries are review conditions. Poor image quality remains visible in
+the response even when a documented diagnostic path provides a provisional
+classifier suggestion. Model disagreement, malformed secondary responses,
+secondary-service outage, and ambiguous results remain review-required. Qwen
+is advisory evidence only and cannot override the primary decision policy.
+
+An authentic indication means only that the image resembles reference
+examples. It is never proof of genuine composition, correct dosage, safety, or
+regulatory approval.
+
+## Ollama and Qwen Vision
+
+Qwen is optional and runs through a local Ollama service. Install Ollama
+separately, start its service, and pull the model name configured by the
+backend (`qwen3.5:4b` by default):
 
 ```powershell
-.venv\Scripts\python.exe -m pytest -q
+ollama pull qwen3.5:4b
+curl.exe http://127.0.0.1:11434/api/tags
 ```
 
-Run the Flutter client tests from its app directory:
+Use `vision_mode=auto` for conditional review, `always` to request review for
+every scan, or `never` to disable the secondary reviewer. If Ollama is offline
+or times out, the API reports degraded secondary review and preserves the
+human-review requirement where policy calls for it. The primary API remains
+usable when the optional service is unavailable.
+
+Troubleshooting:
+
+- `connection refused`: start Ollama and confirm port `11434`.
+- model not found: run `ollama pull qwen3.5:4b` and verify the configured name.
+- slow CPU review: use `vision_mode=never` or allow the longer request timeout.
+- phone cannot reach the backend: use the computer's private LAN IPv4 address,
+  allow port 8000 through the private Windows Firewall profile, and keep both
+  devices on the same network.
+
+## Flutter app
+
+From `frontend\flutter_app`:
+
+```powershell
+flutter pub get
+flutter analyze
+flutter test
+flutter build apk --debug
+```
+
+The debug APK is written to
+`frontend\flutter_app\build\app\outputs\flutter-apk\app-debug.apk`.
+
+The backend URL is configurable in **Settings** and is persisted locally. The
+source default is loopback (`http://127.0.0.1:8000`), not a developer's LAN
+address. For a build-time override:
+
+```powershell
+flutter run --dart-define=PHARMA_API_BASE_URL=http://10.0.2.2:8000
+```
+
+Use `10.0.2.2` from an Android emulator for the host computer, or enter a
+private LAN URL for a physical phone. Failed requests do not create history
+records or show a false success screen. The app supports camera capture,
+gallery selection, image preview, sample IDs, notes, a 50-record local history,
+CSV metadata export, and text report copy.
+
+## Training, evaluation, and leakage checks
+
+No training is required to run the existing deployment checkpoint. Do not
+launch expensive retraining without confirming available compute and dataset
+authorization.
+
+Create deterministic grouped splits from a labeled raw dataset:
+
+```powershell
+.\.venv\Scripts\python.exe -m ml.training.train `
+  --model efficientnet_b0 `
+  --pretrained-checkpoint external_models\PharmaAssist\weights\pretrained\efficientnet_b0.pth `
+  --raw-dir data\raw `
+  --split-dir data\splits `
+  --seed 42 `
+  --cpu
+```
+
+The training module uses seed 42 by default, grouped `GroupShuffleSplit`,
+separate augmentation/evaluation transforms, and validation loss for checkpoint
+selection. The test split is used only for final evaluation.
+
+Before trusting a split, audit manifests without changing data:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\audit_datasets.py
+.\.venv\Scripts\python.exe scripts/check_duplicates.py `
+  --root data\processed `
+  --manifest-dir data\splits
+```
+
+`scripts/check_duplicates.py` defaults to `outputs/clean_dataset`; therefore
+the explicit `--manifest-dir data\splits` arguments above are required for the
+current manifests. The duplicate script checks SHA-256 and group overlap; it
+does not prove that perceptual-hash candidates are duplicates.
+
+Evaluate an existing compatible checkpoint without retraining:
+
+```powershell
+.\.venv\Scripts\python.exe -m ml.evaluation.evaluate `
+  --checkpoint external_models\PharmaAssist\weights\checkpoints\efficientnet_b0\best.pt `
+  --pretrained-checkpoint external_models\PharmaAssist\weights\pretrained\efficientnet_b0.pth `
+  --raw-dir data\processed `
+  --test-manifest data\splits\test_clean.csv `
+  --cpu
+```
+
+The evaluator emits classification metrics and emits ROC-AUC/PR-AUC only
+when binary targets and valid probability scores support them. The current
+deployment checkpoint does not contain full training metadata, so a complete
+historical metric reproduction still requires matching model configuration
+and preprocessing evidence. Do not label old reports as newly reproduced.
+
+## Tests
+
+Python tests from the repository root:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+Focused ML checks:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests\test_ml_audit.py tests\test_evaluate.py
+```
+
+Flutter checks:
 
 ```powershell
 cd frontend\flutter_app
+flutter analyze
 flutter test
 ```
 
-The commands above report the current results for the checkout being tested.
+The most recent verified Flutter validation reported clean analysis, 45
+passing tests, and a successful debug APK build. Python suites also contain
+legacy tests whose expectations may reflect the retired confidence-band
+policy; report any failures rather than weakening tests. On 2026-11-03, the
+full Python run reported **179 passed and 19 failed**; the failures are in
+legacy conditional-gating, decision-engine, and Qwen verifier expectations,
+not silently ignored.
 
----
+## Privacy, security, and responsible use
 
-## Flutter Mobile Application (PharmaAssist)
+- Images are sent only to the backend URL configured by the user. Qwen review
+  is intended to run through local Ollama; verify network configuration before
+  using sensitive images.
+- Local history contains sample metadata and result JSON. Do not place patient,
+  prescription, or personally identifying information in sample IDs or notes.
+- Keep secrets, private datasets, private model weights, local configuration,
+  and credentials out of Git.
+- Production deployments should use HTTPS, restricted CORS origins, network
+  access controls, authentication, and appropriate retention policies.
+- The backend logs detailed operational failures server-side but sanitizes
+  client-facing errors; do not expose logs publicly.
+- This system is decision support for triage, not a substitute for a
+  pharmacist, regulator, or certified analytical laboratory.
 
-A Flutter client designed for point-of-dispense visual screening of oral solid dosage forms.
+## Known limitations
 
-### Architecture & UI/UX Design System
-- **Theme & Colors:** Scientific dark theme (`#0B1020` primary bg, `#111A2E` surface, `#17243A` elevated cards, `#25D9F8` primary cyan, `#35D6B4` secondary teal, `#8B7CFF` violet accent, `#36C98F` authentic success, `#FF647C` counterfeit alert, `#F6BD60` verification warning). Dynamic light/dark theme switcher included.
-- **Typography:** Space Grotesk (headings), Inter (body controls), JetBrains Mono (probabilities and measurements).
-- **Navigation:** 4 primary destinations via bottom navigation (`IndexedStack` preserving state):
-  1. **Home:** Instrument status banner, active model badge, prominent "Scan Medicine" card, 3 most recent field screenings, persistent safety advisory banner.
-  2. **Scan:** 5-section screening workflow (Image Acquisition, Optical Quality Gate, Sample Specification with auto-generated Sample ID and lot numbers, Collapsible Screening Parameters, Run Screening action).
-  3. **History:** Field inspection archive with real-time text query search, verdict chips (All, Authentic, Counterfeit, Review, Bookmarked), side-by-side comparison modal dialog, and CSV metadata export.
-  4. **Settings & Diagnostics:** Theme mode toggle, backend endpoint configuration with latency tester, detection thresholds, Qwen vision-language toggle, storage quota manager, nested About instrument specifications, and direct access to the **Model Laboratory** (registry audit, historical benchmarks vs reproduced results, and Qwen integration diagnostics).
-
-### Android Build Artifacts
-- **Debug APK:** `frontend/flutter_app/build/app/outputs/flutter-apk/app-debug.apk` (164.7 MB)
-- **Release APK:** `frontend/flutter_app/build/app/outputs/flutter-apk/app-release.apk` (51.6 MB)
-- **Network Security:** Android cleartext HTTP strictly scoped to LAN developer hosts via `res/xml/network_security_config.xml` (disallowing arbitrary cleartext traffic).
-
----
-
-## 80% Project Completion Milestone
-
-| Component / Deliverable | Status | Weight | Progress | Notes |
-|---|:---:|:---:|:---:|---|
-| **Dataset Curation & Deduplication** | **Completed** | 15% | 15% / 15% | 68,988 collected, 10,551 clean, 5,512 leakage-controlled split |
-| **Primary Classifier (EfficientNet-B0)** | **Completed** | 20% | 20% / 20% | 99.76% accuracy, 100% recall on test_clean split (reproduced 2026-10-18) |
-| **Comparative Benchmarking** | **Completed** | 10% | 10% / 10% | MobileNetV3-Large (99.40%), GoldFormer (99.27%), Baseline CNN (86.58%) |
-| **Image Quality & Visual Inspection** | **Completed** | 10% | 10% / 10% | Resolution, blur, exposure gates + 17 color centroids inspector |
-| **Secondary AI Verification (Ollama)** | **Completed** | 10% | 10% / 10% | qwen3.5:4b vision verifier + qwen3:8b evidence reviewer |
-| **Conservative Decision Engine** | **Completed** | 5% | 5% / 5% | 50% counterfeit boundary, 70% default authentic cutoff, conflict safety |
-| **FastAPI Backend & API Contract** | **Completed** | 10% | 10% / 10% | GET /, GET /health, POST /predict, POST /verify, validation |
-| **Automated Testing Suite** | **Completed** | 5% | 5% / 5% | 169 tests passing across unit, integration, API, and schema suites |
-| **Frontend Mobile/Web GUI** | **Completed** | 10% | 10% / 10% | PharmaAssist Flutter Android Field Screening App (`frontend/flutter_app/`) |
-| **OCR & GS1 Barcode Verification** | *Planned* | 5% | 0% / 5% | Packaging NDC text extraction & 2D DataMatrix scanning |
-| **Production Docker Deployment** | *Planned* | 5% | 0% / 5% | Containerized cloud/edge packaging and rate-limiting |
-| **TOTAL** | **MILESTONE REACHED** | **100%** | **95% / 100%** | **Core ML, API & Mobile App complete; exceeds milestone** |
-
----
-
-## Project Structure
-
-```
-.
-|-- ml/                    # Config, inference, models, preprocessing, verification, training
-|-- backend/app/           # FastAPI application
-|-- frontend/flutter_app/   # Flutter application
-|-- tests/                 # Python test suite
-|-- scripts/               # CLI, dataset utilities, training and evaluation tools
-|-- data/splits/           # Dataset manifests
-|-- external_models/
-|   |-- PharmaAssist/
-|   |   |-- weights/pretrained/  # Generic backbone initialization weights
-|   |   |-- weights/checkpoints/ # Fine-tuned PharmaAssist classifiers
-|   |   `-- training_runs/       # Training logs and generated artifacts
-|   |-- GoldNet/           # Preserved upstream project
-|   `-- TrueMeds/          # Preserved upstream project
-|-- outputs/               # Evaluation and runtime outputs
-|-- reports/               # Evaluation reports and metrics
-`-- test_images/           # Sample images for manual testing
-```
-
----
-
-## Architecture Notes
-
-### Single decision authority
-
-`DecisionEngine.evaluate()` is the only place where final verdicts are computed. `predict_pipeline()` calls it; nothing else constructs verdicts independently.
-
-### Missing checkpoint safety
-
-`load_classifier()` raises `CheckpointUnavailableError` if a requested fine-tuned checkpoint does not exist on disk. Generic ImageNet pretrained weights are never silently used as pharmaceutical classifiers.
-
-### Qwen Vision graceful degradation
-
-If Qwen Vision times out or is unavailable, the pipeline preserves an otherwise accepted primary classifier result and includes an explicit warning. An intentional skip is reported as `SKIPPED`; it is not treated as an Ollama outage. No inference is blocked by Qwen Vision availability.
-
----
-
-## Limitations and Intended Use
-
-- This system is a **screening tool**, not a laboratory instrument.
-- It cannot detect chemical substitutions, dosage fraud, or contamination that does not produce visible surface differences.
-- High model confidence does not constitute a certificate of authenticity.
-- Results should be used to **prioritise samples for laboratory testing**, not to replace it.
-- Performance on in-the-wild smartphone images may differ from the controlled-capture training dataset.
-
----
-
-## Acknowledgements
-
-Dataset images sourced from publicly available pharmaceutical image collections. EfficientNet-B0 and MobileNetV3-Large architectures via [torchvision](https://github.com/pytorch/vision). Secondary vision verification via [Ollama](https://ollama.com) and [Qwen Vision](https://huggingface.co/Qwen/Qwen2.5-VL-3B-Instruct).
+- The current binary dataset has exact cross-split duplicates in the original
+  manifests and retained perceptual-hash candidates in the clean evaluation.
+- Fine-tuned comparison checkpoints are unavailable.
+- No current audit result certifies historical accuracy or generalization.
+- Grad-CAM supports registered architectures with a supported convolutional
+  target layer; unavailable checkpoints and unsupported target layers fail
+  explicitly.
+- Android cleartext access is intended for debug/local development only.
+- Camera image quality depends on lighting, focus, glare, framing, and device
+  hardware.

@@ -1,165 +1,65 @@
-# PharmaAssist — Field Pharmaceutical Screening App
+# PharmaAssist Flutter client
 
-**Mobile Field Screening & Inspection Triage Client for Counterfeit Pharmaceutical Detection**
+This directory contains the Android Flutter client for the PharmaAssist
+preliminary medicine-image screening system. It captures or selects an image,
+sends it to the configured FastAPI backend, displays the confidence-qualified
+screening result, and stores a local archive of inspection metadata.
 
-> ⚠️ **Screening Instrument Only:** This application provides visual and convolutional pattern screening. Camera-based optical analysis cannot detect active pharmaceutical ingredients (API), verify chemical potency, or certify pharmacological bioequivalence. All suspicious or inconclusive findings require independent confirmation by a certified analytical laboratory (e.g. HPLC or Raman spectroscopy).
+The client does **not** authenticate medicines. It cannot establish chemical
+composition, dosage, safety, regulatory approval, or definitive authenticity.
+Use pharmacist, authority, and certified laboratory review for decisions that
+affect treatment or product disposition.
 
----
+## Requirements
 
-## Overview
+- Flutter 3.47.7 or a compatible stable release
+- Dart 3.13.5 or compatible SDK
+- Android SDK and Java 17 for Android builds
 
-PharmaAssist is an Android mobile screening instrument inspired by the field usability and disciplined workflow of DetectaChem MobileDetect. Built with Flutter, it interfaces with the project's production FastAPI backend and multi-model machine learning pipeline:
-
-- **Primary Classifier:** Fine-tuned EfficientNet-B0 (99.88% test accuracy, 100% recall).
-- **Secondary AI Inspector:** Local Ollama Qwen Vision (4B parameters) vision-language verifier for tablet shape, color consistency, imprint legibility, and packaging inspection.
-- **Image Quality Pre-Screen:** OpenCV Laplacian variance blur check, brightness mean, RMS contrast, and 64×64 pixel resolution gate.
-- **Probability-Band Decision Engine:** Authentic probability below 50% indicates counterfeit; 50% through the configured cutoff (70% by default) requires manual review; above the cutoff indicates authentic. Quality failures and secondary-review concerns require human attention; below 50%, they appear as warnings while the counterfeit indication stays red.
-- **Persistent Local Archive:** Encrypted local storage of completed inspections (up to 50 records), sample IDs, medicine names, inspection notes, and generated field reports.
-
----
-
-## Key Features
-
-1. **DetectaChem-Inspired Field Workflow:**
-   - Real-time backend connectivity ping on launch with visual status indicator.
-   - Sample ID and lot metadata tracking with auto-generated unique identifier generator (`SMP-YYMMDD-XXXX`).
-   - Optional product/medicine name and field inspection notes input.
-   - Built-in optical capture guidelines (orthogonal alignment, glare prevention, matte background).
-   - High-resolution camera capture with gallery fallback and clear/retake controls.
-   - Multi-stage screening progress bar (`Transmitting` → `Quality Gate` → `Neural Inference` → `Decision Synthesis`).
-
-2. **Three Distinct Instrument Outcomes:**
-   - **`AUTHENTIC INDICATED`** (Forest Green): Authentic probability is above the configured cutoff. This is not a guarantee of authenticity.
-   - **`COUNTERFEIT INDICATED`** (Danger Red): Authentic probability is below 50%. Human verification is still required.
-   - **`INCONCLUSIVE / REVIEW REQUIRED`** (Amber): Authentic probability is from 50% through the configured cutoff, or image quality/verifier conflict requires review.
-
-3. **Inspection Report Generation & Export:**
-   - Structured plain-text field inspection reports.
-   - Formatted for laboratory escalation, chain-of-custody logging, or supply-chain triage.
-   - Built-in Report Viewer modal with one-tap copy to system clipboard.
-
-4. **Persistent Local Archive & Search:**
-   - Archived records displayed newest-first.
-   - Real-time search by Sample ID, product name, or notes.
-   - Filter chips: `All`, `Authentic`, `Counterfeit`, `Needs Review`.
-   - Swipe-to-delete and individual record deletion with confirmation.
-   - Bulk storage wipe with safety prompt.
-
----
-
-## Architecture & Integration
-
-```
-Physical Android Phone (PharmaAssist App)
-        │
-        │ HTTP Multipart / REST API
-        ▼
-FastAPI Backend (backend.app.main:app)
-  ├── OpenCV Quality Gate (Resolution, Blur ≥ 50, Brightness 15-245)
-  ├── EfficientNet-B0 Classifier (external_models/PharmaAssist/weights/checkpoints/efficientnet_b0/best.pt)
-  ├── QwenVisionVerifier (qwen3.5:4b via local Ollama at http://localhost:11434)
-  └── DecisionEngine (Conservative 4-rule verdict synthesizer)
-```
-
----
-
-## Quick Start & Setup
-
-### Prerequisites
-
-1. **Python 3.12 Backend Virtual Environment** installed at repository root (`.venv`).
-2. **Android SDK Command-Line Tools** (platforms `android-34`/`android-35`, build-tools `34.0.0`/`35.0.0`).
-3. **Microsoft OpenJDK 17** installed at `C:\Android\jdk`.
-4. **Flutter SDK 3.47.7** or compatible.
-5. Android smartphone with **USB Debugging** enabled.
-
----
-
-### Step 1: Start the FastAPI Backend
-
-Run the following in Windows PowerShell from the repository root:
+Install dependencies:
 
 ```powershell
-# Activate environment and launch API on all network interfaces
-.\.venv\Scripts\uvicorn.exe backend.app.main:app --host 0.0.0.0 --port 8000
+flutter pub get
 ```
 
-> **Firewall Note:** When binding to `0.0.0.0`, ensure Windows Defender Firewall allows incoming connections on port `8000` from your private local network.
+## Run and configure
 
----
+The backend URL is configured from the app's **Settings** screen and persisted
+locally. The source default is `http://127.0.0.1:8000`; it is intentionally
+not a developer-specific LAN address.
 
-### Step 2: Configure Physical Device Network
-
-1. Connect your Android phone to the **same Wi-Fi network** as your laptop.
-2. Note your laptop's local IPv4 address (for example `192.168.1.x`):
-   ```powershell
-   Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -like '*Wi-Fi*' }
-   ```
-3. In PharmaAssist on the phone:
-   - Navigate to **Settings**.
-   - Set **Backend URL** to `http://<your-laptop-lan-ip>:8000` in Settings.
-
-For emulator or local development, the build default can be overridden without
-editing source code:
+For an Android emulator, the host computer is normally reachable at
+`http://10.0.2.2:8000`:
 
 ```powershell
-cmd /c run_flutter.bat run --dart-define=PHARMA_API_BASE_URL=http://10.0.2.2:8000
+flutter run --dart-define=PHARMA_API_BASE_URL=http://10.0.2.2:8000
 ```
-   - Tap **Test Backend Connection**. When green, tap **Save**.
 
----
+For a physical phone, run FastAPI on the host's private LAN interface and
+enter `http://<host-lan-ip>:8000` in Settings. Keep the phone and computer on
+the same network.
 
-### Step 3: Run Tests & Build the APK
+The app supports camera capture, gallery selection, preview and retake,
+client-side file checks, upload progress states, retry after request failure,
+sample IDs, notes, a 50-record local history, CSV metadata export, and
+copyable inspection reports.
 
-From `frontend/flutter_app/`:
+## Validation and build
 
 ```powershell
-# Run Flutter automated unit and widget test suite (27 tests)
-cmd /c run_flutter.bat test --reporter expanded
-
-# Run static code analysis
-cmd /c run_flutter.bat analyze
-
-# Build debug APK
-cmd /c run_flutter.bat build apk --debug
+flutter analyze
+flutter test
+flutter build apk --debug
 ```
 
-APK output artifact:
-`frontend/flutter_app/build/app/outputs/flutter-apk/app-debug.apk`
+The debug APK is written to
+`build\app\outputs\flutter-apk\app-debug.apk`.
 
----
+Debug builds permit cleartext HTTP for local development. Use HTTPS and
+appropriate authentication/network controls for production deployments.
+Camera and internet permissions are declared in
+`android/app/src/main/AndroidManifest.xml`.
 
-### Step 4: Install onto Physical Phone
-
-Connect phone via USB and run:
-
-```powershell
-adb devices
-adb install -r "frontend\flutter_app\build\app\outputs\flutter-apk\app-debug.apk"
-```
-
----
-
-## Secondary AI Verification (Qwen Vision)
-
-The backend integrates an optional secondary vision-language inspection model (`qwen3.5:4b`) hosted via local [Ollama](https://ollama.com):
-
-- **Auto Mode (Default):** Qwen Vision is invoked when authentic probability falls in the manual-review band (`0.50 ≤ p(authentic) ≤ configured cutoff`, 0.70 by default). That band remains manual review even if Qwen agrees with the primary model.
-- **Always Mode:** Force Qwen Vision review on every sample for deep physical feature extraction.
-- **Never Mode:** Fast-path execution; primary classifier only (~35 ms latency).
-- **Graceful Degradation:** If Ollama is offline or times out, the backend gracefully flags `needs_human_verification: true` with an operational warning. Mobile app screening remains operational.
-
----
-
-## Development HTTP vs Production HTTPS
-
-- **Local Development:** Android `usesCleartextTraffic="true"` is enabled in `AndroidManifest.xml` to allow testing against local development servers over `http://10.x.x.x` or `http://192.168.x.x`.
-- **Production Deployment:** For production cloud deployment, all traffic must be routed through HTTPS with valid SSL/TLS certificates and mutual authentication. Cleartext HTTP must be disabled.
-
----
-
-## Clinical & Scientific Limitations
-
-1. **Camera Optical Screening Only:** Visual inspection can detect surface anomalies, font discrepancies, score inconsistencies, and color variations. It cannot determine chemical composition, Active Pharmaceutical Ingredient (API) potency, or excipient purity.
-2. **Not a Laboratory Certificate:** A `LIKELY AUTHENTIC` result is an optical decision-support screen, not a certificate of chemical authenticity or regulatory release.
-3. **Environmental Variances:** Glare, camera motion blur, shadows, and packaging plastic can impact convolutional feature extraction. Always use the built-in field guidance for optimal results.
+See the repository [README](../../README.md) for backend setup, API examples,
+model requirements, dataset evidence, decision semantics, Ollama
+troubleshooting, and responsible-use limitations.

@@ -24,6 +24,6 @@ httpx2         # Preferred HTTPX client (resolves FastAPI/Starlette TestClient d
 ollama>=0.5.0
 
 # NOTE: Ollama is also an external system runtime daemon (https://ollama.com)
-# required for secondary Qwen Vision verification (model: qwen3-vl:4b).
+# required for secondary Qwen Vision verification (default model: qwen3.5:4b).
 # Install Ollama separately: https://ollama.com/download
-# Then: ollama pull qwen3-vl:4b
+# Then: ollama pull qwen3.5:4b

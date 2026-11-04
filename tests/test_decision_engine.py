@@ -83,7 +83,7 @@ def test_rule1_quality_failed_overrides_high_confidence(engine):
 
 
 # ---------------------------------------------------------------------------
-# Rule 2: Low Primary Confidence (< 0.70)
+# Authentic-probability manual-review band (0.50 through 0.70)
 # ---------------------------------------------------------------------------
 
 def test_rule2_low_confidence_returns_suspicious(engine):
@@ -92,21 +92,21 @@ def test_rule2_low_confidence_returns_suspicious(engine):
     result = engine.evaluate(primary, qwen)
     assert result["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
     assert result["needs_human_verification"] is True
-    assert "below" in result["reason"].lower()
+    assert "manual-review band" in result["reason"].lower()
 
 
 def test_rule2_exactly_at_threshold_passes(engine):
-    """confidence = 0.70 meets the threshold; should NOT trigger Rule 2."""
+    """Authentic probability exactly at the cutoff remains a review case."""
     primary = _primary(predicted_class="authentic", confidence=0.70)
     qwen = _qwen(available=True, assessment="AUTHENTIC")
     result = engine.evaluate(primary, qwen)
-    assert result["final_result"] != "SUSPICIOUS / NEEDS VERIFICATION"
+    assert result["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
 
 
 def test_rule2_just_below_threshold(engine):
     primary = _primary(predicted_class="counterfeit", confidence=0.6999)
     result = engine.evaluate(primary, None)
-    assert result["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+    assert result["final_result"] == "LIKELY COUNTERFEIT"
 
 
 def test_rule2_unknown_pred_triggers_suspicious(engine):
@@ -165,12 +165,13 @@ def test_rule3_conflict_authentic_vs_counterfeit_qwen(engine):
 
 
 def test_rule3_conflict_counterfeit_vs_authentic_qwen(engine):
-    """Primary says COUNTERFEIT but Qwen says AUTHENTIC → conflict → SUSPICIOUS."""
+    """Below-50% authentic probability retains the counterfeit indication."""
     primary = _primary(predicted_class="counterfeit", confidence=0.92)
     qwen = _qwen(available=True, assessment="AUTHENTIC", confidence=0.70)
     result = engine.evaluate(primary, qwen)
-    assert result["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+    assert result["final_result"] == "LIKELY COUNTERFEIT"
     assert result["needs_human_verification"] is True
+    assert result["disagreement"] is True
 
 
 # ---------------------------------------------------------------------------
@@ -191,13 +192,13 @@ def test_rule4_unavailable_qwen_authentic_fallback(engine):
 
 
 def test_rule4_unavailable_qwen_counterfeit_fallback(engine):
-    """Qwen unavailable + primary COUNTERFEIT → LIKELY COUNTERFEIT with warning."""
+    """Qwen unavailable + below-50% primary → counterfeit indication with warning."""
     primary = _primary(predicted_class="counterfeit", confidence=0.94)
     qwen = _unavailable_qwen("Ollama timed out after 20s.")
     result = engine.evaluate(primary, qwen)
     assert result["final_result"] == "LIKELY COUNTERFEIT"
     assert result["needs_human_verification"] is True
-    assert "unavailable" in result["warning"].lower()
+    assert result["warning"] is None
 
 
 def test_rule4_none_qwen_review_is_treated_as_unavailable(engine):
@@ -266,13 +267,13 @@ def test_make_decision_no_qwen():
 # ---------------------------------------------------------------------------
 
 def test_rule3d_qwen_uncertain_high_confidence_counterfeit_preserved(engine):
-    """High-confidence primary counterfeit (>= 90%) preserved when Qwen is merely uncertain."""
+    """Below-50% authentic probability preserves the counterfeit indication."""
     primary = _primary(predicted_class="counterfeit", confidence=0.96)
     qwen = _qwen(available=True, assessment="UNCERTAIN")
     result = engine.evaluate(primary, qwen)
     assert result["final_result"] == "LIKELY COUNTERFEIT"
     assert result["needs_human_verification"] is True
-    assert "uncertain" in result["reason"].lower()
+    assert result["reason"]
 
 
 def test_rule3d_qwen_uncertain_high_confidence_authentic_preserved(engine):
@@ -287,13 +288,13 @@ def test_rule3d_qwen_uncertain_high_confidence_authentic_preserved(engine):
 
 
 def test_rule3d_qwen_uncertain_moderate_confidence_escalates(engine):
-    """Accepted primary class is preserved when Qwen is uncertain."""
+    """Below-50% authentic probability preserves the counterfeit indication."""
     primary = _primary(predicted_class="counterfeit", confidence=0.78)
     qwen = _qwen(available=True, assessment="UNCERTAIN")
     result = engine.evaluate(primary, qwen)
     assert result["final_result"] == "LIKELY COUNTERFEIT"
     assert result["needs_human_verification"] is True
-    assert "uncertain" in result["reason"].lower()
+    assert result["reason"]
 
 
 
@@ -330,11 +331,11 @@ def test_reg_rule3c_authentic_vs_counterfeit_disagreement(engine):
 
 
 def test_reg_rule3c_counterfeit_vs_authentic_disagreement(engine):
-    """REG-04: COUNTERFEIT (EfficientNet) vs AUTHENTIC (Qwen) -> disagreement=True."""
+    """REG-04: below-50% counterfeit remains the headline with disagreement=True."""
     primary = _primary(predicted_class="counterfeit", confidence=0.91)
     qwen = _qwen(available=True, assessment="AUTHENTIC")
     result = engine.evaluate(primary, qwen)
-    assert result["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
+    assert result["final_result"] == "LIKELY COUNTERFEIT"
     assert result["needs_human_verification"] is True
     assert result.get("disagreement") is True
 

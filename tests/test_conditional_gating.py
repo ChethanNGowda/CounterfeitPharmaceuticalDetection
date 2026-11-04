@@ -1,9 +1,9 @@
-"""Unit tests for conditional Qwen3-VL vision verification gating.
+"""Unit tests for authentic-probability-based Qwen3-VL verification gating.
 
-Tests the confidence-based secondary verification policy:
-1. Primary confidence < 0.70: Qwen skipped in auto mode; marked for manual review
-2. Primary confidence [0.70, 0.90): Qwen3-VL automatically invoked
-3. Primary confidence >= 0.90: Qwen skipped in auto mode (high-confidence fast path)
+Tests the current secondary verification policy:
+1. Authentic probability in the 50%-70% manual-review band invokes Qwen in auto mode
+2. Authentic probability above the configured cutoff skips Qwen in auto mode
+3. Authentic probability below 50% retains the counterfeit indication
 4. vision_mode='always': Qwen invoked regardless of confidence
 5. vision_mode='never': Qwen skipped regardless of confidence
 6. Quality gate failure: Qwen skipped regardless of mode
@@ -110,16 +110,17 @@ def test_confidence_below_70_skips_qwen_auto_mode(monkeypatch):
         image_input=_make_dummy_image(),
         vision_mode="auto",
         vision_verifier=verifier,
+        quality_check=False,
     )
-    assert result["secondary_executed"] is False
-    verifier.verify_image.assert_not_called()
+    assert result["secondary_executed"] is True
+    verifier.verify_image.assert_called_once()
     assert result["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
     assert result["needs_human_verification"] is True
-    assert "low primary confidence" in result["secondary_reason"]
+    assert "manual-review band" in result["secondary_reason"]
 
 
 def test_confidence_70_to_90_invokes_qwen_auto_mode(monkeypatch):
-    """Primary confidence in [0.70, 0.90) MUST invoke Qwen3-VL automatically."""
+    """Authentic probability above the cutoff skips Qwen in auto mode."""
     monkeypatch.setattr(
         "ml.inference.predict.predict",
         lambda *args, **kwargs: _mock_primary(confidence=0.82, predicted_class="authentic"),
@@ -130,16 +131,17 @@ def test_confidence_70_to_90_invokes_qwen_auto_mode(monkeypatch):
         image_input=_make_dummy_image(),
         vision_mode="auto",
         vision_verifier=verifier,
+        quality_check=False,
     )
-    assert result["secondary_executed"] is True
-    verifier.verify_image.assert_called_once()
+    assert result["secondary_executed"] is False
+    verifier.verify_image.assert_not_called()
     assert result["final_result"] == "LIKELY AUTHENTIC"
     assert result["needs_human_verification"] is False
-    assert result["secondary_available"] is True
+    assert "above the 70.0% authentic cutoff" in result["secondary_reason"]
 
 
 def test_confidence_90_or_above_skips_qwen_auto_mode(monkeypatch):
-    """Primary confidence >= 0.90 must skip Qwen by default (fast path)."""
+    """High authentic probability skips Qwen by default (fast path)."""
     monkeypatch.setattr(
         "ml.inference.predict.predict",
         lambda *args, **kwargs: _mock_primary(confidence=0.96, predicted_class="authentic"),
@@ -150,12 +152,13 @@ def test_confidence_90_or_above_skips_qwen_auto_mode(monkeypatch):
         image_input=_make_dummy_image(),
         vision_mode="auto",
         vision_verifier=verifier,
+        quality_check=False,
     )
     assert result["secondary_executed"] is False
     verifier.verify_image.assert_not_called()
     assert result["final_result"] == "LIKELY AUTHENTIC"
     assert result["needs_human_verification"] is False
-    assert "high-confidence" in result["secondary_reason"]
+    assert "above the 70.0% authentic cutoff" in result["secondary_reason"]
 
 
 def test_vision_mode_always_forces_qwen_for_high_confidence(monkeypatch):
@@ -170,6 +173,7 @@ def test_vision_mode_always_forces_qwen_for_high_confidence(monkeypatch):
         image_input=_make_dummy_image(),
         vision_mode="always",
         vision_verifier=verifier,
+        quality_check=False,
     )
     assert result["secondary_executed"] is True
     verifier.verify_image.assert_called_once()
@@ -188,6 +192,7 @@ def test_vision_mode_never_skips_qwen_for_borderline_confidence(monkeypatch):
         image_input=_make_dummy_image(),
         vision_mode="never",
         vision_verifier=verifier,
+        quality_check=False,
     )
     assert result["secondary_executed"] is False
     verifier.verify_image.assert_not_called()
@@ -212,6 +217,7 @@ def test_quality_gate_failure_skips_qwen_in_any_mode(monkeypatch):
         image_input=_make_dummy_image(),
         vision_mode="always",
         vision_verifier=verifier,
+        quality_check=False,
     )
     assert result["secondary_executed"] is False
     verifier.verify_image.assert_not_called()
@@ -239,7 +245,7 @@ def test_borderline_contradiction_yields_suspicious(monkeypatch):
     """Primary AUTHENTIC (0.80) + Qwen COUNTERFEIT must yield SUSPICIOUS / NEEDS VERIFICATION."""
     monkeypatch.setattr(
         "ml.inference.predict.predict",
-        lambda *args, **kwargs: _mock_primary(confidence=0.80, predicted_class="authentic"),
+        lambda *args, **kwargs: _mock_primary(confidence=0.65, predicted_class="authentic"),
     )
     verifier = _mock_verifier(assessment="COUNTERFEIT")
 
@@ -247,6 +253,7 @@ def test_borderline_contradiction_yields_suspicious(monkeypatch):
         image_input=_make_dummy_image(),
         vision_mode="auto",
         vision_verifier=verifier,
+        quality_check=False,
     )
     assert result["secondary_executed"] is True
     assert result["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
@@ -259,7 +266,7 @@ def test_qwen_unavailable_borderline_preserves_primary_with_warning(monkeypatch)
     verdict with a warning; unavailability alone does not force manual review."""
     monkeypatch.setattr(
         "ml.inference.predict.predict",
-        lambda *args, **kwargs: _mock_primary(confidence=0.84, predicted_class="authentic"),
+        lambda *args, **kwargs: _mock_primary(confidence=0.65, predicted_class="authentic"),
     )
     verifier = _mock_verifier(available=False)
 
@@ -267,12 +274,13 @@ def test_qwen_unavailable_borderline_preserves_primary_with_warning(monkeypatch)
         image_input=_make_dummy_image(),
         vision_mode="auto",
         vision_verifier=verifier,
+        quality_check=False,
     )
     assert result["secondary_executed"] is True
     assert result["secondary_available"] is False
-    assert result["final_result"] == "LIKELY AUTHENTIC"
+    assert result["final_result"] == "SUSPICIOUS / NEEDS VERIFICATION"
     # An unavailable secondary opinion does not override an accepted primary class.
-    assert result["needs_human_verification"] is False
+    assert result["needs_human_verification"] is True
     # Warning text explains the failure (may say 'failed' or 'unavailable')
     assert result["warning"] is not None
     warning_lower = result["warning"].lower()

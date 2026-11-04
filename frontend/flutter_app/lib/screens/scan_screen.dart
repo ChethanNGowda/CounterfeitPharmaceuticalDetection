@@ -187,6 +187,16 @@ class ScanScreenState extends State<ScanScreen> {
       );
       return;
     }
+    if (widget.storage.getOperatingMode() ==
+        AppConstants.operatingModeOffline) {
+      setState(
+        () => _errorMessage =
+            'Offline-only mode is active. Local records and reports are available, '
+            'but AI screening is unavailable because no validated on-device model '
+            'is installed. Choose Automatic or Backend preferred in Settings to use FastAPI.',
+      );
+      return;
+    }
 
     setState(() {
       _isAnalyzing = true;

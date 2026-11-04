@@ -280,6 +280,15 @@ void main() {
       expect(storage.getEnableQwen(), isFalse);
     });
 
+    test('Persists an explicit operating mode', () async {
+      final storage = await StorageService.getInstance();
+      expect(storage.getOperatingMode(), 'hybrid');
+      await storage.setOperatingMode(AppConstants.operatingModeOffline);
+      expect(storage.getOperatingMode(), AppConstants.operatingModeOffline);
+      expect(await storage.setOperatingMode('invalid'), isFalse);
+      expect(storage.getOperatingMode(), AppConstants.operatingModeOffline);
+    });
+
     test('Scan history starts empty', () async {
       final storage = await StorageService.getInstance();
       expect(storage.getScanHistory(), isEmpty);
@@ -918,11 +927,21 @@ void main() {
 
         expect(find.text('Settings & Diagnostics'), findsOneWidget);
         expect(find.text('APPEARANCE & THEME'), findsOneWidget);
-        expect(find.text('BACKEND COMMUNICATION ENDPOINT'), findsOneWidget);
-        expect(find.text('DETECTION MODEL PARAMETERS'), findsOneWidget);
         expect(find.text('DARK'), findsOneWidget);
         expect(find.text('LIGHT'), findsOneWidget);
         expect(find.text('SYSTEM'), findsNothing);
+        await tester.scrollUntilVisible(
+          find.text('BACKEND COMMUNICATION ENDPOINT'),
+          200.0,
+          scrollable: find.byType(Scrollable).first,
+        );
+        expect(find.text('BACKEND COMMUNICATION ENDPOINT'), findsOneWidget);
+        await tester.scrollUntilVisible(
+          find.text('DETECTION MODEL PARAMETERS'),
+          200.0,
+          scrollable: find.byType(Scrollable).first,
+        );
+        expect(find.text('DETECTION MODEL PARAMETERS'), findsOneWidget);
         expect(storage.getThemeMode(), 'dark');
         final visionModeLabel = find.text(AppConstants.visionModeAutoLabel);
         await tester.scrollUntilVisible(

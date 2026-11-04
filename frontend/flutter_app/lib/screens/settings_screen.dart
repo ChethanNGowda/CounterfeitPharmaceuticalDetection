@@ -29,6 +29,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late String _modelName;
   late String _visionMode;
   late bool _enableQwen;
+  late String _operatingMode;
   late String _themeMode;
 
   bool _isTesting = false;
@@ -51,6 +52,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _modelName = AppConstants.defaultModel;
     _visionMode = widget.storage.getVisionMode();
     _enableQwen = widget.storage.getEnableQwen();
+    _operatingMode = widget.storage.getOperatingMode();
     _themeMode = widget.storage.getThemeMode() == 'light' ? 'light' : 'dark';
     if (widget.storage.getThemeMode() != _themeMode) {
       widget.storage.setThemeMode(_themeMode);
@@ -75,6 +77,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await widget.storage.setModelName(_modelName);
     await widget.storage.setVisionMode(_visionMode);
     await widget.storage.setEnableQwen(_enableQwen);
+    await widget.storage.setOperatingMode(_operatingMode);
     await widget.storage.setThemeMode(_themeMode);
 
     widget.onThemeChanged?.call(_themeMode);
@@ -332,35 +335,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 20),
 
-            // 2. Connectivity and Diagnostics
+            _buildSectionLabel('OPERATING MODE'),
+            const SizedBox(height: 8),
+            _buildOperatingModeSection(),
+
+            const SizedBox(height: 20),
+
+            // 3. Connectivity and Diagnostics
             _buildSectionLabel('BACKEND COMMUNICATION ENDPOINT'),
             const SizedBox(height: 8),
             _buildBackendSection(),
 
             const SizedBox(height: 20),
 
-            // 3. Scanning Preferences
+            // 4. Scanning Preferences
             _buildSectionLabel('DETECTION MODEL PARAMETERS'),
             const SizedBox(height: 8),
             _buildClassifierSection(),
 
             const SizedBox(height: 20),
 
-            // 4. Secondary AI Vision-Language
+            // 5. Secondary AI Vision-Language
             _buildSectionLabel('SECONDARY VISION-LANGUAGE VERIFIER'),
             const SizedBox(height: 8),
             _buildQwenSection(),
 
             const SizedBox(height: 20),
 
-            // 5. Local Storage & Privacy
+            // 6. Local Storage & Privacy
             _buildSectionLabel('LOCAL STORAGE & PRIVACY'),
             const SizedBox(height: 8),
             _buildStorageSection(historyCount),
 
             const SizedBox(height: 20),
 
-            // 6. About Link & Model Lab (nested under settings)
+            // 7. About Link & Model Lab (nested under settings)
             _buildSectionLabel('INSTRUMENT SPECIFICATIONS'),
             const SizedBox(height: 8),
             _buildAboutCard(),
@@ -574,6 +583,113 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOperatingModeSection() {
+    final modes = [
+      (
+        AppConstants.operatingModeAutomatic,
+        'AUTOMATIC',
+        'Use the configured backend when screening is requested.',
+        Icons.autorenew,
+      ),
+      (
+        AppConstants.operatingModeOffline,
+        'OFFLINE ONLY',
+        'Keep the app and records local. AI screening is unavailable until a validated local model is added.',
+        Icons.wifi_off,
+      ),
+      (
+        AppConstants.operatingModeBackend,
+        'BACKEND PREFERRED',
+        'Prefer the configured backend; no unvalidated local fallback is used.',
+        Icons.cloud_outlined,
+      ),
+    ];
+
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Screening provider', style: AppTheme.headingSmall()),
+          const SizedBox(height: 4),
+          Text(
+            'Choose explicitly whether screening may use the configured server. '
+            'Local history and reports remain available in every mode.',
+            style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 11),
+          ),
+          const SizedBox(height: 12),
+          ...modes.map((mode) {
+            final selected = _operatingMode == mode.$1 ||
+                (_operatingMode == 'hybrid' &&
+                    mode.$1 == AppConstants.operatingModeBackend);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: InkWell(
+                onTap: () => setState(() => _operatingMode = mode.$1),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? AppTheme.primaryCyan.withValues(alpha: 0.12)
+                        : AppTheme.secondaryBackground,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: selected ? AppTheme.primaryCyan : AppTheme.border,
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        mode.$4,
+                        size: 19,
+                        color: selected
+                            ? AppTheme.primaryCyan
+                            : AppTheme.textSecondary,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              mode.$2,
+                              style: TextStyle(
+                                color: selected
+                                    ? AppTheme.primaryCyan
+                                    : AppTheme.textPrimary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 11,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              mode.$3,
+                              style: AppTheme.bodyText(
+                                color: AppTheme.textMuted,
+                                fontSize: 10.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (selected)
+                        Icon(
+                          Icons.check_circle,
+                          size: 18,
+                          color: AppTheme.primaryCyan,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
         ],
       ),
     );

@@ -42,7 +42,19 @@ the same network.
 The app supports camera capture, gallery selection, preview and retake,
 client-side file checks, upload progress states, retry after request failure,
 sample IDs, notes, a 50-record local history, CSV metadata export, and
-copyable inspection reports.
+copyable inspection reports. Settings provides three coordinated operating
+modes:
+
+- **Automatic** uses the configured FastAPI backend when screening is requested.
+- **Offline only** keeps the app, history, notes, and reports local. AI screening
+  is explicitly unavailable because this checkout does not contain a validated
+  Android inference runtime or converted pharmaceutical model.
+- **Backend preferred** uses the configured backend and never substitutes an
+  unvalidated local model.
+
+The current offline phase does not upload images or fabricate local predictions.
+Local model conversion, parity testing, latency measurement, and memory
+measurement remain prerequisites before offline AI screening can be enabled.
 
 ## Validation and build
 

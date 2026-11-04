@@ -82,6 +82,30 @@ class StorageService {
     return await _prefs?.setBool(AppConstants.keyEnableQwen, enable) ?? false;
   }
 
+  String getOperatingMode() {
+    final mode = _prefs?.getString(AppConstants.keyOperatingMode);
+    const validModes = {
+      AppConstants.operatingModeOffline,
+      AppConstants.operatingModeAutomatic,
+      AppConstants.operatingModeBackend,
+      'hybrid',
+    };
+    return mode != null && validModes.contains(mode)
+        ? mode
+        : AppConstants.defaultOperatingMode;
+  }
+
+  Future<bool> setOperatingMode(String mode) async {
+    const validModes = {
+      AppConstants.operatingModeOffline,
+      AppConstants.operatingModeAutomatic,
+      AppConstants.operatingModeBackend,
+      'hybrid',
+    };
+    if (!validModes.contains(mode)) return false;
+    return await _prefs?.setString(AppConstants.keyOperatingMode, mode) ?? false;
+  }
+
   // ── Scan History ──────────────────────────────────────────────────────────
   List<ScanHistoryItem> getScanHistory() {
     final String? raw = _prefs?.getString(AppConstants.keyScanHistory);

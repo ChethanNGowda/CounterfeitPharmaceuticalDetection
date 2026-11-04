@@ -19,6 +19,7 @@ class AppConstants {
   static const String keyModelName = 'pharma_model_name';
   static const String keyVisionMode = 'pharma_vision_mode';
   static const String keyEnableQwen = 'pharma_enable_qwen';
+  static const String keyOperatingMode = 'pharma_operating_mode';
   static const String keyScanHistory = 'pharma_scan_history_v1';
   static const String keyThemeMode = 'pharma_theme_mode';
   static const String keyFavoriteIds = 'pharma_favorite_ids';
@@ -28,7 +29,12 @@ class AppConstants {
   static const String defaultModel = 'efficientnet_b0';
   static const String defaultVisionMode = 'auto'; // 'auto', 'always', 'never'
   static const bool defaultEnableQwen = true;
+  static const String defaultOperatingMode = 'hybrid';
   static const String defaultThemeMode = 'dark'; // 'dark' or 'light'
+
+  static const String operatingModeOffline = 'offline';
+  static const String operatingModeAutomatic = 'automatic';
+  static const String operatingModeBackend = 'backend';
 
   static const String visionModeAutoLabel =
       'Automatic - review borderline results';

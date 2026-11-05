@@ -55,6 +55,8 @@ modes:
 The current offline phase does not upload images or fabricate local predictions.
 Local model conversion, parity testing, latency measurement, and memory
 measurement remain prerequisites before offline AI screening can be enabled.
+The current checkout has no Android inference runtime or converted model; see
+the [on-device inference audit](../../reports/ON_DEVICE_INFERENCE_AUDIT_2026-11-05.md).
 
 ## Validation and build
 

@@ -45,6 +45,13 @@ registry also knows about `mobilenet_v3_large`, `baseline_cnn`, and `goldformer`
 but a registered architecture is not necessarily a usable fine-tuned
 pharmaceutical checkpoint.
 
+The Flutter client currently does not package an Android inference runtime or
+converted classifier. Offline-only mode therefore supports local records,
+notes, image handling, and reports but explicitly does not perform AI
+screening. Local AI must not be enabled until conversion, Python parity, and
+physical-device offline validation are complete. See
+[`reports/ON_DEVICE_INFERENCE_AUDIT_2026-11-05.md`](reports/ON_DEVICE_INFERENCE_AUDIT_2026-11-05.md).
+
 ## Current verified state
 
 ### Model artifacts

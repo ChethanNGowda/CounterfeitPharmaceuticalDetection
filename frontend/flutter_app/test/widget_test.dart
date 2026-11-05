@@ -183,37 +183,40 @@ void main() {
       expect(response.confidenceDisplay, 'N/A');
     });
 
-    test('invalid quality blocks verdict display and hides skipped confidence', () {
-      final response = PredictionResponse.fromJson({
-        ..._authenticJson(),
-        'prediction': 'UNKNOWN',
-        'primary_prediction': 'UNKNOWN',
-        'confidence': 0.0,
-        'final_result': 'SUSPICIOUS / NEEDS VERIFICATION',
-        'status': 'NEEDS MANUAL REVIEW',
-        'needs_human_verification': true,
-        'quality': {
-          'is_valid': false,
-          'reason': 'Poor image quality: excessive blur (score 23.6 < 50.0)',
-          'blur_score': 23.64,
-          'brightness_mean': 120,
-          'dimensions': [225, 225],
-        },
-        'secondary_executed': false,
-        'qwen': {
-          'available': false,
-          'status': 'SKIPPED',
-          'assessment': 'SKIPPED',
+    test(
+      'invalid quality blocks verdict display and hides skipped confidence',
+      () {
+        final response = PredictionResponse.fromJson({
+          ..._authenticJson(),
+          'prediction': 'UNKNOWN',
+          'primary_prediction': 'UNKNOWN',
           'confidence': 0.0,
-        },
-      });
+          'final_result': 'SUSPICIOUS / NEEDS VERIFICATION',
+          'status': 'NEEDS MANUAL REVIEW',
+          'needs_human_verification': true,
+          'quality': {
+            'is_valid': false,
+            'reason': 'Poor image quality: excessive blur (score 23.6 < 50.0)',
+            'blur_score': 23.64,
+            'brightness_mean': 120,
+            'dimensions': [225, 225],
+          },
+          'secondary_executed': false,
+          'qwen': {
+            'available': false,
+            'status': 'SKIPPED',
+            'assessment': 'SKIPPED',
+            'confidence': 0.0,
+          },
+        });
 
-      expect(response.isLikelyAuthentic, isFalse);
-      expect(response.isLikelyCounterfeit, isFalse);
-      expect(response.imageQualityAccepted, isFalse);
-      expect(response.confidenceDisplay, 'N/A');
-      expect(response.qwen.status, 'SKIPPED');
-    });
+        expect(response.isLikelyAuthentic, isFalse);
+        expect(response.isLikelyCounterfeit, isFalse);
+        expect(response.imageQualityAccepted, isFalse);
+        expect(response.confidenceDisplay, 'N/A');
+        expect(response.qwen.status, 'SKIPPED');
+      },
+    );
 
     test('Parses HealthResponse accurately', () {
       final json = {
@@ -294,6 +297,27 @@ void main() {
       expect(storage.getScanHistory(), isEmpty);
     });
 
+    test('Loads legacy records with safe synchronization defaults', () async {
+      SharedPreferences.setMockInitialValues({
+        AppConstants.keyScanHistory: jsonEncode([
+          {
+            'id': 'legacy-1',
+            'sample_id': 'LEGACY-1',
+            'final_result': 'SUSPICIOUS / NEEDS VERIFICATION',
+          },
+        ]),
+      });
+      StorageService.resetForTesting();
+
+      final storage = await StorageService.getInstance();
+      final item = storage.getScanHistory().single;
+
+      expect(item.id, 'legacy-1');
+      expect(item.operatingMode, 'unknown');
+      expect(item.provider, AppConstants.providerUnavailable);
+      expect(item.syncStatus, AppConstants.syncStatusLocal);
+    });
+
     test('addScanHistoryItem persists with sample ID and notes', () async {
       final storage = await StorageService.getInstance();
       final response = PredictionResponse.fromJson(_authenticJson());
@@ -313,6 +337,129 @@ void main() {
       expect(history.first.medicineName, 'Amoxicillin 500mg');
       expect(history.first.notes, 'Lot #A419');
       expect(history.first.finalResult, 'LIKELY AUTHENTIC');
+    });
+
+    test(
+      'Persists synchronization metadata without changing prediction data',
+      () async {
+        final storage = await StorageService.getInstance();
+        final item = ScanHistoryItem.fromPrediction(
+          PredictionResponse.fromJson(_authenticJson()),
+          sampleId: 'SYNC-1',
+          operatingMode: AppConstants.operatingModeBackend,
+          provider: AppConstants.providerBackend,
+        );
+        await storage.addScanHistoryItem(item);
+
+        StorageService.resetForTesting();
+        final restored = await StorageService.getInstance();
+        final saved = restored.getScanHistory().single;
+
+        expect(saved.operatingMode, AppConstants.operatingModeBackend);
+        expect(saved.provider, AppConstants.providerBackend);
+        expect(saved.syncStatus, AppConstants.syncStatusLocal);
+        expect(saved.prediction, item.prediction);
+        expect(saved.confidence, item.confidence);
+        expect(saved.notes, item.notes);
+      },
+    );
+
+    test('Persists queue entries and prevents duplicate record IDs', () async {
+      final storage = await StorageService.getInstance();
+      final item = ScanHistoryItem.fromPrediction(
+        PredictionResponse.fromJson(_authenticJson()),
+        sampleId: 'QUEUE-1',
+        operatingMode: AppConstants.operatingModeBackend,
+        provider: AppConstants.providerBackend,
+      );
+      await storage.addScanHistoryItem(item);
+
+      expect(await storage.enqueueSync(item.id), isTrue);
+      expect(await storage.enqueueSync(item.id), isFalse);
+      expect(storage.getSyncQueue().map((entry) => entry.recordId), [item.id]);
+      expect(
+        storage.getScanHistory().single.syncStatus,
+        AppConstants.syncStatusPending,
+      );
+
+      StorageService.resetForTesting();
+      final restored = await StorageService.getInstance();
+      expect(restored.getSyncQueue().single.recordId, item.id);
+    });
+
+    test(
+      'Records bounded retry metadata and removes queue without history loss',
+      () async {
+        final storage = await StorageService.getInstance();
+        final item = ScanHistoryItem.fromPrediction(
+          PredictionResponse.fromJson(_authenticJson()),
+          sampleId: 'QUEUE-2',
+          operatingMode: AppConstants.operatingModeAutomatic,
+          provider: AppConstants.providerBackend,
+        );
+        await storage.addScanHistoryItem(item);
+        await storage.enqueueSync(item.id);
+        final attemptedAt = DateTime(2026, 11, 5, 10);
+
+        expect(
+          await storage.recordSyncAttempt(
+            item.id,
+            failureReason: 'Sync endpoint unavailable',
+            attemptedAt: attemptedAt,
+          ),
+          isTrue,
+        );
+        final queued = storage.getSyncQueue().single;
+        expect(queued.attemptCount, 1);
+        expect(queued.lastAttemptAt, attemptedAt);
+        expect(queued.nextRetryAt, attemptedAt.add(const Duration(seconds: 1)));
+        expect(queued.lastFailureReason, 'Sync endpoint unavailable');
+        expect(
+          storage.getScanHistory().single.syncStatus,
+          AppConstants.syncStatusPending,
+        );
+
+        expect(await storage.removeSyncQueueItem(item.id), isTrue);
+        expect(storage.getSyncQueue(), isEmpty);
+        expect(storage.getScanHistory().single.id, item.id);
+      },
+    );
+
+    test(
+      'Malformed queue entries are ignored without losing valid entries',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          AppConstants.keySyncQueue: jsonEncode([
+            {'record_id': 'valid', 'queued_at': '2026-11-05T10:00:00Z'},
+            {'queued_at': 'missing-id'},
+            'not-an-object',
+          ]),
+        });
+        StorageService.resetForTesting();
+
+        final storage = await StorageService.getInstance();
+        expect(storage.getSyncQueue().map((entry) => entry.recordId), [
+          'valid',
+        ]);
+      },
+    );
+
+    test('Offline-only records cannot be queued', () async {
+      final storage = await StorageService.getInstance();
+      final item = ScanHistoryItem.fromPrediction(
+        PredictionResponse.fromJson(_authenticJson()),
+        sampleId: 'OFFLINE-1',
+        operatingMode: AppConstants.operatingModeOffline,
+        provider: AppConstants.providerUnavailable,
+      );
+      await storage.addScanHistoryItem(item);
+
+      expect(await storage.enqueueSync(item.id), isFalse);
+      expect(storage.getSyncQueue(), isEmpty);
+      expect(
+        storage.getScanHistory().single.syncStatus,
+        AppConstants.syncStatusLocal,
+      );
     });
 
     test(
@@ -674,47 +821,46 @@ void main() {
       expect(find.textContaining('offline'), findsNothing);
     });
 
-    testWidgets(
-      'rejected blur blocks a verdict and requests a retake',
-      (tester) async {
-        tester.view.physicalSize = const Size(1080, 2400);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
+    testWidgets('rejected blur blocks a verdict and requests a retake', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-        final json = _authenticJson(qwenAvailable: false)
-          ..['prediction'] = 'UNKNOWN'
-          ..['primary_prediction'] = 'UNKNOWN'
-          ..['confidence'] = 0.0
-          ..['primary_confidence'] = 0.0
-          ..['authentic_probability'] = 0.0
-          ..['counterfeit_probability'] = 0.0
-          ..['final_result'] = 'SUSPICIOUS / NEEDS VERIFICATION'
-          ..['status'] = 'NEEDS MANUAL REVIEW'
-          ..['needs_human_verification'] = true
-          ..['quality'] = {
-            'is_valid': false,
-            'reason': 'Poor image quality: excessive blur (score 28.4 < 50.0)',
-            'blur_score': 28.4,
-            'brightness_mean': 101.9,
-            'dimensions': [4096, 3072],
-          };
-        await tester.pumpWidget(
-          MaterialApp(
-            home: ResultsScreen(result: PredictionResponse.fromJson(json)),
-          ),
-        );
+      final json = _authenticJson(qwenAvailable: false)
+        ..['prediction'] = 'UNKNOWN'
+        ..['primary_prediction'] = 'UNKNOWN'
+        ..['confidence'] = 0.0
+        ..['primary_confidence'] = 0.0
+        ..['authentic_probability'] = 0.0
+        ..['counterfeit_probability'] = 0.0
+        ..['final_result'] = 'SUSPICIOUS / NEEDS VERIFICATION'
+        ..['status'] = 'NEEDS MANUAL REVIEW'
+        ..['needs_human_verification'] = true
+        ..['quality'] = {
+          'is_valid': false,
+          'reason': 'Poor image quality: excessive blur (score 28.4 < 50.0)',
+          'blur_score': 28.4,
+          'brightness_mean': 101.9,
+          'dimensions': [4096, 3072],
+        };
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ResultsScreen(result: PredictionResponse.fromJson(json)),
+        ),
+      );
 
-        expect(
-          find.textContaining('did not pass the image-quality check'),
-          findsOneWidget,
-        );
-        expect(find.text('88.4%'), findsNothing);
-        expect(find.text('AUTHENTIC INDICATED'), findsNothing);
-        expect(find.text('COUNTERFEIT INDICATED'), findsNothing);
-        expect(find.text('RETAKE'), findsOneWidget);
-      },
-    );
+      expect(
+        find.textContaining('did not pass the image-quality check'),
+        findsOneWidget,
+      );
+      expect(find.text('88.4%'), findsNothing);
+      expect(find.text('AUTHENTIC INDICATED'), findsNothing);
+      expect(find.text('COUNTERFEIT INDICATED'), findsNothing);
+      expect(find.text('RETAKE'), findsOneWidget);
+    });
 
     testWidgets(
       'ResultsScreen displays counterfeit outcome state with quarantine warning',

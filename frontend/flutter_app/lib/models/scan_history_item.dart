@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:pharma_assist/models/prediction_response.dart';
 
 class ScanHistoryItem {
@@ -15,6 +16,9 @@ class ScanHistoryItem {
   final bool needsHumanVerification;
   final String? fileName;
   final PredictionResponse? fullResponse;
+  final String operatingMode;
+  final String provider;
+  final String syncStatus;
 
   ScanHistoryItem({
     required this.id,
@@ -30,6 +34,9 @@ class ScanHistoryItem {
     required this.needsHumanVerification,
     this.fileName,
     this.fullResponse,
+    this.operatingMode = 'unknown',
+    this.provider = 'unavailable',
+    this.syncStatus = 'local',
   });
 
   factory ScanHistoryItem.fromPrediction(
@@ -39,15 +46,23 @@ class ScanHistoryItem {
     String? notes,
     String? imagePath,
     String? fileName,
+    String operatingMode = 'unknown',
+    String provider = 'unavailable',
+    String syncStatus = 'local',
   }) {
     final now = DateTime.now();
-    final defaultSampleId = 'SMP-${now.year}${(now.month).toString().padLeft(2, '0')}${(now.day).toString().padLeft(2, '0')}-${now.microsecondsSinceEpoch.toString().substring(10)}';
-    final sid = (sampleId != null && sampleId.trim().isNotEmpty) ? sampleId.trim() : defaultSampleId;
+    final defaultSampleId =
+        'SMP-${now.year}${(now.month).toString().padLeft(2, '0')}${(now.day).toString().padLeft(2, '0')}-${now.microsecondsSinceEpoch.toString().substring(10)}';
+    final sid = (sampleId != null && sampleId.trim().isNotEmpty)
+        ? sampleId.trim()
+        : defaultSampleId;
 
     return ScanHistoryItem(
       id: '${now.microsecondsSinceEpoch}_$sid',
       sampleId: sid,
-      medicineName: (medicineName != null && medicineName.trim().isNotEmpty) ? medicineName.trim() : null,
+      medicineName: (medicineName != null && medicineName.trim().isNotEmpty)
+          ? medicineName.trim()
+          : null,
       notes: (notes != null && notes.trim().isNotEmpty) ? notes.trim() : null,
       imagePath: imagePath,
       timestamp: now,
@@ -58,6 +73,9 @@ class ScanHistoryItem {
       needsHumanVerification: response.needsHumanVerification,
       fileName: fileName,
       fullResponse: response,
+      operatingMode: operatingMode,
+      provider: provider,
+      syncStatus: syncStatus,
     );
   }
 
@@ -75,8 +93,11 @@ class ScanHistoryItem {
       }
     }
 
-    final String fallbackId = json['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString();
-    final String fallbackSampleId = json['sample_id']?.toString() ??
+    final String fallbackId =
+        json['id']?.toString() ??
+        DateTime.now().millisecondsSinceEpoch.toString();
+    final String fallbackSampleId =
+        json['sample_id']?.toString() ??
         'SMP-${fallbackId.length > 6 ? fallbackId.substring(fallbackId.length - 6) : fallbackId}';
 
     return ScanHistoryItem(
@@ -88,13 +109,17 @@ class ScanHistoryItem {
       timestamp: json['timestamp'] != null
           ? DateTime.tryParse(json['timestamp'].toString()) ?? DateTime.now()
           : DateTime.now(),
-      finalResult: json['final_result']?.toString() ?? 'SUSPICIOUS / NEEDS VERIFICATION',
+      finalResult:
+          json['final_result']?.toString() ?? 'SUSPICIOUS / NEEDS VERIFICATION',
       prediction: json['prediction']?.toString() ?? 'UNKNOWN',
       confidence: (json['confidence'] as num?)?.toDouble() ?? 0.0,
       primaryModel: json['primary_model']?.toString() ?? 'efficientnet_b0',
       needsHumanVerification: json['needs_human_verification'] == true,
       fileName: json['file_name']?.toString(),
       fullResponse: full,
+      operatingMode: json['operating_mode']?.toString() ?? 'unknown',
+      provider: json['provider']?.toString() ?? 'unavailable',
+      syncStatus: json['sync_status']?.toString() ?? 'local',
     );
   }
 
@@ -112,7 +137,31 @@ class ScanHistoryItem {
     'needs_human_verification': needsHumanVerification,
     'file_name': fileName,
     'full_response': fullResponse?.toJson(),
+    'operating_mode': operatingMode,
+    'provider': provider,
+    'sync_status': syncStatus,
   };
+
+  ScanHistoryItem copyWith({String? syncStatus}) {
+    return ScanHistoryItem(
+      id: id,
+      sampleId: sampleId,
+      medicineName: medicineName,
+      notes: notes,
+      imagePath: imagePath,
+      timestamp: timestamp,
+      finalResult: finalResult,
+      prediction: prediction,
+      confidence: confidence,
+      primaryModel: primaryModel,
+      needsHumanVerification: needsHumanVerification,
+      fileName: fileName,
+      fullResponse: fullResponse,
+      operatingMode: operatingMode,
+      provider: provider,
+      syncStatus: syncStatus ?? this.syncStatus,
+    );
+  }
 
   bool get isLikelyAuthentic =>
       finalResult.toUpperCase().contains('AUTHENTIC') && !isSuspicious;

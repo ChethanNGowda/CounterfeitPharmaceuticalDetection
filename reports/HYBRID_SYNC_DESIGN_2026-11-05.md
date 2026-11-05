@@ -42,3 +42,22 @@ API contract exists, the client can safely preserve local records and queue
 intent/status only. The required future API should define authentication,
 payload fields, image-upload consent, idempotency behavior, conflict handling,
 and response validation before network upload is enabled.
+
+## Phase 2 implementation status
+
+The local-only queue phase is implemented in the Flutter client:
+
+- `ScanHistoryItem` now stores the operating mode, provider, and sync status.
+- Missing fields in older history JSON default to `unknown`, `unavailable`, and
+  `local`, respectively.
+- `SyncQueueItem` stores the stable record ID, queue and attempt timestamps,
+  bounded attempt count, retry time, failure reason, and local queue status.
+- Queue metadata is persisted under a separate versioned
+  `SharedPreferences` key and duplicate record IDs are rejected.
+- Explicit queue insertion is refused for offline-only or unavailable-provider
+  records, and no existing records are automatically enqueued.
+- Retry metadata is recorded locally with exponential delays capped at one hour
+  and five attempts.
+
+No HTTP synchronization, image upload, `/predict` reuse, or successful-sync
+state transition was added in this phase.

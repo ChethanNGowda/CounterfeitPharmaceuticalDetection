@@ -21,6 +21,7 @@ class AppConstants {
   static const String keyEnableQwen = 'pharma_enable_qwen';
   static const String keyOperatingMode = 'pharma_operating_mode';
   static const String keyScanHistory = 'pharma_scan_history_v1';
+  static const String keySyncQueue = 'pharma_sync_queue_v1';
   static const String keyThemeMode = 'pharma_theme_mode';
   static const String keyFavoriteIds = 'pharma_favorite_ids';
 
@@ -45,6 +46,18 @@ class AppConstants {
   // Max upload size in bytes (15 MB)
   static const int maxFileSizeBytes = 15 * 1024 * 1024;
   static const int maxHistoryRecords = 50;
+  static const int maxSyncAttempts = 5;
+  static const int maxSyncRetrySeconds = 3600;
+
+  static const String providerBackend = 'backend';
+  static const String providerLocal = 'local';
+  static const String providerUnavailable = 'unavailable';
+
+  static const String syncStatusLocal = 'local';
+  static const String syncStatusPending = 'pending';
+  static const String syncStatusSynced = 'synced';
+  static const String syncStatusFailed = 'failed';
+  static const String syncStatusBlocked = 'blocked';
 
   // Global Disclaimers
   static const String persistentDisclaimer =

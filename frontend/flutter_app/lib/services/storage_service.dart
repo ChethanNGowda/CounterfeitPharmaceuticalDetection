@@ -1,7 +1,9 @@
 import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pharma_assist/core/constants.dart';
 import 'package:pharma_assist/models/scan_history_item.dart';
+import 'package:pharma_assist/models/sync_queue_item.dart';
 
 class StorageService {
   static StorageService? _instance;
@@ -51,7 +53,8 @@ class StorageService {
 
   // ── Detection Parameters ──────────────────────────────────────────────────
   double getThreshold() {
-    return _prefs?.getDouble(AppConstants.keyThreshold) ?? AppConstants.defaultThreshold;
+    return _prefs?.getDouble(AppConstants.keyThreshold) ??
+        AppConstants.defaultThreshold;
   }
 
   Future<bool> setThreshold(double value) async {
@@ -59,7 +62,8 @@ class StorageService {
   }
 
   String getModelName() {
-    return _prefs?.getString(AppConstants.keyModelName) ?? AppConstants.defaultModel;
+    return _prefs?.getString(AppConstants.keyModelName) ??
+        AppConstants.defaultModel;
   }
 
   Future<bool> setModelName(String model) async {
@@ -67,7 +71,8 @@ class StorageService {
   }
 
   String getVisionMode() {
-    return _prefs?.getString(AppConstants.keyVisionMode) ?? AppConstants.defaultVisionMode;
+    return _prefs?.getString(AppConstants.keyVisionMode) ??
+        AppConstants.defaultVisionMode;
   }
 
   Future<bool> setVisionMode(String mode) async {
@@ -75,7 +80,8 @@ class StorageService {
   }
 
   bool getEnableQwen() {
-    return _prefs?.getBool(AppConstants.keyEnableQwen) ?? AppConstants.defaultEnableQwen;
+    return _prefs?.getBool(AppConstants.keyEnableQwen) ??
+        AppConstants.defaultEnableQwen;
   }
 
   Future<bool> setEnableQwen(bool enable) async {
@@ -103,7 +109,8 @@ class StorageService {
       'hybrid',
     };
     if (!validModes.contains(mode)) return false;
-    return await _prefs?.setString(AppConstants.keyOperatingMode, mode) ?? false;
+    return await _prefs?.setString(AppConstants.keyOperatingMode, mode) ??
+        false;
   }
 
   // ── Scan History ──────────────────────────────────────────────────────────
@@ -139,8 +146,129 @@ class StorageService {
     current.insert(0, item);
 
     // Keep top maxHistoryRecords (50)
-    final trimmed = current.take(AppConstants.maxHistoryRecords).map((e) => e.toJson()).toList();
+    final trimmed = current
+        .take(AppConstants.maxHistoryRecords)
+        .map((e) => e.toJson())
+        .toList();
     await _prefs?.setString(AppConstants.keyScanHistory, jsonEncode(trimmed));
+  }
+
+  List<SyncQueueItem> getSyncQueue() {
+    final raw = _prefs?.getString(AppConstants.keySyncQueue);
+    if (raw == null || raw.isEmpty) return [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return [];
+      final items = <SyncQueueItem>[];
+      final ids = <String>{};
+      for (final entry in decoded) {
+        if (entry is! Map<String, dynamic>) continue;
+        try {
+          final item = SyncQueueItem.fromJson(entry);
+          if (ids.add(item.recordId)) items.add(item);
+        } on FormatException {
+          continue;
+        }
+      }
+      items.sort((a, b) => a.queuedAt.compareTo(b.queuedAt));
+      return items;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> _saveSyncQueue(Iterable<SyncQueueItem> items) async {
+    await _prefs?.setString(
+      AppConstants.keySyncQueue,
+      jsonEncode(items.map((item) => item.toJson()).toList()),
+    );
+  }
+
+  Future<bool> enqueueSync(String recordId, {DateTime? queuedAt}) async {
+    final history = getScanHistory();
+    final recordIndex = history.indexWhere((item) => item.id == recordId);
+    if (recordIndex < 0) return false;
+    final record = history[recordIndex];
+    if (record.operatingMode == AppConstants.operatingModeOffline ||
+        record.provider == AppConstants.providerUnavailable) {
+      return false;
+    }
+    final queue = getSyncQueue();
+    if (queue.any((item) => item.recordId == recordId)) return false;
+    queue.add(SyncQueueItem.pending(recordId, queuedAt: queuedAt));
+    await _saveSyncQueue(queue);
+    await updateScanSyncStatus(recordId, AppConstants.syncStatusPending);
+    return true;
+  }
+
+  Future<bool> updateSyncQueueItem(SyncQueueItem updated) async {
+    final queue = getSyncQueue();
+    final index = queue.indexWhere((item) => item.recordId == updated.recordId);
+    if (index < 0) return false;
+    queue[index] = updated;
+    await _saveSyncQueue(queue);
+    return true;
+  }
+
+  Future<bool> recordSyncAttempt(
+    String recordId, {
+    required String failureReason,
+    DateTime? attemptedAt,
+  }) async {
+    final queue = getSyncQueue();
+    final index = queue.indexWhere((item) => item.recordId == recordId);
+    if (index < 0) return false;
+    final item = queue[index];
+    final now = attemptedAt ?? DateTime.now();
+    final attempts = item.attemptCount + 1;
+    final delaySeconds = (1 << (attempts - 1)).clamp(
+      1,
+      AppConstants.maxSyncRetrySeconds,
+    );
+    final exhausted = attempts >= AppConstants.maxSyncAttempts;
+    queue[index] = SyncQueueItem(
+      recordId: item.recordId,
+      queuedAt: item.queuedAt,
+      attemptCount: attempts,
+      lastAttemptAt: now,
+      nextRetryAt: exhausted ? null : now.add(Duration(seconds: delaySeconds)),
+      lastFailureReason: failureReason,
+      status: exhausted
+          ? AppConstants.syncStatusFailed
+          : AppConstants.syncStatusPending,
+    );
+    await _saveSyncQueue(queue);
+    await updateScanSyncStatus(
+      recordId,
+      exhausted
+          ? AppConstants.syncStatusFailed
+          : AppConstants.syncStatusPending,
+    );
+    return true;
+  }
+
+  Future<bool> removeSyncQueueItem(String recordId) async {
+    final queue = getSyncQueue();
+    final filtered = queue.where((item) => item.recordId != recordId).toList();
+    if (filtered.length == queue.length) return false;
+    await _saveSyncQueue(filtered);
+    return true;
+  }
+
+  Future<bool> updateScanSyncStatus(String recordId, String status) async {
+    final history = getScanHistory();
+    final index = history.indexWhere((item) => item.id == recordId);
+    if (index < 0) return false;
+    history[index] = history[index].copyWith(syncStatus: status);
+    final serialized = history
+        .take(AppConstants.maxHistoryRecords)
+        .map((item) => item.toJson())
+        .toList();
+    await _prefs?.setString(
+      AppConstants.keyScanHistory,
+      jsonEncode(serialized),
+    );
+    return true;
   }
 
   Future<bool> deleteScanHistoryItem(String id) async {
@@ -150,7 +278,11 @@ class StorageService {
 
     if (current.length != initialLength) {
       final serialized = current.map((e) => e.toJson()).toList();
-      return await _prefs?.setString(AppConstants.keyScanHistory, jsonEncode(serialized)) ?? false;
+      return await _prefs?.setString(
+            AppConstants.keyScanHistory,
+            jsonEncode(serialized),
+          ) ??
+          false;
     }
     return false;
   }
@@ -161,7 +293,8 @@ class StorageService {
 
   // ── Appearance / Theme Preferences ────────────────────────────────────────
   String getThemeMode() {
-    return _prefs?.getString(AppConstants.keyThemeMode) ?? AppConstants.defaultThemeMode;
+    return _prefs?.getString(AppConstants.keyThemeMode) ??
+        AppConstants.defaultThemeMode;
   }
 
   Future<bool> setThemeMode(String mode) async {
@@ -170,7 +303,9 @@ class StorageService {
 
   // ── Bookmarked / Pinned Favorites ─────────────────────────────────────────
   Set<String> getFavoriteIds() {
-    final List<String>? list = _prefs?.getStringList(AppConstants.keyFavoriteIds);
+    final List<String>? list = _prefs?.getStringList(
+      AppConstants.keyFavoriteIds,
+    );
     return list != null ? list.toSet() : <String>{};
   }
 
@@ -181,7 +316,11 @@ class StorageService {
     } else {
       current.add(scanId);
     }
-    return await _prefs?.setStringList(AppConstants.keyFavoriteIds, current.toList()) ?? false;
+    return await _prefs?.setStringList(
+          AppConstants.keyFavoriteIds,
+          current.toList(),
+        ) ??
+        false;
   }
 
   bool isFavorite(String scanId) {

@@ -240,6 +240,8 @@ class ScanScreenState extends State<ScanScreen> {
         notes: currentNotes,
         imagePath: _selectedImage?.path,
         fileName: _imageFileName,
+        operatingMode: widget.storage.getOperatingMode(),
+        provider: AppConstants.providerBackend,
       );
       await widget.storage.addScanHistoryItem(historyItem);
 

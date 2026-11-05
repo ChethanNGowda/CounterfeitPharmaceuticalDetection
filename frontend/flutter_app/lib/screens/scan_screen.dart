@@ -10,6 +10,7 @@ import 'package:pharma_assist/models/scan_history_item.dart';
 import 'package:pharma_assist/screens/results_screen.dart';
 import 'package:pharma_assist/services/api_service.dart';
 import 'package:pharma_assist/services/storage_service.dart';
+import 'package:pharma_assist/services/sync_service.dart';
 import 'package:pharma_assist/widgets/disclaimer_banner.dart';
 import 'package:pharma_assist/widgets/medicine_photo_guide.dart';
 
@@ -244,6 +245,12 @@ class ScanScreenState extends State<ScanScreen> {
         provider: AppConstants.providerBackend,
       );
       await widget.storage.addScanHistoryItem(historyItem);
+      if (widget.storage.getSyncConsent() &&
+          widget.storage.getOperatingMode() !=
+              AppConstants.operatingModeOffline) {
+        await widget.storage.enqueueSync(historyItem.id);
+        await SyncService(widget.storage).processQueue();
+      }
 
       widget.onScanComplete?.call();
 

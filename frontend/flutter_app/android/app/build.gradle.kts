@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.chethan.pharmaassist.pharma_assist"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

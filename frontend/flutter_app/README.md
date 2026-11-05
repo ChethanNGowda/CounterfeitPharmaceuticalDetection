@@ -36,8 +36,9 @@ flutter run --dart-define=PHARMA_API_BASE_URL=http://10.0.2.2:8000
 ```
 
 For a physical phone, run FastAPI on the host's private LAN interface and
-enter `http://<host-lan-ip>:8000` in Settings. Keep the phone and computer on
-the same network.
+enter the configured development URL in Settings. Keep the phone and computer
+on the same network. Record synchronization itself requires an HTTPS endpoint;
+plain HTTP LAN URLs remain unsuitable for bearer-token synchronization.
 
 The app supports camera capture, gallery selection, preview and retake,
 client-side file checks, upload progress states, retry after request failure,
@@ -57,6 +58,22 @@ Local model conversion, parity testing, latency measurement, and memory
 measurement remain prerequisites before offline AI screening can be enabled.
 The current checkout has no Android inference runtime or converted model; see
 the [on-device inference audit](../../reports/ON_DEVICE_INFERENCE_AUDIT_2026-11-05.md).
+
+### Hybrid synchronization
+
+Synchronization consent is disabled by default. When enabled, newly created
+backend-screened records may be queued for metadata synchronization; older
+records are not automatically enqueued. The device bearer credential is stored
+with Android secure storage, never `SharedPreferences`. Images are not uploaded
+by the current client integration, and offline-only records never enter the
+queue. Non-localhost synchronization endpoints must use HTTPS. Conflicts,
+revoked credentials, and insecure endpoints are shown as blocked/conflict
+states rather than retried indefinitely.
+
+Provision a device credential with the backend administrator command described
+in the root `BACKEND_SYNC_API_2026-11-05.md`, then enter that token in Settings.
+This only stores client history metadata; it does not verify medicine
+authenticity or rerun screening.
 
 ## Validation and build
 

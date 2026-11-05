@@ -84,6 +84,13 @@ class StorageService {
         AppConstants.defaultEnableQwen;
   }
 
+  bool getSyncConsent() =>
+      _prefs?.getBool(AppConstants.keySyncConsent) ?? false;
+
+  Future<bool> setSyncConsent(bool enabled) async {
+    return await _prefs?.setBool(AppConstants.keySyncConsent, enabled) ?? false;
+  }
+
   Future<bool> setEnableQwen(bool enable) async {
     return await _prefs?.setBool(AppConstants.keyEnableQwen, enable) ?? false;
   }
@@ -268,6 +275,27 @@ class StorageService {
       AppConstants.keyScanHistory,
       jsonEncode(serialized),
     );
+    return true;
+  }
+
+  Future<bool> markSynced(
+    String recordId, {
+    required String serverRecordId,
+    required DateTime synchronizedAt,
+  }) async {
+    final history = getScanHistory();
+    final index = history.indexWhere((item) => item.id == recordId);
+    if (index < 0) return false;
+    history[index] = history[index].copyWith(
+      syncStatus: AppConstants.syncStatusSynced,
+      serverRecordId: serverRecordId,
+      synchronizedAt: synchronizedAt,
+    );
+    await _prefs?.setString(
+      AppConstants.keyScanHistory,
+      jsonEncode(history.map((item) => item.toJson()).toList()),
+    );
+    await removeSyncQueueItem(recordId);
     return true;
   }
 

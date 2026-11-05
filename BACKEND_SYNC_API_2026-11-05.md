@@ -56,5 +56,14 @@ deployment responsibilities. Use HTTPS and protect the database and image
 directory. Notes and images may contain sensitive information and are not
 included in application logs.
 
-Flutter integration is intentionally deferred until this API has been deployed
-with secure credential provisioning and tested over the intended transport.
+The Flutter client integration stores the individual bearer token in Android
+secure storage, defaults synchronization consent to disabled, sends metadata
+only, and requires HTTPS except for loopback/emulator development endpoints.
+It does not upload images. Before production use, deploy this API with secure
+credential delivery, HTTPS, database/image retention controls, and a tested
+device-specific configuration.
+
+The client validation in this phase completed Flutter analysis and 58 Flutter
+tests. The Android debug build requires Windows Developer Mode (or equivalent
+symlink support) because Flutter plugins are present; APK compilation remains
+an environment-dependent manual check when that capability is enabled.

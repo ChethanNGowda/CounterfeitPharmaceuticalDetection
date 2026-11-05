@@ -14,7 +14,7 @@ class SyncQueueItem {
     this.lastAttemptAt,
     this.nextRetryAt,
     this.lastFailureReason,
-    required this.status,
+    this.status = 'pending',
   });
 
   factory SyncQueueItem.pending(String recordId, {DateTime? queuedAt}) {

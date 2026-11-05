@@ -22,6 +22,7 @@ class AppConstants {
   static const String keyOperatingMode = 'pharma_operating_mode';
   static const String keyScanHistory = 'pharma_scan_history_v1';
   static const String keySyncQueue = 'pharma_sync_queue_v1';
+  static const String keySyncConsent = 'pharma_sync_consent_v1';
   static const String keyThemeMode = 'pharma_theme_mode';
   static const String keyFavoriteIds = 'pharma_favorite_ids';
 
@@ -58,6 +59,8 @@ class AppConstants {
   static const String syncStatusSynced = 'synced';
   static const String syncStatusFailed = 'failed';
   static const String syncStatusBlocked = 'blocked';
+  static const String syncStatusSyncing = 'syncing';
+  static const String syncStatusConflict = 'conflict';
 
   // Global Disclaimers
   static const String persistentDisclaimer =

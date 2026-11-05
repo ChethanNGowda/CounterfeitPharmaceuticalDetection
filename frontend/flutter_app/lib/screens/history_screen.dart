@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:pharma_assist/core/theme.dart';
+import 'package:pharma_assist/core/constants.dart';
 import 'package:pharma_assist/models/scan_history_item.dart';
 import 'package:pharma_assist/screens/results_screen.dart';
 import 'package:pharma_assist/services/storage_service.dart';
@@ -894,6 +895,18 @@ class HistoryScreenState extends State<HistoryScreen> {
                           ),
                           const SizedBox(width: 6),
                           StatusBadge(statusText: historyLabel),
+                          const SizedBox(width: 6),
+                          Text(
+                            item.syncStatus.toUpperCase(),
+                            style: AppTheme.bodyText(
+                              fontSize: 9,
+                              color:
+                                  item.syncStatus ==
+                                      AppConstants.syncStatusSynced
+                                  ? AppTheme.success
+                                  : AppTheme.warning,
+                            ),
+                          ),
                           const Spacer(),
                         ],
                       ),

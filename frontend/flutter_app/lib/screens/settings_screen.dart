@@ -6,6 +6,8 @@ import 'package:pharma_assist/screens/about_screen.dart';
 import 'package:pharma_assist/screens/model_lab_screen.dart';
 import 'package:pharma_assist/services/api_service.dart';
 import 'package:pharma_assist/services/storage_service.dart';
+import 'package:pharma_assist/services/credential_service.dart';
+import 'package:pharma_assist/services/sync_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   final StorageService storage;
@@ -31,6 +33,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _enableQwen;
   late String _operatingMode;
   late String _themeMode;
+  late bool _syncConsent;
+  final CredentialService _credentials = CredentialService();
+  final TextEditingController _tokenController = TextEditingController();
+  bool _hasSyncCredential = false;
+  String? _syncMessage;
 
   bool _isTesting = false;
   String? _testResult;
@@ -54,6 +61,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _enableQwen = widget.storage.getEnableQwen();
     _operatingMode = widget.storage.getOperatingMode();
     _themeMode = widget.storage.getThemeMode() == 'light' ? 'light' : 'dark';
+    _syncConsent = widget.storage.getSyncConsent();
+    _loadSyncCredential();
     if (widget.storage.getThemeMode() != _themeMode) {
       widget.storage.setThemeMode(_themeMode);
     }
@@ -63,7 +72,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _urlController.dispose();
+    _tokenController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSyncCredential() async {
+    final token = await _credentials.readToken();
+    if (!mounted) return;
+    setState(() => _hasSyncCredential = token != null && token.isNotEmpty);
   }
 
   Future<void> _saveSettings() async {
@@ -79,6 +95,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await widget.storage.setEnableQwen(_enableQwen);
     await widget.storage.setOperatingMode(_operatingMode);
     await widget.storage.setThemeMode(_themeMode);
+    await widget.storage.setSyncConsent(_syncConsent);
+    if (_tokenController.text.trim().isNotEmpty) {
+      await _credentials.saveToken(_tokenController.text);
+      _tokenController.clear();
+      _hasSyncCredential = true;
+    }
 
     widget.onThemeChanged?.call(_themeMode);
 
@@ -177,6 +199,101 @@ class _SettingsScreenState extends State<SettingsScreen> {
         uri.userInfo.isEmpty &&
         uri.query.isEmpty &&
         uri.fragment.isEmpty;
+  }
+
+  Widget _buildSyncSection() {
+    final secure = SyncService.isSecureEndpoint(
+      StorageService.normalizeUrl(_urlController.text),
+    );
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.elevatedCard,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Uploads local scan metadata only when enabled. Images are never '
+            'uploaded by this app integration.',
+            style: AppTheme.bodyText(fontSize: 12),
+          ),
+          Text(
+            'Queue: ${widget.storage.getSyncQueue().length} pending record(s).',
+            style: AppTheme.bodyText(fontSize: 11),
+          ),
+          if (_syncMessage != null)
+            Text(_syncMessage!, style: AppTheme.bodyText(fontSize: 11)),
+          const SizedBox(height: 8),
+          Material(
+            color: Colors.transparent,
+            child: SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Allow metadata synchronization'),
+              subtitle: const Text(
+                'Disabled by default. Enabling does not upload older records.',
+              ),
+              value: _syncConsent,
+              onChanged: (value) => setState(() => _syncConsent = value),
+            ),
+          ),
+          TextField(
+            controller: _tokenController,
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: _hasSyncCredential
+                  ? 'Replace stored device credential'
+                  : 'Device credential',
+              helperText:
+                  'Stored in Android secure storage, never SharedPreferences.',
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _hasSyncCredential
+                ? (secure
+                      ? 'Credential configured. Sync endpoint policy is allowed.'
+                      : 'Credential configured, but this URL requires HTTPS before upload.')
+                : 'No device credential configured. Uploads remain blocked.',
+            style: AppTheme.bodyText(
+              fontSize: 11,
+              color: secure ? AppTheme.success : AppTheme.warning,
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              await _credentials.clearToken();
+              if (mounted) setState(() => _hasSyncCredential = false);
+            },
+            child: const Text('Remove stored device credential'),
+          ),
+          ElevatedButton.icon(
+            onPressed: !_syncConsent
+                ? null
+                : () async {
+                    try {
+                      await SyncService(widget.storage).processQueue();
+                      if (mounted) {
+                        setState(
+                          () => _syncMessage = 'Synchronization retry completed. Review queue statuses.',
+                        );
+                      }
+                    } catch (_) {
+                      if (mounted) {
+                        setState(
+                          () => _syncMessage = 'Synchronization could not be started. Check credentials and endpoint security.',
+                        );
+                      }
+                    }
+                  },
+            icon: const Icon(Icons.sync),
+            label: const Text('Retry pending synchronization'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showInvalidUrlMessage() {
@@ -345,6 +462,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSectionLabel('BACKEND COMMUNICATION ENDPOINT'),
             const SizedBox(height: 8),
             _buildBackendSection(),
+
+            const SizedBox(height: 20),
+
+            _buildSectionLabel('HYBRID SYNCHRONIZATION'),
+            const SizedBox(height: 8),
+            _buildSyncSection(),
 
             const SizedBox(height: 20),
 
@@ -623,7 +746,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 12),
           ...modes.map((mode) {
-            final selected = _operatingMode == mode.$1 ||
+            final selected =
+                _operatingMode == mode.$1 ||
                 (_operatingMode == 'hybrid' &&
                     mode.$1 == AppConstants.operatingModeBackend);
             return Padding(

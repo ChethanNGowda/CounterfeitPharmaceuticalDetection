@@ -19,6 +19,8 @@ class ScanHistoryItem {
   final String operatingMode;
   final String provider;
   final String syncStatus;
+  final String? serverRecordId;
+  final DateTime? synchronizedAt;
 
   ScanHistoryItem({
     required this.id,
@@ -37,6 +39,8 @@ class ScanHistoryItem {
     this.operatingMode = 'unknown',
     this.provider = 'unavailable',
     this.syncStatus = 'local',
+    this.serverRecordId,
+    this.synchronizedAt,
   });
 
   factory ScanHistoryItem.fromPrediction(
@@ -120,6 +124,10 @@ class ScanHistoryItem {
       operatingMode: json['operating_mode']?.toString() ?? 'unknown',
       provider: json['provider']?.toString() ?? 'unavailable',
       syncStatus: json['sync_status']?.toString() ?? 'local',
+      serverRecordId: json['server_record_id']?.toString(),
+      synchronizedAt: json['synchronized_at'] != null
+          ? DateTime.tryParse(json['synchronized_at'].toString())
+          : null,
     );
   }
 
@@ -140,9 +148,15 @@ class ScanHistoryItem {
     'operating_mode': operatingMode,
     'provider': provider,
     'sync_status': syncStatus,
+    'server_record_id': serverRecordId,
+    'synchronized_at': synchronizedAt?.toIso8601String(),
   };
 
-  ScanHistoryItem copyWith({String? syncStatus}) {
+  ScanHistoryItem copyWith({
+    String? syncStatus,
+    String? serverRecordId,
+    DateTime? synchronizedAt,
+  }) {
     return ScanHistoryItem(
       id: id,
       sampleId: sampleId,
@@ -160,6 +174,8 @@ class ScanHistoryItem {
       operatingMode: operatingMode,
       provider: provider,
       syncStatus: syncStatus ?? this.syncStatus,
+      serverRecordId: serverRecordId ?? this.serverRecordId,
+      synchronizedAt: synchronizedAt ?? this.synchronizedAt,
     );
   }
 

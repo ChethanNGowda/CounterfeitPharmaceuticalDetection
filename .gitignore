@@ -19,6 +19,8 @@ data/pharmassist_splits/
 data/processed/train/
 data/processed/valid/
 data/processed/test/
+data/*.sqlite3
+data/sync_images/
 
 # Local model artifacts and training runs
 runs/

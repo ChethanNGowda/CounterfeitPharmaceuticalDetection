@@ -196,6 +196,7 @@ class ApiInfoResponse(BaseModel):
             "health": "GET /health",
             "predict": "POST /predict",
             "verify": "POST /verify (alias for /predict)",
+            "sync_records": "POST /sync/records (authenticated metadata sync)",
         }
     )
     supported_models: list[str] = Field(default_factory=lambda: AVAILABLE_MODELS)

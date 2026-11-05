@@ -202,6 +202,24 @@ dimension of 10,000 pixels. Image-quality checks use the configured minimum
 15–245. Invalid requests return explicit 4xx responses; model or dependency
 failures return sanitized 5xx responses.
 
+### Optional record synchronization
+
+`POST /sync/records` stores authenticated client history metadata without
+running screening or treating client predictions as verified evidence. It
+requires an individual device bearer credential and uses the client record ID
+as a device-scoped idempotency key. Optional image payloads require explicit
+consent and are validated before storage. Provisioning and revocation are
+performed locally with:
+
+```powershell
+python -m backend.sync_admin --db data\pharma_sync.sqlite3 provision phone-001
+python -m backend.sync_admin --db data\pharma_sync.sqlite3 revoke phone-001
+```
+
+See [BACKEND_SYNC_API_2026-11-05.md](BACKEND_SYNC_API_2026-11-05.md) for the
+contract, environment variables, storage limits, and deployment requirements.
+Flutter upload integration remains intentionally deferred.
+
 ## Decision semantics
 
 The decision engine uses authentic probability, not a generic confidence

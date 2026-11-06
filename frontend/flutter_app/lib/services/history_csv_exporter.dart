@@ -59,8 +59,8 @@ class HistoryCsvExporter {
         response == null
             ? null
             : (!response.secondaryExecuted
-                ? response.secondaryReason
-                : qwen?.error ?? qwen?.warning),
+                  ? response.secondaryReason
+                  : qwen?.error ?? qwen?.warning),
       ]);
     }
     return '${rows.map((row) => row.map(_escape).join(',')).join('\r\n')}\r\n';

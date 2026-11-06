@@ -121,7 +121,10 @@ class QwenReviewDetails {
     }
     List<String> parseList(dynamic val) {
       if (val is List) {
-        return val.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+        return val
+            .map((e) => e?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+            .toList();
       }
       return const [];
     }
@@ -387,11 +390,7 @@ class VisualPackagingAnalysis {
   final String? packagingType;
   final String? condition;
 
-  VisualPackagingAnalysis({
-    this.status,
-    this.packagingType,
-    this.condition,
-  });
+  VisualPackagingAnalysis({this.status, this.packagingType, this.condition});
 
   factory VisualPackagingAnalysis.fromJson(Map<String, dynamic>? json) {
     if (json == null) return VisualPackagingAnalysis();
@@ -433,13 +432,27 @@ class VisualAnalysisReport {
   factory VisualAnalysisReport.fromJson(Map<String, dynamic>? json) {
     if (json == null) return VisualAnalysisReport();
     return VisualAnalysisReport(
-      color: json['color'] != null ? VisualColorAnalysis.fromJson(json['color']) : null,
-      shape: json['shape'] != null ? VisualShapeAnalysis.fromJson(json['shape']) : null,
-      size: json['size'] != null ? VisualSizeAnalysis.fromJson(json['size']) : null,
-      surface: json['surface'] != null ? VisualSurfaceAnalysis.fromJson(json['surface']) : null,
-      markings: json['markings'] != null ? VisualMarkingsAnalysis.fromJson(json['markings']) : null,
-      edges: json['edges'] != null ? VisualEdgeAnalysis.fromJson(json['edges']) : null,
-      packaging: json['packaging'] != null ? VisualPackagingAnalysis.fromJson(json['packaging']) : null,
+      color: json['color'] != null
+          ? VisualColorAnalysis.fromJson(json['color'])
+          : null,
+      shape: json['shape'] != null
+          ? VisualShapeAnalysis.fromJson(json['shape'])
+          : null,
+      size: json['size'] != null
+          ? VisualSizeAnalysis.fromJson(json['size'])
+          : null,
+      surface: json['surface'] != null
+          ? VisualSurfaceAnalysis.fromJson(json['surface'])
+          : null,
+      markings: json['markings'] != null
+          ? VisualMarkingsAnalysis.fromJson(json['markings'])
+          : null,
+      edges: json['edges'] != null
+          ? VisualEdgeAnalysis.fromJson(json['edges'])
+          : null,
+      packaging: json['packaging'] != null
+          ? VisualPackagingAnalysis.fromJson(json['packaging'])
+          : null,
       error: json['error']?.toString(),
     );
   }
@@ -508,7 +521,10 @@ class PredictionResponse {
   factory PredictionResponse.fromJson(Map<String, dynamic> json) {
     List<String> parseList(dynamic val) {
       if (val is List) {
-        return val.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+        return val
+            .map((e) => e?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+            .toList();
       }
       return const [];
     }
@@ -518,11 +534,11 @@ class PredictionResponse {
       prediction: json['prediction']?.toString() ?? 'UNKNOWN',
       confidence: (json['confidence'] as num?)?.toDouble() ?? 0.0,
       qwen: QwenReviewDetails.fromJson(json['qwen'] as Map<String, dynamic>?),
-      finalResult: json['final_result']?.toString() ?? 'SUSPICIOUS / NEEDS VERIFICATION',
+      finalResult:
+          json['final_result']?.toString() ?? 'SUSPICIOUS / NEEDS VERIFICATION',
       needsHumanVerification: json['needs_human_verification'] == true,
       warning: json['warning']?.toString(),
-      disclaimer: json['disclaimer']?.toString() ??
-          'AI-assisted preliminary screening only. Does not replace laboratory testing.',
+      disclaimer: json['disclaimer']?.toString() ?? 'AI-assisted preliminary screening only. Does not replace laboratory testing.',
       secondaryExecuted: json['secondary_executed'] == true,
       secondaryReason: json['secondary_reason']?.toString(),
       reasons: parseList(json['reasons']),
@@ -530,27 +546,36 @@ class PredictionResponse {
       primaryPrediction: json['primary_prediction']?.toString(),
       primaryConfidence: (json['primary_confidence'] as num?)?.toDouble(),
       visualAnalysis: json['visual_analysis'] != null
-          ? VisualAnalysisReport.fromJson(json['visual_analysis'] as Map<String, dynamic>?)
+          ? VisualAnalysisReport.fromJson(
+              json['visual_analysis'] as Map<String, dynamic>?,
+            )
           : null,
       status: json['status']?.toString() ?? 'NEEDS MANUAL REVIEW',
       reason: json['reason']?.toString(),
       modelName: json['model_name']?.toString() ?? 'efficientnet_b0',
       threshold: (json['threshold'] as num?)?.toDouble() ?? 0.70,
-      authenticProbability: (json['authentic_probability'] as num?)?.toDouble() ?? 0.0,
-      counterfeitProbability: (json['counterfeit_probability'] as num?)?.toDouble() ?? 0.0,
+      authenticProbability:
+          (json['authentic_probability'] as num?)?.toDouble() ?? 0.0,
+      counterfeitProbability:
+          (json['counterfeit_probability'] as num?)?.toDouble() ?? 0.0,
       quality: json['quality'] != null
           ? QualityMetrics.fromJson(json['quality'] as Map<String, dynamic>?)
           : null,
     );
   }
 
-  bool get imageQualityAccepted => quality?.isValid != false && prediction.toUpperCase() != 'UNKNOWN';
+  bool get imageQualityAccepted =>
+      quality?.isValid != false && prediction.toUpperCase() != 'UNKNOWN';
 
   bool get isLikelyAuthentic =>
-      imageQualityAccepted && finalResult.toUpperCase().contains('AUTHENTIC') && !isSuspicious;
+      imageQualityAccepted &&
+      finalResult.toUpperCase().contains('AUTHENTIC') &&
+      !isSuspicious;
 
   bool get isLikelyCounterfeit =>
-      imageQualityAccepted && finalResult.toUpperCase().contains('COUNTERFEIT') && !isSuspicious;
+      imageQualityAccepted &&
+      finalResult.toUpperCase().contains('COUNTERFEIT') &&
+      !isSuspicious;
 
   bool get isSuspicious =>
       finalResult.toUpperCase().contains('SUSPICIOUS') ||
@@ -558,7 +583,9 @@ class PredictionResponse {
 
   String get confidenceDisplay {
     if (!imageQualityAccepted) return 'N/A';
-    final double normalized = confidence <= 1.0 ? confidence * 100.0 : confidence;
+    final double normalized = confidence <= 1.0
+        ? confidence * 100.0
+        : confidence;
     return '${normalized.toStringAsFixed(1)}%';
   }
 

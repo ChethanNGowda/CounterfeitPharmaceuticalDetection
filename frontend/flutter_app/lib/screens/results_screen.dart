@@ -136,7 +136,9 @@ class ResultsScreen extends StatelessWidget {
     String outcomeHeader;
     String outcomeSubtitle;
 
-    final bool needsMedicinePhoto = result.finalResult.toUpperCase().contains('UPLOAD A MEDICINE TABLET');
+    final bool needsMedicinePhoto = result.finalResult.toUpperCase().contains(
+      'UPLOAD A MEDICINE TABLET',
+    );
     if (needsMedicinePhoto) {
       outcomeColor = AppTheme.suspiciousAmber;
       outcomeBg = AppTheme.suspiciousBg;
@@ -372,7 +374,7 @@ class ResultsScreen extends StatelessWidget {
         : 'Ask a pharmacist to review this result';
     final message = qualityFailed
         ? 'The photo did not pass image quality screening${result.quality?.reason == null ? '' : ': ${result.quality!.reason}'}. This screening is inconclusive. Retake it in bright, even light with the medicine in focus. No authenticity prediction was made.'
-        : '${result.reason ?? (result.reasons.isNotEmpty ? result.reasons.first : 'This result needs a person to review it.') } Ask a pharmacist or health authority to check it.';
+        : '${result.reason ?? (result.reasons.isNotEmpty ? result.reasons.first : 'This result needs a person to review it.')} Ask a pharmacist or health authority to check it.';
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -512,12 +514,16 @@ class ResultsScreen extends StatelessWidget {
     final qwen = result.qwen;
     final attempted = result.secondaryExecuted;
     final status = !attempted
-        ? ((qwen.status ?? '').toUpperCase() == 'SKIPPED' ? 'SKIPPED' : 'NOT RUN')
+        ? ((qwen.status ?? '').toUpperCase() == 'SKIPPED'
+              ? 'SKIPPED'
+              : 'NOT RUN')
         : qwen.available
         ? qwen.assessment
         : 'UNAVAILABLE';
     final subtitle = !attempted
-        ? (status == 'SKIPPED' ? 'Skipped by screening policy' : 'Not run for this image')
+        ? (status == 'SKIPPED'
+              ? 'Skipped by screening policy'
+              : 'Not run for this image')
         : qwen.available
         ? 'Review completed'
         : 'Review attempted but unavailable';
@@ -665,7 +671,8 @@ class ResultsScreen extends StatelessWidget {
     if (lower.contains('authentic probability is below 50%')) {
       return 'Not needed: authentic probability is below 50%, so the screening indicates counterfeit.';
     }
-    if (lower.contains('authentic probability') && lower.contains('above the')) {
+    if (lower.contains('authentic probability') &&
+        lower.contains('above the')) {
       return 'Not needed: authentic probability is above the configured authentic cutoff.';
     }
     if (lower.contains('manual-review band')) {

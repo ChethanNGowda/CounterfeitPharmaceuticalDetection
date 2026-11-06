@@ -75,8 +75,7 @@ class AboutScreen extends StatelessWidget {
                 ),
                 _InfoItem(
                   label: 'Authentic-Probability Decision Bands',
-                  body:
-                      'Below 50% authentic probability indicates counterfeit; 50% through the configured cutoff (70% by default) requires manual review; above the cutoff indicates authentic. Poor image quality or conflicting secondary review still requires manual review.',
+                  body: 'Below 50% authentic probability indicates counterfeit; 50% through the configured cutoff (70% by default) requires manual review; above the cutoff indicates authentic. Poor image quality or conflicting secondary review still requires manual review.',
                 ),
               ],
             ),

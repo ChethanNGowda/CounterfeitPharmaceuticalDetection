@@ -146,7 +146,12 @@ class SyncStore:
         image_bytes: bytes | None,
         image_extension: str | None,
     ) -> tuple[str, bool, datetime]:
-        payload_json = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        idempotency_payload = {
+            key: value for key, value in payload.items() if key != "sync_status"
+        }
+        payload_json = json.dumps(
+            idempotency_payload, sort_keys=True, separators=(",", ":")
+        )
         payload_hash = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
         synced_at = utc_now()
         with self._lock, self._connect() as connection:

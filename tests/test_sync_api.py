@@ -85,6 +85,17 @@ def test_same_id_different_payload_conflicts(sync_client):
     assert response.status_code == 409
 
 
+def test_sync_status_changes_remain_idempotent(sync_client):
+    client, token = sync_client
+    request = payload()
+    created = client.post("/sync/records", json=request, headers=auth(token))
+    assert created.status_code == 201
+    changed_status = {**request, "sync_status": "synced"}
+    response = client.post("/sync/records", json=changed_status, headers=auth(token))
+    assert response.status_code == 201
+    assert response.json()["duplicate"] is True
+
+
 def test_image_requires_consent_and_is_stored_safely(sync_client):
     client, token = sync_client
     image = base64.b64encode(b"not an image").decode()

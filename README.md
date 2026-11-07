@@ -218,6 +218,9 @@ python -m backend.sync_admin --db data\pharma_sync.sqlite3 revoke phone-001
 
 See [BACKEND_SYNC_API_2026-11-05.md](BACKEND_SYNC_API_2026-11-05.md) for the
 contract, environment variables, storage limits, and deployment requirements.
+See [DEPLOYMENT_READINESS_2026-11-07.md](DEPLOYMENT_READINESS_2026-11-07.md)
+for the deployment checklist, APK integrity procedure, and physical-device
+test plan.
 Flutter upload integration remains intentionally deferred.
 
 ## Decision semantics

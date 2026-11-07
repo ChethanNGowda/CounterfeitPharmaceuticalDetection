@@ -19,7 +19,7 @@ python -m backend.sync_admin --db data\pharma_sync.sqlite3 revoke phone-001
 The provisioning command prints the token once. The database stores only a
 salted PBKDF2-HMAC-SHA256 hash. Tokens must be delivered and stored through a
 secure deployment mechanism; they are not embedded in Flutter or Android
-assets. The API accepts `Authorization: Bearer pa1.<device-id>.<secret>`.
+assets. The API accepts `Authorization: Bearer <device-token>`.
 
 ## Endpoint
 
@@ -63,7 +63,6 @@ It does not upload images. Before production use, deploy this API with secure
 credential delivery, HTTPS, database/image retention controls, and a tested
 device-specific configuration.
 
-The client validation in this phase completed Flutter analysis and 58 Flutter
-tests. The Android debug build requires Windows Developer Mode (or equivalent
-symlink support) because Flutter plugins are present; APK compilation remains
-an environment-dependent manual check when that capability is enabled.
+The validated client state includes Flutter analysis, 57 Flutter tests, and a
+successful Android debug build. Physical-device testing and deployed HTTPS
+testing remain pending.

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 /// Centralized scientific design system and color tokens for PharmaAssist.
 /// Palette specifications:
@@ -269,6 +269,28 @@ class AppTheme {
         valueIndicatorTextStyle: TextStyle(color: textPrimary, fontSize: 12),
       ),
       dividerTheme: DividerThemeData(color: divider, thickness: 1, space: 1),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: secondaryBackground,
+        indicatorColor: const Color(0x2225D9F8),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final bool selected = states.contains(WidgetState.selected);
+          return TextStyle(
+            inherit: false,
+            fontFamily: 'Inter',
+            fontFamilyFallback: fontBodyFamilies,
+            fontSize: 11,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            color: selected ? const Color(0xFF25D9F8) : const Color(0xFF6B7C96),
+            letterSpacing: 0.2,
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final bool selected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            color: selected ? const Color(0xFF25D9F8) : const Color(0xFF6B7C96),
+          );
+        }),
+      ),
     );
   }
 
@@ -375,6 +397,26 @@ class AppTheme {
         ),
         labelStyle: const TextStyle(color: lightTextSecondary, fontSize: 13),
         hintStyle: const TextStyle(color: lightTextMuted, fontSize: 13),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: lightSurface,
+        indicatorColor: const Color(0x200891B2),
+        labelTextStyle: WidgetStateProperty.resolveWith((_) {
+          return const TextStyle(
+            inherit: false,
+            fontFamily: 'Inter',
+            fontFamilyFallback: fontBodyFamilies,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF0891B2),
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final bool selected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            color: selected ? const Color(0xFF0891B2) : const Color(0xFF94A3B8),
+          );
+        }),
       ),
     );
   }

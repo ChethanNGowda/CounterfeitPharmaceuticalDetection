@@ -3,6 +3,7 @@ import 'package:pharma_assist/core/constants.dart';
 import 'package:pharma_assist/core/theme.dart';
 import 'package:pharma_assist/screens/history_screen.dart';
 import 'package:pharma_assist/screens/home_screen.dart';
+import 'package:pharma_assist/screens/more_hub_screen.dart';
 import 'package:pharma_assist/screens/scan_screen.dart';
 import 'package:pharma_assist/screens/settings_screen.dart';
 import 'package:pharma_assist/services/api_service.dart';
@@ -111,7 +112,7 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
         apiService: widget.apiService,
         onNavigateToScan: () => _onTabTapped(1),
         onChooseGallery: _chooseGalleryFromHome,
-        onNavigateToSettings: () => _onTabTapped(3),
+        onNavigateToSettings: () => _onTabTapped(4),
       ),
       ScanScreen(
         key: _scanKey,
@@ -124,6 +125,11 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
       ),
       HistoryScreen(key: _historyKey, storage: widget.storage),
       SettingsScreen(
+        storage: widget.storage,
+        apiService: widget.apiService,
+        onThemeChanged: widget.onThemeChanged,
+      ),
+      MoreHubScreen(
         storage: widget.storage,
         apiService: widget.apiService,
         onThemeChanged: widget.onThemeChanged,
@@ -189,6 +195,11 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
           icon: Icon(Icons.tune_outlined),
           selectedIcon: Icon(Icons.tune),
           label: 'Settings',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.grid_view_outlined),
+          selectedIcon: Icon(Icons.grid_view_rounded),
+          label: 'More',
         ),
       ],
     );

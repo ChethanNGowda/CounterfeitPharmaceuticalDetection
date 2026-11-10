@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharma_assist/core/constants.dart';
 import 'package:pharma_assist/core/theme.dart';
+import 'package:pharma_assist/core/theme_tokens.dart';
 import 'package:pharma_assist/models/health_response.dart';
 import 'package:pharma_assist/models/prediction_response.dart';
 import 'package:pharma_assist/models/scan_history_item.dart';
@@ -1183,6 +1184,76 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('No inspection records'), findsOneWidget);
+      },
+    );
+
+    testWidgets('Main navigation renders 5 destinations including More', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      StorageService.resetForTesting();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          home: Scaffold(
+            body: const Text('Test Body'),
+            bottomNavigationBar: NavigationBar(
+              selectedIndex: 0,
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.dashboard),
+                  label: 'Home',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.document_scanner),
+                  label: 'Scan',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.history),
+                  label: 'History',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.tune),
+                  label: 'Settings',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.grid_view_rounded),
+                  label: 'More',
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Home'), findsOneWidget);
+      expect(find.text('Scan'), findsOneWidget);
+      expect(find.text('History'), findsOneWidget);
+      expect(find.text('Settings'), findsOneWidget);
+      expect(find.text('More'), findsOneWidget);
+    });
+
+    testWidgets(
+      'PharmaThemeTokens extension provides dark and light semantic values',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: ThemeMode.dark,
+            home: Builder(
+              builder: (context) {
+                final tokens = context.pharmaTokens;
+                expect(tokens.navyBrand, const Color(0xFF0B1320));
+                expect(tokens.tealAccent, const Color(0xFF19B6A4));
+                expect(tokens.authenticGreen, const Color(0xFF10B981));
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        );
       },
     );
   });

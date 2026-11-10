@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pharma_assist/core/theme_tokens.dart';
 import 'package:pharma_assist/screens/about_screen.dart';
 import 'package:pharma_assist/screens/model_lab_screen.dart';
+import 'package:pharma_assist/screens/packaging_guide_screen.dart';
 import 'package:pharma_assist/screens/settings_screen.dart';
 import 'package:pharma_assist/services/api_service.dart';
 import 'package:pharma_assist/services/storage_service.dart';
@@ -134,6 +135,22 @@ class MoreHubScreen extends StatelessWidget {
             padding: EdgeInsets.zero,
             child: Column(
               children: [
+                _buildTile(
+                  context,
+                  icon: Icons.photo_camera_back_outlined,
+                  title: 'Packaging & Capture Guide',
+                  subtitle:
+                      'Optimal tablet, blister-pack and packaging photography',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PackagingGuideScreen(),
+                      ),
+                    );
+                  },
+                ),
+                Divider(height: 1, color: tokens.borderSubtle),
                 _buildTile(
                   context,
                   icon: Icons.info_outline,

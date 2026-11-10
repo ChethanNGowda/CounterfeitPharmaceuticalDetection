@@ -137,15 +137,16 @@ class HomeScreenState extends State<HomeScreen> {
               children: [
                 _buildGreeting(),
                 const SizedBox(height: 16),
-                // System Status Widget
-                _buildSystemStatusCard(),
+                // Primary Scan Card (High Visual Priority)
+                _buildPrimaryScanCard(),
                 const SizedBox(height: 16),
 
+                // Compact Summary Statistics
                 _buildSummaryStats(),
                 const SizedBox(height: 16),
 
-                // Primary Scan Card
-                _buildPrimaryScanCard(),
+                // Compact System Status
+                _buildSystemStatusCard(),
                 const SizedBox(height: 18),
 
                 // Recent Scans Section
@@ -163,25 +164,41 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildGreeting() {
-    final hour = DateTime.now().hour;
-    final greeting = hour < 12
-        ? 'Good morning'
-        : (hour < 17 ? 'Good afternoon' : 'Good evening');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          greeting,
-          style: AppTheme.bodyText(color: AppTheme.textSecondary, fontSize: 13),
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryCyan.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: AppTheme.primaryCyan.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Text(
+                'PHARMACEUTICAL SCREENING SYSTEM',
+                style: TextStyle(
+                  fontFamily: 'Space Grotesk',
+                  color: AppTheme.primaryCyan,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 8),
         Text(
           'Pharmaceutical screening, made clearer.',
           style: AppTheme.headingLarge(),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 4),
         Text(
-          'Review a medicine sample using your connected screening service.',
+          'Review medicine samples using dual-model visual verification and decision support.',
           style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 12),
         ),
       ],
@@ -270,24 +287,18 @@ class HomeScreenState extends State<HomeScreen> {
   PreferredSizeWidget _buildHeader() {
     return AppBar(
       backgroundColor: AppTheme.background,
+      elevation: 0,
+      scrolledUnderElevation: 0,
       title: Row(
         children: [
           Container(
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppTheme.primaryCyan, AppTheme.secondaryTeal],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: AppTheme.secondaryTeal,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(
-              Icons.biotech,
-              color: Color(0xFF0B1020),
-              size: 20,
-            ),
+            child: const Icon(Icons.biotech, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 10),
           Column(

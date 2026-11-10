@@ -1104,15 +1104,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: AppTheme.softViolet.withValues(alpha: 0.15),
+                color: Theme.of(context).colorScheme.primary
+                    .withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: AppTheme.softViolet.withValues(alpha: 0.4),
+                  color: Theme.of(context).colorScheme.primary
+                      .withValues(alpha: 0.4),
                 ),
               ),
               child: Icon(
                 Icons.science_outlined,
-                color: AppTheme.softViolet,
+                color: Theme.of(context).colorScheme.primary,
                 size: 20,
               ),
             ),

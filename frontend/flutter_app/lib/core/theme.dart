@@ -33,7 +33,7 @@ class AppTheme {
   static Color get secondaryTeal =>
       _useLightPalette ? const Color(0xFF0D9488) : const Color(0xFF35D6B4);
   static Color get softViolet =>
-      _useLightPalette ? const Color(0xFF6D5BD0) : const Color(0xFF8B7CFF);
+      _useLightPalette ? const Color(0xFF0F766E) : const Color(0xFF14B8A6);
   static Color get violetAccent => softViolet;
 
   // Backward compatibility aliases
@@ -159,7 +159,7 @@ class AppTheme {
       colorScheme: const ColorScheme.dark(
         primary: tealPrimary,
         secondary: Color(0xFF2DD4BF),
-        tertiary: Color(0xFF818CF8),
+        tertiary: Color(0xFF0F766E),
         surface: darkSurface,
         error: Color(0xFFEF4444),
         onPrimary: navyBackground,
@@ -312,7 +312,7 @@ class AppTheme {
       colorScheme: const ColorScheme.light(
         primary: tealPrimary,
         secondary: Color(0xFF14B8A6),
-        tertiary: Color(0xFF6366F1),
+        tertiary: Color(0xFF102A43),
         surface: lightSurface,
         error: Color(0xFFEF4444),
         onPrimary: Colors.white,

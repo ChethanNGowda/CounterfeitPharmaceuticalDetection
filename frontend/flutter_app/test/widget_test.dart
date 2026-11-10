@@ -11,6 +11,7 @@ import 'package:pharma_assist/models/scan_history_item.dart';
 import 'package:pharma_assist/screens/history_screen.dart';
 import 'package:pharma_assist/screens/home_screen.dart';
 import 'package:pharma_assist/screens/model_lab_screen.dart';
+import 'package:pharma_assist/screens/records_screen.dart';
 import 'package:pharma_assist/screens/reports_screen.dart';
 import 'package:pharma_assist/screens/results_screen.dart';
 import 'package:pharma_assist/services/simple_pdf_report_generator.dart';
@@ -1284,6 +1285,68 @@ void main() {
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             home: ReportsScreen(storage: storage),
+          ),
+        );
+
+        expect(find.text('Amoxicillin 500mg'), findsOneWidget);
+        expect(find.text('Paracetamol 650mg'), findsOneWidget);
+
+        // Tap Authentic filter chip
+        await tester.tap(find.text('Authentic (1)'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Amoxicillin 500mg'), findsOneWidget);
+        expect(find.text('Paracetamol 650mg'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'RecordsScreen displays empty state when no inspections recorded',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        StorageService.resetForTesting();
+        final storage = await StorageService.getInstance();
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            home: RecordsScreen(storage: storage),
+          ),
+        );
+
+        expect(find.text('Inspection Records'), findsOneWidget);
+        expect(find.text('No Inspection Records'), findsOneWidget);
+        expect(find.byType(TextField), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'RecordsScreen renders populated inspection records and filters by category',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        StorageService.resetForTesting();
+        final storage = await StorageService.getInstance();
+
+        final authItem = ScanHistoryItem.fromPrediction(
+          PredictionResponse.fromJson(_authenticJson()),
+          sampleId: 'SMP-REC-01',
+          medicineName: 'Amoxicillin 500mg',
+        );
+        final fakeItem = ScanHistoryItem.fromPrediction(
+          PredictionResponse.fromJson(_counterfeitJson()),
+          sampleId: 'SMP-REC-02',
+          medicineName: 'Paracetamol 650mg',
+        );
+
+        await storage.addScanHistoryItem(authItem);
+        await storage.addScanHistoryItem(fakeItem);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            home: RecordsScreen(storage: storage),
           ),
         );
 

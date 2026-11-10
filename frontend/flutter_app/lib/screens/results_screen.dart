@@ -405,7 +405,7 @@ class ResultsScreen extends StatelessWidget {
                 Text(
                   message,
                   style: TextStyle(
-                    color: Color(0xFFFED7AA),
+                    color: AppTheme.textSecondary,
                     fontSize: 11,
                     height: 1.4,
                   ),
@@ -424,7 +424,7 @@ class ResultsScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1500),
+        color: AppTheme.suspiciousBg,
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
           color: AppTheme.suspiciousAmber.withValues(alpha: 0.4),
@@ -442,8 +442,8 @@ class ResultsScreen extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(
-                color: Color(0xFFFEF3C7),
+              style: TextStyle(
+                color: AppTheme.textPrimary,
                 fontSize: 11,
                 height: 1.35,
               ),

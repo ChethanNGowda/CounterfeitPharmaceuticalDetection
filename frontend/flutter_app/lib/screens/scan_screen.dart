@@ -497,31 +497,110 @@ class ScanScreenState extends State<ScanScreen> {
     return InkWell(
       onTap: () => _pickImage(ImageSource.camera),
       child: Container(
-        height: 180,
+        height: 200,
         color: AppTheme.secondaryBackground,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: AppTheme.elevatedCard,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppTheme.border),
-              ),
-              child: Icon(
-                Icons.center_focus_strong_outlined,
-                size: 26,
-                color: AppTheme.primaryCyan,
+            Positioned(
+              top: 16,
+              left: 16,
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: AppTheme.secondaryTeal, width: 2.5),
+                    left: BorderSide(color: AppTheme.secondaryTeal, width: 2.5),
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 12),
-            Text('No Sample Photo Loaded', style: AppTheme.headingSmall()),
-            const SizedBox(height: 4),
-            Text(
-              'Align tablet on a clean, solid, matte background',
-              style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 11),
+            Positioned(
+              top: 16,
+              right: 16,
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: AppTheme.secondaryTeal, width: 2.5),
+                    right: BorderSide(
+                      color: AppTheme.secondaryTeal,
+                      width: 2.5,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 16,
+              left: 16,
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: AppTheme.secondaryTeal,
+                      width: 2.5,
+                    ),
+                    left: BorderSide(color: AppTheme.secondaryTeal, width: 2.5),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 16,
+              right: 16,
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: AppTheme.secondaryTeal,
+                      width: 2.5,
+                    ),
+                    right: BorderSide(
+                      color: AppTheme.secondaryTeal,
+                      width: 2.5,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: AppTheme.elevatedCard,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppTheme.border),
+                  ),
+                  child: Icon(
+                    Icons.center_focus_strong_outlined,
+                    size: 26,
+                    color: AppTheme.secondaryTeal,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Tap to Capture Medicine Photo',
+                  style: AppTheme.headingSmall(),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Center tablet or blister pack on a plain, matte surface',
+                  style: AppTheme.bodyText(
+                    color: AppTheme.textMuted,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

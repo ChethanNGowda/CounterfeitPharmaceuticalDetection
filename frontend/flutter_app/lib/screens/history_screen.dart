@@ -620,7 +620,7 @@ class HistoryScreenState extends State<HistoryScreen> {
                 _filterChip(
                   'FAVORITES',
                   'Bookmarked (${_allHistory.where((e) => widget.storage.isFavorite(e.id)).length})',
-                  color: AppTheme.softViolet,
+                  color: AppTheme.secondaryTeal,
                 ),
               ],
             ),
@@ -924,7 +924,7 @@ class HistoryScreenState extends State<HistoryScreen> {
                                 isFav ? Icons.bookmark : Icons.bookmark_border,
                                 size: 18,
                                 color: isFav
-                                    ? AppTheme.softViolet
+                                    ? AppTheme.secondaryTeal
                                     : AppTheme.textMuted,
                               ),
                               tooltip: isFav

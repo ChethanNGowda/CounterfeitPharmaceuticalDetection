@@ -130,15 +130,17 @@ class _ModelLabScreenState extends State<ModelLabScreen>
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                color: AppTheme.violetAccent.withValues(alpha: 0.18),
+                color: Theme.of(context).colorScheme.primary
+                    .withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
-                  color: AppTheme.violetAccent.withValues(alpha: 0.45),
+                  color: Theme.of(context).colorScheme.primary
+                      .withValues(alpha: 0.45),
                 ),
               ),
               child: Icon(
                 Icons.science_outlined,
-                color: AppTheme.violetAccent,
+                color: Theme.of(context).colorScheme.primary,
                 size: 17,
               ),
             ),
@@ -168,8 +170,8 @@ class _ModelLabScreenState extends State<ModelLabScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: AppTheme.violetAccent,
-          labelColor: AppTheme.violetAccent,
+          indicatorColor: Theme.of(context).colorScheme.primary,
+          labelColor: Theme.of(context).colorScheme.primary,
           unselectedLabelColor: AppTheme.textMuted,
           labelStyle: const TextStyle(
             fontFamily: 'Space Grotesk',
@@ -202,7 +204,9 @@ class _ModelLabScreenState extends State<ModelLabScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(color: AppTheme.violetAccent),
+            CircularProgressIndicator(
+              color: Theme.of(context).colorScheme.primary,
+            ),
             const SizedBox(height: 16),
             Text(
               'Fetching model registry…',
@@ -217,7 +221,7 @@ class _ModelLabScreenState extends State<ModelLabScreen>
         'Cannot reach model registry',
         _modelsError!,
         onRetry: _fetchModels,
-        accentColor: AppTheme.violetAccent,
+        accentColor: Theme.of(context).colorScheme.primary,
       );
     }
     if (_modelsData == null) {
@@ -270,10 +274,12 @@ class _ModelLabScreenState extends State<ModelLabScreen>
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: AppTheme.violetAccent.withValues(alpha: 0.07),
+            color: Theme.of(context).colorScheme.primary
+                .withValues(alpha: 0.07),
             borderRadius: BorderRadius.circular(6),
             border: Border.all(
-              color: AppTheme.violetAccent.withValues(alpha: 0.3),
+              color: Theme.of(context).colorScheme.primary
+                  .withValues(alpha: 0.3),
             ),
           ),
           child: Text(

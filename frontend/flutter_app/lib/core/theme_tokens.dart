@@ -34,17 +34,17 @@ class PharmaThemeTokens extends ThemeExtension<PharmaThemeTokens> {
 
   /// Light theme token specifications
   static const light = PharmaThemeTokens(
-    navyBrand: Color(0xFF0B1320),
-    tealAccent: Color(0xFF19B6A4),
-    surfaceSubtle: Color(0xFFF1F5F9),
+    navyBrand: Color(0xFF102A43),
+    tealAccent: Color(0xFF0F766E),
+    surfaceSubtle: Color(0xFFF5F8FA),
     borderSubtle: Color(0xFFE2E8F0),
-    authenticGreen: Color(0xFF10B981),
-    authenticGreenBg: Color(0xFFECFDF5),
-    counterfeitRed: Color(0xFFEF4444),
-    counterfeitRedBg: Color(0xFFFEF2F2),
-    suspiciousAmber: Color(0xFFF59E0B),
-    suspiciousAmberBg: Color(0xFFFFFBEB),
-    textMuted: Color(0xFF64748B),
+    authenticGreen: Color(0xFF15803D),
+    authenticGreenBg: Color(0xFFDCFCE7),
+    counterfeitRed: Color(0xFFDC2626),
+    counterfeitRedBg: Color(0xFFFEE2E2),
+    suspiciousAmber: Color(0xFFD97706),
+    suspiciousAmberBg: Color(0xFFFEF3C7),
+    textMuted: Color(0xFF627586),
     cardElevated: Color(0xFFFFFFFF),
   );
 

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -5,11 +7,12 @@ import 'package:pharma_assist/core/theme_tokens.dart';
 import 'package:pharma_assist/models/scan_history_item.dart';
 import 'package:pharma_assist/services/history_csv_exporter.dart';
 import 'package:pharma_assist/services/report_service.dart';
+import 'package:pharma_assist/services/simple_pdf_report_generator.dart';
 import 'package:pharma_assist/services/storage_service.dart';
 import 'package:pharma_assist/widgets/pharma_components.dart';
 import 'package:pharma_assist/widgets/status_badge.dart';
 
-/// Dedicated Healthcare Inspection Reports Screen
+/// Dedicated Healthcare Inspection Reports Screen with PDF, CSV, TXT exports and date filtering
 class ReportsScreen extends StatefulWidget {
   final StorageService storage;
 
@@ -25,6 +28,7 @@ class ReportsScreenState extends State<ReportsScreen> {
   List<ScanHistoryItem> _filteredReports = [];
   String _selectedFilter = 'ALL'; // ALL, AUTHENTIC, COUNTERFEIT, REVIEW
   bool _sortNewestFirst = true;
+  DateTimeRange? _selectedDateRange;
 
   @override
   void initState() {
@@ -64,6 +68,29 @@ class ReportsScreenState extends State<ReportsScreen> {
           .toList();
     }
 
+    // Apply Date Range Filter
+    if (_selectedDateRange != null) {
+      final start = DateTime(
+        _selectedDateRange!.start.year,
+        _selectedDateRange!.start.month,
+        _selectedDateRange!.start.day,
+      );
+      final end = DateTime(
+        _selectedDateRange!.end.year,
+        _selectedDateRange!.end.month,
+        _selectedDateRange!.end.day,
+        23,
+        59,
+        59,
+      );
+      list = list.where((item) {
+        return item.timestamp.isAfter(
+              start.subtract(const Duration(seconds: 1)),
+            ) &&
+            item.timestamp.isBefore(end.add(const Duration(seconds: 1)));
+      }).toList();
+    }
+
     // Apply Search Query
     if (query.isNotEmpty) {
       list = list.where((item) {
@@ -88,6 +115,125 @@ class ReportsScreenState extends State<ReportsScreen> {
     setState(() {
       _filteredReports = list;
     });
+  }
+
+  Future<void> _pickDateRange() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(now.year + 5),
+      initialDateRange:
+          _selectedDateRange ??
+          DateTimeRange(
+            start: now.subtract(const Duration(days: 30)),
+            end: now,
+          ),
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedDateRange = picked;
+        _applyFilters();
+      });
+    }
+  }
+
+  void _clearDateRange() {
+    setState(() {
+      _selectedDateRange = null;
+      _applyFilters();
+    });
+  }
+
+  Future<void> _exportPdfReport(ScanHistoryItem item) async {
+    try {
+      final pdfBytes = SimplePdfReportGenerator.generateReportPdf(item);
+      final tempDir = Directory.systemTemp;
+      final file = File('${tempDir.path}/report_${item.sampleId}.pdf');
+      await file.writeAsBytes(pdfBytes);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF report saved: ${file.path}'),
+            action: SnackBarAction(
+              label: 'Copy Path',
+              onPressed: () =>
+                  Clipboard.setData(ClipboardData(text: file.path)),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to generate PDF: $e')));
+      }
+    }
+  }
+
+  Future<void> _exportTxtReport(ScanHistoryItem item) async {
+    try {
+      final reportText = ReportService.generateReportFromHistory(item);
+      final tempDir = Directory.systemTemp;
+      final file = File('${tempDir.path}/report_${item.sampleId}.txt');
+      await file.writeAsString(reportText);
+      await Clipboard.setData(ClipboardData(text: reportText));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Report saved to ${file.path} and copied to clipboard.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to export report: $e')));
+      }
+    }
+  }
+
+  Future<void> _exportAllCsv() async {
+    if (_allReports.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No inspection reports available to export.'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final csvContent = HistoryCsvExporter.encode(_allReports);
+      final tempDir = Directory.systemTemp;
+      final file = File(
+        '${tempDir.path}/pharma_assist_screenings_${DateTime.now().millisecondsSinceEpoch}.csv',
+      );
+      await file.writeAsString(csvContent);
+      await Clipboard.setData(ClipboardData(text: csvContent));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Exported ${_allReports.length} records to ${file.path} (copied to clipboard).',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to export CSV: $e')));
+      }
+    }
   }
 
   void _showReportDetails(ScanHistoryItem item) {
@@ -140,14 +286,19 @@ class ReportsScreenState extends State<ReportsScreen> {
           ),
           actions: [
             TextButton.icon(
-              icon: const Icon(Icons.copy_outlined, size: 16),
-              label: const Text('Copy Text'),
+              icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
+              label: const Text('Export PDF'),
               onPressed: () {
-                Clipboard.setData(ClipboardData(text: reportText));
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Report copied to clipboard.')),
-                );
+                _exportPdfReport(item);
+              },
+            ),
+            TextButton.icon(
+              icon: const Icon(Icons.description_outlined, size: 16),
+              label: const Text('Save TXT'),
+              onPressed: () {
+                Navigator.pop(ctx);
+                _exportTxtReport(item);
               },
             ),
             ElevatedButton(
@@ -160,37 +311,35 @@ class ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  void _exportAllCsv() {
-    if (_allReports.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No inspection reports available to export.'),
-        ),
-      );
-      return;
-    }
-
-    final csvContent = HistoryCsvExporter.encode(_allReports);
-    Clipboard.setData(ClipboardData(text: csvContent));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Exported ${_allReports.length} reports to CSV (copied to clipboard).',
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tokens = context.pharmaTokens;
+    final dateFmt = DateFormat('yyyy-MM-dd');
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Inspection Reports'),
         centerTitle: false,
         actions: [
+          IconButton(
+            tooltip: _selectedDateRange == null
+                ? 'Filter by Date Range'
+                : 'Clear Date Filter',
+            icon: Icon(
+              Icons.date_range,
+              color: _selectedDateRange != null
+                  ? theme.colorScheme.primary
+                  : null,
+            ),
+            onPressed: () {
+              if (_selectedDateRange != null) {
+                _clearDateRange();
+              } else {
+                _pickDateRange();
+              }
+            },
+          ),
           IconButton(
             tooltip: _sortNewestFirst
                 ? 'Showing Newest First'
@@ -216,7 +365,7 @@ class ReportsScreenState extends State<ReportsScreen> {
         children: [
           // Search Bar
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
@@ -231,6 +380,58 @@ class ReportsScreenState extends State<ReportsScreen> {
               ),
             ),
           ),
+
+          // Date Filter Badge (if active)
+          if (_selectedDateRange != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: theme.colorScheme.primary,
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          size: 12,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${dateFmt.format(_selectedDateRange!.start)} to ${dateFmt.format(_selectedDateRange!.end)}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        GestureDetector(
+                          onTap: _clearDateRange,
+                          child: Icon(
+                            Icons.close,
+                            size: 14,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
           // Filter Chips
           SingleChildScrollView(
@@ -266,11 +467,14 @@ class ReportsScreenState extends State<ReportsScreen> {
                     icon: Icons.assignment_outlined,
                     title:
                         _searchController.text.isNotEmpty ||
-                            _selectedFilter != 'ALL'
+                            _selectedFilter != 'ALL' ||
+                            _selectedDateRange != null
                         ? 'No Matching Reports'
                         : 'No Inspection Reports',
-                    description: _searchController.text.isNotEmpty
-                        ? 'Try modifying your search query or filter criteria.'
+                    description:
+                        _searchController.text.isNotEmpty ||
+                            _selectedDateRange != null
+                        ? 'Try modifying your search query, filter tab, or date range.'
                         : 'Completed medicine screenings will generate structured compliance reports here.',
                   )
                 : ListView.separated(

@@ -13,6 +13,7 @@ import 'package:pharma_assist/screens/home_screen.dart';
 import 'package:pharma_assist/screens/model_lab_screen.dart';
 import 'package:pharma_assist/screens/reports_screen.dart';
 import 'package:pharma_assist/screens/results_screen.dart';
+import 'package:pharma_assist/services/simple_pdf_report_generator.dart';
 import 'package:pharma_assist/screens/scan_screen.dart';
 import 'package:pharma_assist/screens/settings_screen.dart';
 import 'package:pharma_assist/services/api_service.dart';
@@ -1332,6 +1333,43 @@ void main() {
         expect(find.text('Needs Review'), findsOneWidget);
       },
     );
+
+    test('SimplePdfReportGenerator generates valid PDF structure with screening metadata', () {
+      final item = ScanHistoryItem.fromPrediction(
+        PredictionResponse.fromJson(_authenticJson()),
+        sampleId: 'SMP-PDF-TEST',
+        medicineName: 'Amoxicillin 500mg',
+        notes: 'Debossed stamp inspected',
+      );
+
+      final pdfBytes = SimplePdfReportGenerator.generateReportPdf(item);
+
+      expect(pdfBytes, isNotEmpty);
+      final pdfString = String.fromCharCodes(pdfBytes);
+      // Valid PDF begins with %PDF- header and contains trailer/xref
+      expect(pdfString.startsWith('%PDF-1.4'), isTrue);
+      expect(pdfString, contains('PHARMAASSIST - FIELD SCREENING REPORT'));
+      expect(pdfString, contains('SMP-PDF-TEST'));
+      expect(pdfString, contains('Amoxicillin 500mg'));
+      expect(pdfString, contains('trailer'));
+      expect(pdfString, contains('%%EOF'));
+    });
+
+    test('HistoryCsvExporter properly escapes commas and double quotes', () {
+      final item = ScanHistoryItem.fromPrediction(
+        PredictionResponse.fromJson(_authenticJson()),
+        sampleId: 'SMP-CSV-01',
+        medicineName: 'Aspirin, 100mg "Bayer"',
+        notes: 'Batch #123, stored at 25C',
+      );
+
+      final csv = HistoryCsvExporter.encode([item]);
+
+      expect(csv, contains('ID,Sample_ID,Medicine_Name'));
+      // Quoting check: field with comma and double quote must be wrapped in quotes
+      expect(csv, contains('"Aspirin, 100mg ""Bayer"""'));
+      expect(csv, contains('"Batch #123, stored at 25C"'));
+    });
 
     testWidgets(
       'PharmaThemeTokens extension provides dark and light semantic values',

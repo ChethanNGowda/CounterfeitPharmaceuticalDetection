@@ -54,8 +54,11 @@ dev_dependencies:
 
 # 2.5.0's JNI Pigeon lookup expects kotlin.coroutines.Continuation in the JVM
 # signature, which R8 renames in this release build. 2.4.28 uses method channels.
+# path_provider_foundation 2.4+ brings in objective_c with native asset hooks that
+# fail on Windows host environments when the user profile contains a space.
 dependency_overrides:
   shared_preferences_android: 2.4.28
+  path_provider_foundation: 2.3.2
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

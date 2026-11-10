@@ -72,10 +72,15 @@ def health_check():
     dev = get_device()
     secondary_model = "qwen3.5:4b"
     secondary_endpoint = "http://localhost:11434"
+    secondary_status = None
+    secondary_avail = None
     try:
         service = ClassifierService.get_instance()
         secondary_model = service.vision_verifier.model_name
         secondary_endpoint = service.vision_verifier.base_url
+        ai_health = service.vision_verifier.get_health()
+        secondary_status = ai_health.get("status")
+        secondary_avail = ai_health.get("available")
     except Exception:
         logger.exception("Health check could not inspect the screening service")
     return HealthResponse(
@@ -86,6 +91,8 @@ def health_check():
         available_models=SUPPORTED_MODELS,
         secondary_ai_model=secondary_model,
         secondary_ai_endpoint=secondary_endpoint,
+        secondary_ai_status=secondary_status,
+        secondary_ai_available=secondary_avail,
     )
 
 

@@ -151,6 +151,8 @@ class HealthResponse(BaseModel):
     available_models: list[str] = Field(default_factory=lambda: AVAILABLE_MODELS)
     secondary_ai_model: str = "qwen3.5:4b"
     secondary_ai_endpoint: str = "http://localhost:11434"
+    secondary_ai_status: Optional[str] = None
+    secondary_ai_available: Optional[bool] = None
 
 
 class ModelStatusItem(BaseModel):
@@ -172,12 +174,30 @@ class ModelsListResponse(BaseModel):
     models: list[ModelStatusItem]
 
 
+class AiHealthResponse(BaseModel):
+    status: str = "READY"  # NOT_CONFIGURED, OLLAMA_UNREACHABLE, MODEL_NOT_INSTALLED, MODEL_LOADING, READY, INFERENCE_IN_PROGRESS, INFERENCE_TIMED_OUT, INFERENCE_FAILED
+    available: bool = True
+    ollama_reachable: bool = True
+    ollama_url: str = "http://localhost:11434"
+    configured_model: str = "qwen3.5:4b"
+    installed_models: list[str] = Field(default_factory=list)
+    model_installed: bool = False
+    vision_supported: bool = False
+    last_inference_time: Optional[str] = None
+    last_error: Optional[str] = None
+    message: str = "Qwen Vision secondary review is ready."
+
+
 class QwenHealthResponse(BaseModel):
     status: str = "READY"  # READY, OLLAMA_UNREACHABLE, MODEL_NOT_INSTALLED, ERROR
     available: bool = True
     model_name: str = "qwen3.5:4b"
     base_url: str = "http://localhost:11434"
     installed_models: list[str] = Field(default_factory=list)
+    model_installed: bool = True
+    vision_supported: bool = True
+    last_inference_time: Optional[str] = None
+    last_error: Optional[str] = None
     message: str = "Qwen Vision secondary review is ready."
 
 

@@ -24,7 +24,20 @@ from PIL import Image
 
 DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
 DEFAULT_OLLAMA_VISION_MODEL = "qwen3.5:4b"
-DEFAULT_OLLAMA_TIMEOUT = 180.0
+DEFAULT_OLLAMA_TIMEOUT = 120.0
+DEFAULT_OLLAMA_CONNECT_TIMEOUT = 5.0
+DEFAULT_OLLAMA_TEXT_TIMEOUT = 30.0
+
+
+class AiServiceState:
+    NOT_CONFIGURED = "NOT_CONFIGURED"
+    OLLAMA_UNREACHABLE = "OLLAMA_UNREACHABLE"
+    MODEL_NOT_INSTALLED = "MODEL_NOT_INSTALLED"
+    MODEL_LOADING = "MODEL_LOADING"
+    READY = "READY"
+    INFERENCE_IN_PROGRESS = "INFERENCE_IN_PROGRESS"
+    INFERENCE_TIMED_OUT = "INFERENCE_TIMED_OUT"
+    INFERENCE_FAILED = "INFERENCE_FAILED"
 
 # Ordered preference list: first available installed model wins
 _VISION_MODEL_PREFERENCE = [
@@ -265,6 +278,8 @@ class QwenVisionVerifier:
         base_url: Optional[str] = None,
         model_name: Optional[str] = None,
         timeout: Optional[float] = None,
+        connect_timeout: Optional[float] = None,
+        text_timeout: Optional[float] = None,
     ):
         self.base_url = (
             base_url
@@ -288,14 +303,198 @@ class QwenVisionVerifier:
             self.timeout = float(timeout)
         elif env_timeout:
             try:
-                # Older example configs used a 12-second timeout, too short
-                # for a cold vision-model load. Honor longer overrides but
-                # keep the minimum aligned with model startup/inference time.
-                self.timeout = max(float(env_timeout), DEFAULT_OLLAMA_TIMEOUT)
+                self.timeout = max(float(env_timeout), 12.0)
             except ValueError:
                 self.timeout = DEFAULT_OLLAMA_TIMEOUT
         else:
             self.timeout = DEFAULT_OLLAMA_TIMEOUT
+
+        self.connect_timeout = float(connect_timeout or os.environ.get("OLLAMA_CONNECT_TIMEOUT", DEFAULT_OLLAMA_CONNECT_TIMEOUT))
+        self.text_timeout = float(text_timeout or os.environ.get("OLLAMA_TEXT_TIMEOUT", DEFAULT_OLLAMA_TEXT_TIMEOUT))
+        self.last_inference_time: Optional[str] = None
+        self.last_error: Optional[str] = None
+        self._current_state: str = AiServiceState.READY
+
+    def get_health(self) -> dict[str, Any]:
+        """Perform non-destructive AI operational readiness check."""
+        if not self.base_url:
+            return {
+                "status": AiServiceState.NOT_CONFIGURED,
+                "available": False,
+                "ollama_reachable": False,
+                "ollama_url": "",
+                "configured_model": self.model_name,
+                "installed_models": [],
+                "model_installed": False,
+                "vision_supported": False,
+                "last_inference_time": self.last_inference_time,
+                "last_error": "Ollama base URL is not configured.",
+                "message": "Ollama base URL is not configured.",
+            }
+
+        try:
+            req = urllib.request.Request(f"{self.base_url}/api/tags")
+            with urllib.request.urlopen(req, timeout=self.connect_timeout) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            installed = [m.get("name", "") for m in data.get("models", [])]
+            has_model = any(self.model_name == m or m.startswith(self.model_name) for m in installed)
+
+            if not has_model:
+                return {
+                    "status": AiServiceState.MODEL_NOT_INSTALLED,
+                    "available": False,
+                    "ollama_reachable": True,
+                    "ollama_url": self.base_url,
+                    "configured_model": self.model_name,
+                    "installed_models": installed,
+                    "model_installed": False,
+                    "vision_supported": False,
+                    "last_inference_time": self.last_inference_time,
+                    "last_error": f"Model '{self.model_name}' is not installed in Ollama.",
+                    "message": f"Ollama is running, but model '{self.model_name}' is not installed. Run: ollama pull {self.model_name}",
+                }
+
+            # Check if model is actively loading via /api/ps
+            is_loading = False
+            try:
+                ps_req = urllib.request.Request(f"{self.base_url}/api/ps")
+                with urllib.request.urlopen(ps_req, timeout=self.connect_timeout) as ps_resp:
+                    ps_data = json.loads(ps_resp.read().decode("utf-8"))
+                    for m in ps_data.get("models", []):
+                        if (self.model_name == m.get("name") or m.get("name", "").startswith(self.model_name)) and m.get("status") == "loading":
+                            is_loading = True
+            except Exception:
+                pass
+
+            if is_loading:
+                return {
+                    "status": AiServiceState.MODEL_LOADING,
+                    "available": False,
+                    "ollama_reachable": True,
+                    "ollama_url": self.base_url,
+                    "configured_model": self.model_name,
+                    "installed_models": installed,
+                    "model_installed": True,
+                    "vision_supported": True,
+                    "last_inference_time": self.last_inference_time,
+                    "last_error": None,
+                    "message": f"Model '{self.model_name}' is currently loading into memory.",
+                }
+
+            # Vision support check: qwen3.5:4b, qwen3-vl, qwen2.5vl are known vision architectures
+            vision_ok = any(v in self.model_name.lower() for v in ["3.5", "vl", "vision"])
+
+            return {
+                "status": AiServiceState.READY,
+                "available": True,
+                "ollama_reachable": True,
+                "ollama_url": self.base_url,
+                "configured_model": self.model_name,
+                "installed_models": installed,
+                "model_installed": True,
+                "vision_supported": vision_ok,
+                "last_inference_time": self.last_inference_time,
+                "last_error": None,
+                "message": f"Qwen Vision secondary review is ready with model '{self.model_name}'.",
+            }
+        except urllib.error.URLError as url_err:
+            return {
+                "status": AiServiceState.OLLAMA_UNREACHABLE,
+                "available": False,
+                "ollama_reachable": False,
+                "ollama_url": self.base_url,
+                "configured_model": self.model_name,
+                "installed_models": [],
+                "model_installed": False,
+                "vision_supported": False,
+                "last_inference_time": self.last_inference_time,
+                "last_error": str(url_err.reason),
+                "message": f"Cannot connect to Ollama at {self.base_url}. Ensure the Ollama service is running.",
+            }
+        except Exception as err:
+            return {
+                "status": AiServiceState.INFERENCE_FAILED,
+                "available": False,
+                "ollama_reachable": False,
+                "ollama_url": self.base_url,
+                "configured_model": self.model_name,
+                "installed_models": [],
+                "model_installed": False,
+                "vision_supported": False,
+                "last_inference_time": self.last_inference_time,
+                "last_error": str(err),
+                "message": f"AI diagnostic check failed: {err}",
+            }
+
+    def verify_text(self, prompt: str, system_prompt: Optional[str] = None) -> dict[str, Any]:
+        """Execute text-only inference with Qwen via Ollama."""
+        sys_msg = system_prompt or (
+            "You are a pharmaceutical packaging and screening assistant. "
+            "Provide concise, evidence-grounded responses based strictly on provided facts."
+        )
+        payload = {
+            "model": self.model_name,
+            "messages": [
+                {"role": "system", "content": sys_msg},
+                {"role": "user", "content": prompt},
+            ],
+            "stream": False,
+            "options": {"temperature": 0.1, "num_predict": 512},
+        }
+        try:
+            req = urllib.request.Request(
+                f"{self.base_url}/api/chat",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=self.text_timeout) as resp:
+                response_data = json.loads(resp.read().decode("utf-8"))
+            message = response_data.get("message") or {}
+            content = str(message.get("content") or "").strip()
+            from datetime import datetime, timezone
+            self.last_inference_time = datetime.now(timezone.utc).isoformat()
+            self._current_state = AiServiceState.READY
+            return {
+                "available": True,
+                "status": "AVAILABLE",
+                "ai_state": AiServiceState.READY,
+                "content": content,
+                "model_name": self.model_name,
+                "error": None,
+            }
+        except urllib.error.URLError as err:
+            self._current_state = AiServiceState.OLLAMA_UNREACHABLE
+            self.last_error = str(err.reason)
+            return {
+                "available": False,
+                "status": "UNAVAILABLE",
+                "ai_state": AiServiceState.OLLAMA_UNREACHABLE,
+                "content": "",
+                "model_name": self.model_name,
+                "error": f"Cannot connect to Ollama: {err.reason}",
+            }
+        except (TimeoutError, OSError) as err:
+            self._current_state = AiServiceState.INFERENCE_TIMED_OUT
+            self.last_error = f"Timed out after {self.text_timeout}s"
+            return {
+                "available": False,
+                "status": "UNAVAILABLE",
+                "ai_state": AiServiceState.INFERENCE_TIMED_OUT,
+                "content": "",
+                "model_name": self.model_name,
+                "error": f"Text inference timed out after {self.text_timeout}s: {err}",
+            }
+        except Exception as err:
+            self._current_state = AiServiceState.INFERENCE_FAILED
+            self.last_error = str(err)
+            return {
+                "available": False,
+                "status": "UNAVAILABLE",
+                "ai_state": AiServiceState.INFERENCE_FAILED,
+                "content": "",
+                "model_name": self.model_name,
+                "error": f"Text inference failed: {err}",
+            }
 
     def _encode_image_b64(self, image_input: Union[str, Path, Image.Image, bytes, bytearray]) -> str:
         """Encode image to base64 JPEG string, resizing if larger than _MAX_IMAGE_DIMENSION."""
@@ -319,11 +518,20 @@ class QwenVisionVerifier:
         rgb_img.save(buf, format="JPEG", quality=88)
         return base64.b64encode(buf.getvalue()).decode("utf-8")
 
-    def _make_unavailable_response(self, reason: str, raw_text: str = "") -> dict[str, Any]:
+    def _make_unavailable_response(
+        self,
+        reason: str,
+        raw_text: str = "",
+        error_code: str = AiServiceState.INFERENCE_FAILED,
+    ) -> dict[str, Any]:
         """Construct a standardized unavailable secondary AI payload."""
+        self.last_error = reason
+        self._current_state = error_code
         return {
             "available": False,
             "status": "UNAVAILABLE",
+            "ai_state": error_code,
+            "error_code": error_code,
             "assessment": "UNCERTAIN",
             "confidence": "LOW",
             "image_quality": "POOR",
@@ -352,31 +560,33 @@ class QwenVisionVerifier:
         Accepts a file path (str or Path), a PIL Image, or raw image bytes.
         Returns structured verification results or a safe fallback if unavailable.
         """
+        self._current_state = AiServiceState.INFERENCE_IN_PROGRESS
+
         # Validate image input
         if isinstance(image_input, (str, Path)):
             path = Path(image_input)
             if not path.is_file():
-                return self._make_unavailable_response(f"Image file not found: {path}")
+                return self._make_unavailable_response(f"Image file not found: {path}", error_code=AiServiceState.INFERENCE_FAILED)
             try:
                 with Image.open(path) as test_img:
                     test_img.verify()
             except Exception as img_err:
-                return self._make_unavailable_response(f"Invalid or unreadable image file: {img_err}")
+                return self._make_unavailable_response(f"Invalid or unreadable image file: {img_err}", error_code=AiServiceState.INFERENCE_FAILED)
         elif isinstance(image_input, (bytes, bytearray)):
             try:
                 with Image.open(io.BytesIO(image_input)) as test_img:
                     test_img.verify()
             except Exception as img_err:
-                return self._make_unavailable_response(f"Invalid or unreadable image bytes: {img_err}")
+                return self._make_unavailable_response(f"Invalid or unreadable image bytes: {img_err}", error_code=AiServiceState.INFERENCE_FAILED)
         elif isinstance(image_input, Image.Image):
             pass
         else:
-            return self._make_unavailable_response(f"Unsupported image input type: {type(image_input).__name__}")
+            return self._make_unavailable_response(f"Unsupported image input type: {type(image_input).__name__}", error_code=AiServiceState.INFERENCE_FAILED)
 
         try:
             b64_img = self._encode_image_b64(image_input)
         except Exception as enc_err:
-            return self._make_unavailable_response(f"Failed to encode image: {enc_err}")
+            return self._make_unavailable_response(f"Failed to encode image: {enc_err}", error_code=AiServiceState.INFERENCE_FAILED)
 
         # Use Ollama's schema-constrained chat API. The qwen3-vl renderer in
         # some Ollama versions can spend its full token budget in `thinking`
@@ -417,41 +627,55 @@ class QwenVisionVerifier:
                 if message.get("thinking"):
                     return self._make_unavailable_response(
                         f"Model '{self.model_name}' returned reasoning but no structured answer. "
-                        "Use a Qwen vision model that supports schema-constrained output."
+                        "Use a Qwen vision model that supports schema-constrained output.",
+                        error_code=AiServiceState.INFERENCE_FAILED,
                     )
                 return self._make_unavailable_response(
-                    f"Model '{self.model_name}' returned an empty response."
+                    f"Model '{self.model_name}' returned an empty response.",
+                    error_code=AiServiceState.INFERENCE_FAILED,
                 )
             decoded = json.loads(raw_text)
             if not isinstance(decoded, dict) or decoded.get("assessment") not in {
                 "AUTHENTIC", "COUNTERFEIT", "UNCERTAIN"
             }:
                 return self._make_unavailable_response(
-                    f"Model '{self.model_name}' returned malformed structured output."
+                    f"Model '{self.model_name}' returned malformed structured output.",
+                    error_code=AiServiceState.INFERENCE_FAILED,
                 )
         except urllib.error.HTTPError as http_err:
             error_body = http_err.read().decode("utf-8", errors="replace")
             if http_err.code == 404:
                 reason = f"Model '{self.model_name}' is not installed in Ollama. Run: ollama pull {self.model_name}"
+                err_code = AiServiceState.MODEL_NOT_INSTALLED
             else:
                 reason = f"Ollama HTTP error {http_err.code}: {error_body[:500]}"
-            return self._make_unavailable_response(reason)
+                err_code = AiServiceState.INFERENCE_FAILED
+            return self._make_unavailable_response(reason, error_code=err_code)
         except urllib.error.URLError as url_err:
             return self._make_unavailable_response(
-                f"Cannot connect to Ollama at {self.base_url}: {url_err.reason}"
+                f"Cannot connect to Ollama at {self.base_url}: {url_err.reason}",
+                error_code=AiServiceState.OLLAMA_UNREACHABLE,
             )
         except (TimeoutError, OSError) as timeout_err:
             return self._make_unavailable_response(
-                f"Vision verification timed out after {self.timeout}s: {timeout_err}"
+                f"Vision verification timed out after {self.timeout}s: {timeout_err}",
+                error_code=AiServiceState.INFERENCE_TIMED_OUT,
             )
         except (json.JSONDecodeError, TypeError, ValueError) as parse_err:
             return self._make_unavailable_response(
-                f"Qwen returned invalid structured output: {parse_err}"
+                f"Qwen returned invalid structured output: {parse_err}",
+                error_code=AiServiceState.INFERENCE_FAILED,
             )
         except Exception as request_err:
             return self._make_unavailable_response(
-                f"Qwen vision request failed: {request_err}"
+                f"Qwen vision request failed: {request_err}",
+                error_code=AiServiceState.INFERENCE_FAILED,
             )
+
+        from datetime import datetime, timezone
+        self.last_inference_time = datetime.now(timezone.utc).isoformat()
+        self.last_error = None
+        self._current_state = AiServiceState.READY
 
         parsed = parse_qwen_vision_output(raw_text)
         reasoning_list = []
@@ -464,6 +688,7 @@ class QwenVisionVerifier:
         return {
             "available": True,
             "status": "AVAILABLE",
+            "ai_state": AiServiceState.READY,
             "assessment": parsed["assessment"],
             "confidence": parsed["confidence"],
             "image_quality": parsed["image_quality"],

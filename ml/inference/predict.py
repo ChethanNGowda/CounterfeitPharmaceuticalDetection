@@ -218,11 +218,13 @@ def predict_pipeline(
             "Must be 'auto', 'always', or 'never'."
         )
 
-    # Reject photos where the visual preflight cannot isolate a tablet-shaped
-    # foreground object. This is a conservative upload guard, not an
-    # authenticity decision; low-quality photos continue through the existing
-    # quality-review flow below.
+    # Inspect visual features (contour, shape, packaging visibility).
+    # If the visual analysis cannot isolate a distinct foreground object, we
+    # do NOT reject early or abort the pipeline; instead, we proceed through
+    # classification, attach the analysis, and flag needs_human_verification
+    # with an advisory warning.
     visual_analysis = None
+    uncertain_object = False
     if quality_check:
         preflight_quality = check_image_quality(image_input)
         if preflight_quality.is_valid:
@@ -233,27 +235,11 @@ def predict_pipeline(
             except Exception:
                 visual_analysis = None
             shape = (visual_analysis or {}).get("shape", {})
-            if shape.get("object_detected") == "Uncertain / Background dominant":
-                prompt = "Please upload a clear photo of a medicine tablet."
-                return {
-                    "image_path": str(image_input) if isinstance(image_input, (str, Path)) else "in_memory",
-                    "prediction": "UNKNOWN", "predicted_class": "UNKNOWN",
-                    "authentic_probability": 0.0, "counterfeit_probability": 0.0,
-                    "confidence": 0.0, "status": "NEEDS MANUAL REVIEW",
-                    "reason": prompt, "probabilities": {"authentic": 0.0, "counterfeit": 0.0},
-                    "model_name": normalize_model_name(str(model if isinstance(model, str) else getattr(model, "model_name", DEFAULT_MODEL))),
-                    "threshold": threshold, "quality": preflight_quality.to_dict(),
-                    "needs_human_verification": True, "final_result": "SUSPICIOUS / NEEDS VERIFICATION",
-                    "final_status": "NEEDS MANUAL REVIEW", "warning": prompt,
-                    "primary_prediction": "UNKNOWN", "primary_confidence": 0.0,
-                    "primary_model": normalize_model_name(str(model if isinstance(model, str) else getattr(model, "model_name", DEFAULT_MODEL))),
-                    "qwen": {"available": False, "status": "SKIPPED", "assessment": "SKIPPED", "confidence": 0.0, "reasoning": [], "needs_human_verification": False, "warning": prompt, "image_quality": "GOOD", "recommendation": "UPLOAD MEDICINE TABLET", "model_name": None, "raw_text": None},
-                    "secondary_executed": False, "secondary_available": False,
-                    "secondary_assessment": "SKIPPED", "secondary_reason": "Skipped: upload did not appear to contain an isolated tablet.",
-                    "vision_mode": norm_vision_mode, "disagreement": False,
-                    "reasons": [prompt], "disclaimer": "Upload a medicine tablet image to begin screening.",
-                    "visual_analysis": visual_analysis,
-                }
+            packaging = (visual_analysis or {}).get("packaging", {})
+            has_packaging = packaging.get("status") == "VISIBLE / DETECTED"
+            is_uncertain_shape = shape.get("object_detected") == "Uncertain / Background dominant"
+            if is_uncertain_shape and not has_packaging:
+                uncertain_object = True
 
     # 1. Primary classifier and image-quality gate.
     primary_res = predict(
@@ -403,6 +389,19 @@ def predict_pipeline(
             "visual_analysis": visual_analysis,
         }
     )
+
+    # If object contours were uncertain, ensure human verification is requested
+    # and an informative warning is included.
+    if uncertain_object and quality_is_valid:
+        current_warning = result.get("warning") or ""
+        shape_notice = "Visual preflight: isolated tablet shape could not be clearly distinguished. Physical verification recommended."
+        new_warning = f"{current_warning} {shape_notice}".strip() if current_warning else shape_notice
+        result["warning"] = new_warning
+        result["needs_human_verification"] = True
+        reasons = list(result.get("reasons") or [])
+        if shape_notice not in reasons:
+            reasons.append(shape_notice)
+        result["reasons"] = reasons
 
     # Final safety normalization: if quality screening failed, no model label
     # may be exposed as the screening prediction, regardless of what the

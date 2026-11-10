@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:pharma_assist/core/constants.dart';
 import 'package:pharma_assist/models/scan_history_item.dart';
@@ -58,14 +59,32 @@ class SyncService {
   }) : credentials = credentials ?? CredentialService(),
        client = client ?? http.Client();
 
-  static bool isSecureEndpoint(String value) {
+  static bool _isRfc1918(String host) {
+    if (host.startsWith('10.')) return true;
+    if (host.startsWith('192.168.')) return true;
+    final parts = host.split('.');
+    if (parts.length == 4 && parts[0] == '172') {
+      final second = int.tryParse(parts[1]) ?? 0;
+      if (second >= 16 && second <= 31) return true;
+    }
+    return false;
+  }
+
+  static bool isSecureEndpoint(String value, {bool? allowDevLan}) {
     final uri = Uri.tryParse(StorageService.normalizeUrl(value));
     if (uri == null || uri.host.isEmpty) return false;
     if (uri.scheme == 'https') return true;
-    return uri.scheme == 'http' &&
-        (uri.host == '127.0.0.1' ||
-            uri.host == 'localhost' ||
-            uri.host == '10.0.2.2');
+    if (uri.scheme == 'http') {
+      final host = uri.host;
+      if (host == '127.0.0.1' || host == 'localhost' || host == '10.0.2.2') {
+        return true;
+      }
+      final permitDevLan = allowDevLan ?? kDebugMode;
+      if (permitDevLan && _isRfc1918(host)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   Map<String, dynamic> buildPayload(ScanHistoryItem item) => {

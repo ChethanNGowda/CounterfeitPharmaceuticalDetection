@@ -10,7 +10,13 @@ from PIL import Image
 
 from ml.config import CHECKPOINT_REGISTRY, DEFAULT_CONFIDENCE_THRESHOLD, DEFAULT_MODEL, SUPPORTED_MODELS
 from ml.models.transfer_learning import CheckpointUnavailableError, get_model_status, normalize_model_name
-from backend.app.schemas.predict import ModelsListResponse, ModelStatusItem, PredictionResponse, QwenHealthResponse
+from backend.app.schemas.predict import (
+    AiHealthResponse,
+    ModelsListResponse,
+    ModelStatusItem,
+    PredictionResponse,
+    QwenHealthResponse,
+)
 from backend.app.services.classifier import ClassifierService
 
 router = APIRouter()
@@ -203,63 +209,32 @@ async def predict_pharmaceutical(
     )
 
 
+@router.get("/ai/health", response_model=AiHealthResponse, tags=["Health"])
+def ai_health():
+    """Structured AI secondary review readiness and lifecycle status."""
+    service = ClassifierService.get_instance()
+    health_data = service.vision_verifier.get_health()
+    return AiHealthResponse(**health_data)
+
+
 @router.get("/health/qwen", response_model=QwenHealthResponse, tags=["Health"])
 @router.get("/diagnostics/qwen", response_model=QwenHealthResponse, tags=["Health"])
 def qwen_diagnostics():
     """Live diagnostic check for local Ollama and Qwen Vision model."""
-    import json
-    import urllib.error
-    import urllib.request
-
     service = ClassifierService.get_instance()
-    verifier = service.vision_verifier
-    base_url = verifier.base_url
-    model_name = verifier.model_name
-
-    try:
-        req = urllib.request.Request(f"{base_url}/api/tags")
-        with urllib.request.urlopen(req, timeout=4) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-        models = [m.get("name", "") for m in data.get("models", [])]
-
-        has_model = any(model_name == m or m.startswith(model_name) for m in models)
-        if has_model:
-            return QwenHealthResponse(
-                status="READY",
-                available=True,
-                model_name=model_name,
-                base_url=base_url,
-                installed_models=models,
-                message=f"Qwen Vision model '{model_name}' is installed and responsive.",
-            )
-        else:
-            return QwenHealthResponse(
-                status="MODEL_NOT_INSTALLED",
-                available=False,
-                model_name=model_name,
-                base_url=base_url,
-                installed_models=models,
-                message=f"Ollama is running, but model '{model_name}' is not installed. Run 'ollama pull {model_name}'.",
-            )
-    except urllib.error.URLError:
-        return QwenHealthResponse(
-            status="OLLAMA_UNREACHABLE",
-            available=False,
-            model_name=model_name,
-            base_url=base_url,
-            installed_models=[],
-            message=f"Cannot connect to Ollama at {base_url}. Ensure the Ollama service is running.",
-        )
-    except Exception:
-        logger.exception("Qwen diagnostic failed")
-        return QwenHealthResponse(
-            status="ERROR",
-            available=False,
-            model_name=model_name,
-            base_url=base_url,
-            installed_models=[],
-            message="Qwen diagnostic failed. Check the backend logs for details.",
-        )
+    health_data = service.vision_verifier.get_health()
+    return QwenHealthResponse(
+        status=health_data["status"],
+        available=health_data["available"],
+        model_name=health_data["configured_model"],
+        base_url=health_data["ollama_url"],
+        installed_models=health_data["installed_models"],
+        model_installed=health_data["model_installed"],
+        vision_supported=health_data["vision_supported"],
+        last_inference_time=health_data.get("last_inference_time"),
+        last_error=health_data.get("last_error"),
+        message=health_data["message"],
+    )
 
 
 @router.get("/models", response_model=ModelsListResponse, tags=["Information"])

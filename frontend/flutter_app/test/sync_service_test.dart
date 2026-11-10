@@ -62,11 +62,21 @@ void main() {
     expect(payload.containsKey('image_base64'), isFalse);
   });
 
-  test('HTTPS is required except for local development hosts', () {
+  test('HTTPS is required except for local and dev LAN development hosts', () {
     expect(SyncService.isSecureEndpoint('https://api.example.test'), isTrue);
     expect(SyncService.isSecureEndpoint('http://127.0.0.1:8000'), isTrue);
+    expect(SyncService.isSecureEndpoint('http://localhost:8000'), isTrue);
     expect(SyncService.isSecureEndpoint('http://10.0.2.2:8000'), isTrue);
-    expect(SyncService.isSecureEndpoint('http://192.168.1.10:8000'), isFalse);
+    // Dev LAN allowed when allowDevLan is true or in kDebugMode (unit tests run in debug mode)
+    expect(SyncService.isSecureEndpoint('http://192.168.1.10:8000', allowDevLan: true), isTrue);
+    expect(SyncService.isSecureEndpoint('http://10.86.164.167:8000', allowDevLan: true), isTrue);
+    expect(SyncService.isSecureEndpoint('http://172.16.0.1:8000', allowDevLan: true), isTrue);
+    expect(SyncService.isSecureEndpoint('http://172.31.255.255:8000', allowDevLan: true), isTrue);
+    // Disallowed in release/production (allowDevLan: false)
+    expect(SyncService.isSecureEndpoint('http://192.168.1.10:8000', allowDevLan: false), isFalse);
+    // Non-RFC1918 public IP rejected even with allowDevLan: true
+    expect(SyncService.isSecureEndpoint('http://8.8.8.8:8000', allowDevLan: true), isFalse);
+    expect(SyncService.isSecureEndpoint('http://172.32.0.1:8000', allowDevLan: true), isFalse);
   });
 
   test('authenticated sync maps successful and duplicate responses', () async {

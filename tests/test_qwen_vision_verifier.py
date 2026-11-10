@@ -323,7 +323,7 @@ def test_qwen_vision_request_uses_structured_output_and_ignores_thinking(monkeyp
     assert result["needs_human_verification"] is True
     assert captured["payload"]["format"]["type"] == "object"
     assert captured["payload"]["think"] is False
-    assert captured["timeout"] == 180.0
+    assert captured["timeout"] == 120.0  # Updated: DEFAULT_OLLAMA_TIMEOUT reduced from 180s to 120s
 
 
 def test_qwen_reasoning_without_answer_is_unavailable_not_a_prediction(monkeypatch):
@@ -374,4 +374,150 @@ def test_legacy_ollama_config_prefers_discovered_vision_model_and_safe_timeout(m
     verifier = QwenVisionVerifier()
 
     assert verifier.model_name == "qwen3.5:4b"
-    assert verifier.timeout == 180.0
+    # OLLAMA_TIMEOUT=12.0 is at the minimum safe floor: max(12.0, 12.0) == 12.0
+    assert verifier.timeout == 12.0
+
+
+def test_ai_health_state_machine_states():
+    """Verify AiServiceState constants."""
+    from ml.verification.qwen_verifier import AiServiceState
+
+    assert AiServiceState.NOT_CONFIGURED == "NOT_CONFIGURED"
+    assert AiServiceState.OLLAMA_UNREACHABLE == "OLLAMA_UNREACHABLE"
+    assert AiServiceState.MODEL_NOT_INSTALLED == "MODEL_NOT_INSTALLED"
+    assert AiServiceState.MODEL_LOADING == "MODEL_LOADING"
+    assert AiServiceState.READY == "READY"
+    assert AiServiceState.INFERENCE_IN_PROGRESS == "INFERENCE_IN_PROGRESS"
+    assert AiServiceState.INFERENCE_TIMED_OUT == "INFERENCE_TIMED_OUT"
+    assert AiServiceState.INFERENCE_FAILED == "INFERENCE_FAILED"
+
+
+def test_get_health_ollama_unreachable(monkeypatch):
+    """When Ollama cannot be reached, status must be OLLAMA_UNREACHABLE."""
+    import urllib.error
+    from ml.verification.qwen_verifier import AiServiceState
+
+    def fake_urlopen(*args, **kwargs):
+        raise urllib.error.URLError("Connection refused")
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+
+    verifier = QwenVisionVerifier(base_url="http://127.0.0.1:11434", model_name="qwen3.5:4b")
+    health = verifier.get_health()
+
+    assert health["status"] == AiServiceState.OLLAMA_UNREACHABLE
+    assert health["available"] is False
+    assert health["ollama_reachable"] is False
+    assert "Connection refused" in health["last_error"]
+
+
+def test_get_health_model_not_installed(monkeypatch):
+    """When Ollama is up but the configured model is missing."""
+    import json
+    from ml.verification.qwen_verifier import AiServiceState
+
+    class FakeResp:
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self):
+            return json.dumps({"models": [{"name": "nomic-embed-text:latest"}]}).encode()
+
+    monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: FakeResp())
+
+    verifier = QwenVisionVerifier(base_url="http://127.0.0.1:11434", model_name="qwen3.5:4b")
+    health = verifier.get_health()
+
+    assert health["status"] == AiServiceState.MODEL_NOT_INSTALLED
+    assert health["available"] is False
+    assert health["ollama_reachable"] is True
+    assert health["model_installed"] is False
+
+
+def test_get_health_ready(monkeypatch):
+    """When Ollama is up and model is installed."""
+    import json
+    from ml.verification.qwen_verifier import AiServiceState
+
+    class FakeResp:
+        def __init__(self, data):
+            self.data = data
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self):
+            return json.dumps(self.data).encode()
+
+    def fake_urlopen(req, *args, **kwargs):
+        url = getattr(req, "full_url", str(req))
+        if "api/ps" in url:
+            return FakeResp({"models": []})
+        return FakeResp({"models": [{"name": "qwen3.5:4b"}]})
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+
+    verifier = QwenVisionVerifier(base_url="http://127.0.0.1:11434", model_name="qwen3.5:4b")
+    health = verifier.get_health()
+
+    assert health["status"] == AiServiceState.READY
+    assert health["available"] is True
+    assert health["ollama_reachable"] is True
+    assert health["model_installed"] is True
+    assert health["vision_supported"] is True
+
+
+def test_verify_image_timeout_maps_to_timed_out_state(monkeypatch):
+    """verify_image timeouts must update state to INFERENCE_TIMED_OUT."""
+    from PIL import Image
+    import io
+    from ml.verification.qwen_verifier import AiServiceState
+
+    def fake_urlopen(*args, **kwargs):
+        raise TimeoutError("Socket timed out")
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    img = Image.new("RGB", (32, 32), "blue")
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+
+    verifier = QwenVisionVerifier(model_name="qwen3.5:4b", timeout=5.0)
+    res = verifier.verify_image(buf.getvalue())
+
+    assert res["available"] is False
+    assert res["ai_state"] == AiServiceState.INFERENCE_TIMED_OUT
+    assert "timed out" in res["reason"].lower()
+
+
+def test_verify_text_success_and_timeout(monkeypatch):
+    """verify_text returns text on success and handles timeouts cleanly."""
+    import json
+    from ml.verification.qwen_verifier import AiServiceState
+
+    class FakeChatResp:
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self):
+            return json.dumps({
+                "message": {"content": "Tablet shows debossed imprint 500."}
+            }).encode()
+
+    monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: FakeChatResp())
+
+    verifier = QwenVisionVerifier(model_name="qwen3.5:4b")
+    res = verifier.verify_text("Describe the tablet")
+    assert res["available"] is True
+    assert "debossed imprint 500" in res["content"]
+    assert res["ai_state"] == AiServiceState.READY
+
+    # Test timeout
+    def fake_timeout(*args, **kwargs):
+        raise TimeoutError("Text timeout")
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_timeout)
+    t_res = verifier.verify_text("Describe")
+    assert t_res["available"] is False
+    assert t_res["ai_state"] == AiServiceState.INFERENCE_TIMED_OUT

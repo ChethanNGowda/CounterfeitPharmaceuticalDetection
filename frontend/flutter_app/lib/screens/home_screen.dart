@@ -15,6 +15,7 @@ class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToScan;
   final VoidCallback? onChooseGallery;
   final VoidCallback? onNavigateToSettings;
+  final VoidCallback? onNavigateToReports;
 
   const HomeScreen({
     super.key,
@@ -23,6 +24,7 @@ class HomeScreen extends StatefulWidget {
     this.onNavigateToScan,
     this.onChooseGallery,
     this.onNavigateToSettings,
+    this.onNavigateToReports,
   });
 
   @override
@@ -189,30 +191,49 @@ class HomeScreenState extends State<HomeScreen> {
   Widget _buildSummaryStats() {
     final history = widget.storage.getScanHistory();
     final authentic = history.where((item) => item.isLikelyAuthentic).length;
-    final review = history
+    final counterfeit = history
+        .where((item) => item.isLikelyCounterfeit)
+        .length;
+    final attention = history
         .where((item) => item.isSuspicious || item.needsHumanVerification)
         .length;
-    return Row(
+
+    return Column(
       children: [
-        _statCard(
-          'Screenings',
-          history.length.toString(),
-          Icons.fact_check_outlined,
-          AppTheme.primaryCyan,
+        Row(
+          children: [
+            _statCard(
+              'Total Screenings',
+              history.length.toString(),
+              Icons.fact_check_outlined,
+              AppTheme.primaryCyan,
+            ),
+            const SizedBox(width: 8),
+            _statCard(
+              'Likely Authentic',
+              authentic.toString(),
+              Icons.verified_outlined,
+              AppTheme.success,
+            ),
+          ],
         ),
-        const SizedBox(width: 8),
-        _statCard(
-          'Likely authentic',
-          authentic.toString(),
-          Icons.verified_outlined,
-          AppTheme.success,
-        ),
-        const SizedBox(width: 8),
-        _statCard(
-          'Flagged',
-          review.toString(),
-          Icons.priority_high_rounded,
-          AppTheme.warning,
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            _statCard(
+              'Likely Counterfeit',
+              counterfeit.toString(),
+              Icons.gpp_bad_outlined,
+              AppTheme.error,
+            ),
+            const SizedBox(width: 8),
+            _statCard(
+              'Needs Review',
+              attention.toString(),
+              Icons.priority_high_rounded,
+              AppTheme.warning,
+            ),
+          ],
         ),
       ],
     );

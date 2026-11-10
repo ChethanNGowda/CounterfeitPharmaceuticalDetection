@@ -4,8 +4,8 @@ import 'package:pharma_assist/core/theme.dart';
 import 'package:pharma_assist/screens/history_screen.dart';
 import 'package:pharma_assist/screens/home_screen.dart';
 import 'package:pharma_assist/screens/more_hub_screen.dart';
+import 'package:pharma_assist/screens/reports_screen.dart';
 import 'package:pharma_assist/screens/scan_screen.dart';
-import 'package:pharma_assist/screens/settings_screen.dart';
 import 'package:pharma_assist/services/api_service.dart';
 import 'package:pharma_assist/services/storage_service.dart';
 
@@ -99,6 +99,8 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
   final GlobalKey<HistoryScreenState> _historyKey =
       GlobalKey<HistoryScreenState>();
   final GlobalKey<ScanScreenState> _scanKey = GlobalKey<ScanScreenState>();
+  final GlobalKey<ReportsScreenState> _reportsKey =
+      GlobalKey<ReportsScreenState>();
 
   late final List<Widget> _screens;
 
@@ -113,6 +115,7 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
         onNavigateToScan: () => _onTabTapped(1),
         onChooseGallery: _chooseGalleryFromHome,
         onNavigateToSettings: () => _onTabTapped(4),
+        onNavigateToReports: () => _onTabTapped(3),
       ),
       ScanScreen(
         key: _scanKey,
@@ -121,14 +124,11 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
         onScanComplete: () {
           _homeKey.currentState?.refreshData();
           _historyKey.currentState?.loadHistory();
+          _reportsKey.currentState?.loadReports();
         },
       ),
       HistoryScreen(key: _historyKey, storage: widget.storage),
-      SettingsScreen(
-        storage: widget.storage,
-        apiService: widget.apiService,
-        onThemeChanged: widget.onThemeChanged,
-      ),
+      ReportsScreen(key: _reportsKey, storage: widget.storage),
       MoreHubScreen(
         storage: widget.storage,
         apiService: widget.apiService,
@@ -142,6 +142,8 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
       _homeKey.currentState?.refreshData();
     } else if (index == 2) {
       _historyKey.currentState?.loadHistory();
+    } else if (index == 3) {
+      _reportsKey.currentState?.loadReports();
     }
     setState(() => _currentIndex = index);
   }
@@ -192,9 +194,9 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
           label: 'History',
         ),
         NavigationDestination(
-          icon: Icon(Icons.tune_outlined),
-          selectedIcon: Icon(Icons.tune),
-          label: 'Settings',
+          icon: Icon(Icons.assignment_outlined),
+          selectedIcon: Icon(Icons.assignment),
+          label: 'Reports',
         ),
         NavigationDestination(
           icon: Icon(Icons.grid_view_outlined),

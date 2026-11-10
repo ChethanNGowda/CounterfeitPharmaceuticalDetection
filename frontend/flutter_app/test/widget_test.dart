@@ -11,6 +11,7 @@ import 'package:pharma_assist/models/scan_history_item.dart';
 import 'package:pharma_assist/screens/history_screen.dart';
 import 'package:pharma_assist/screens/home_screen.dart';
 import 'package:pharma_assist/screens/model_lab_screen.dart';
+import 'package:pharma_assist/screens/reports_screen.dart';
 import 'package:pharma_assist/screens/results_screen.dart';
 import 'package:pharma_assist/screens/scan_screen.dart';
 import 'package:pharma_assist/screens/settings_screen.dart';
@@ -1215,8 +1216,8 @@ void main() {
                   label: 'History',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.tune),
-                  label: 'Settings',
+                  icon: Icon(Icons.assignment),
+                  label: 'Reports',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.grid_view_rounded),
@@ -1231,9 +1232,106 @@ void main() {
       expect(find.text('Home'), findsOneWidget);
       expect(find.text('Scan'), findsOneWidget);
       expect(find.text('History'), findsOneWidget);
-      expect(find.text('Settings'), findsOneWidget);
+      expect(find.text('Reports'), findsOneWidget);
       expect(find.text('More'), findsOneWidget);
     });
+
+    testWidgets(
+      'ReportsScreen displays empty state when no inspections recorded',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        StorageService.resetForTesting();
+        final storage = await StorageService.getInstance();
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            home: ReportsScreen(storage: storage),
+          ),
+        );
+
+        expect(find.text('Inspection Reports'), findsOneWidget);
+        expect(find.text('No Inspection Reports'), findsOneWidget);
+        expect(find.byType(TextField), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'ReportsScreen renders populated inspection reports and filters by verdict',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        StorageService.resetForTesting();
+        final storage = await StorageService.getInstance();
+
+        final authItem = ScanHistoryItem.fromPrediction(
+          PredictionResponse.fromJson(_authenticJson()),
+          sampleId: 'SMP-REP-01',
+          medicineName: 'Amoxicillin 500mg',
+        );
+        final fakeItem = ScanHistoryItem.fromPrediction(
+          PredictionResponse.fromJson(_counterfeitJson()),
+          sampleId: 'SMP-REP-02',
+          medicineName: 'Paracetamol 650mg',
+        );
+
+        await storage.addScanHistoryItem(authItem);
+        await storage.addScanHistoryItem(fakeItem);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            home: ReportsScreen(storage: storage),
+          ),
+        );
+
+        expect(find.text('Amoxicillin 500mg'), findsOneWidget);
+        expect(find.text('Paracetamol 650mg'), findsOneWidget);
+
+        // Tap Authentic filter chip
+        await tester.tap(find.text('Authentic (1)'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Amoxicillin 500mg'), findsOneWidget);
+        expect(find.text('Paracetamol 650mg'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'HomeScreen summary stats correctly aggregate authentic and review counts',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        StorageService.resetForTesting();
+        final storage = await StorageService.getInstance();
+        final apiService = ApiService(storage);
+
+        final authItem = ScanHistoryItem.fromPrediction(
+          PredictionResponse.fromJson(_authenticJson()),
+          sampleId: 'SMP-STAT-01',
+        );
+        final fakeItem = ScanHistoryItem.fromPrediction(
+          PredictionResponse.fromJson(_counterfeitJson()),
+          sampleId: 'SMP-STAT-02',
+        );
+
+        await storage.addScanHistoryItem(authItem);
+        await storage.addScanHistoryItem(fakeItem);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            home: HomeScreen(storage: storage, apiService: apiService),
+          ),
+        );
+
+        expect(find.text('Total Screenings'), findsOneWidget);
+        expect(find.text('Likely Authentic'), findsOneWidget);
+        expect(find.text('Likely Counterfeit'), findsOneWidget);
+        expect(find.text('Needs Review'), findsOneWidget);
+      },
+    );
 
     testWidgets(
       'PharmaThemeTokens extension provides dark and light semantic values',

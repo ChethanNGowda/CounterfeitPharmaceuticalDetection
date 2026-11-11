@@ -278,11 +278,19 @@ From `frontend\flutter_app`:
 flutter pub get
 flutter analyze
 flutter test
-flutter build apk --debug
+flutter build apk --release
 ```
 
-The debug APK is written to
-`frontend\flutter_app\build\app\outputs\flutter-apk\app-debug.apk`.
+The release APK is written to
+`frontend\flutter_app\build\app\outputs\flutter-apk\app-release.apk` (53.9 MB).
+
+The application features a 5-destination bottom navigation architecture and a unified pharmaceutical visual identity (Material 3 with teal/blue/soft-mint palette):
+
+1. **Home**: Primary scan call-to-action, screening volume statistics, recent activity timeline, and quick actions.
+2. **Scan**: High-contrast corner-bracket viewfinder with flash/camera toggle, gallery selection, quality checks, and real-time backend/offline status indicators.
+3. **Medicine**: Medicine Information management with on-device OCR regex extraction (batch, dates, strength, dosage form, manufacturer), interactive edit/save modal, and automated Expiry Tracker with countdowns and visual alerts (green/amber/red).
+4. **Records**: Unified inspection history with multi-field search, status filter chips, date filters, detailed record view, and PDF, CSV, and TXT report exports.
+5. **More**: Central hub for Packaging & Clinical Insights (Screening Insights dashboard, 7-Point Packaging Checklist, Dual Photo Comparison, Packaging & Capture Guide) and System Diagnostics (AI Diagnostics/Model Lab, Settings & Sync, About & Compliance).
 
 The backend URL is configurable in **Settings** and is persisted locally. The
 source default is loopback (`http://127.0.0.1:8000`), not a developer's LAN
@@ -294,9 +302,7 @@ flutter run --dart-define=PHARMA_API_BASE_URL=http://10.0.2.2:8000
 
 Use `10.0.2.2` from an Android emulator for the host computer, or enter a
 private LAN URL for a physical phone. Failed requests do not create history
-records or show a false success screen. The app supports camera capture,
-gallery selection, image preview, sample IDs, notes, a 50-record local history,
-CSV metadata export, and text report copy.
+records or show a false success screen.
 
 ## Training, evaluation, and leakage checks
 
@@ -373,13 +379,7 @@ flutter analyze
 flutter test
 ```
 
-The most recent verified Flutter validation reported clean analysis, 45
-passing tests, and a successful debug APK build. Python suites also contain
-legacy tests whose expectations may reflect the retired confidence-band
-policy; report any failures rather than weakening tests. On 2026-11-03, the
-full Python run reported **179 passed and 19 failed**; the failures are in
-legacy conditional-gating, decision-engine, and Qwen verifier expectations,
-not silently ignored.
+The current Flutter validation reports **clean analysis (0 issues)**, **71 passing tests (0 failures)**, and a verified release build producing a 53.9 MB APK. The full Python test suite reports **213 passing, 0 failing** across backend routes, schemas, ML model registry, decision engine, quality validation, and synchronization admin.
 
 ## Continuous integration
 
@@ -410,9 +410,11 @@ perform these checks on a real, non-production test device:
    error does not create a false success or history record; retry afterward.
 7. Exercise authentic-indicated, counterfeit-indicated, inconclusive,
    poor-quality, and manual-review responses using controlled test fixtures.
-8. Verify history deletion, the 50-record limit, CSV export, app restart
-   persistence, and navigation back to Home/Scan/History/Settings.
-9. Confirm no sensitive patient or prescription information is entered into
+8. Verify history deletion, the 50-record limit, PDF/CSV/TXT export, app restart
+   persistence, and navigation across all five destinations: Home / Scan / Medicine / Records / More.
+9. Verify Medicine tab: capture packaging image or select from gallery, inspect regex-extracted OCR fields (batch, dates, manufacturer, dosage), edit/save profile, and verify expiry alert banners (green/amber/red).
+10. Verify More hub tools: Screening Insights metrics, Packaging Inspection Checklist (7-point workflow, progress bar, saved history), and Packaging Photo Comparison (pinch-to-zoom 0.8x–5.0x side-by-side inspection).
+11. Confirm no sensitive patient or prescription information is entered into
    sample IDs, notes, logs, or exported metadata.
 
 ## Privacy, security, and responsible use

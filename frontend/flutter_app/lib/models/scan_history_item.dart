@@ -189,6 +189,10 @@ class ScanHistoryItem {
       finalResult.toUpperCase().contains('SUSPICIOUS') ||
       finalResult.toUpperCase().contains('VERIFICATION');
 
+  String get verdictDisplay => finalResult;
+
+  bool get qualityAccepted => fullResponse?.imageQualityAccepted ?? true;
+
   String get modelName => primaryModel;
 
   String? get qwenAssessment => fullResponse?.qwen.assessment;

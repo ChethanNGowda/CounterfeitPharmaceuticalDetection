@@ -3,10 +3,8 @@ import 'package:pharma_assist/core/theme_tokens.dart';
 
 /// Centralized scientific design system and color tokens for PharmaAssist.
 /// Brand specifications:
-/// - Primary Dark Navy: #0B1320
-/// - Teal Accent: #19B6A4
-/// - Clean light surface: #F8FAFC
-/// - Dark surface: #0B1320 / #111E33 / #142036
+/// - Light Theme: #F4F8FB bg, #FFFFFF surface, #25658A primary blue, #0F8B83 accent teal, #DDF4EF soft mint
+/// - Dark Theme: #102A43 bg, #193B53 surface, #24485A elevated, #48C5B3 accent teal, #244F50 soft mint
 class AppTheme {
   // Flag for backward compatibility with existing tests
   static bool _useLightPalette = false;
@@ -15,61 +13,68 @@ class AppTheme {
 
   // ── Surface and Background Tokens ───────────────────────────────────────────
   static Color get background =>
-      _useLightPalette ? const Color(0xFFF5F8FC) : const Color(0xFF0B1020);
+      _useLightPalette ? const Color(0xFFF4F8FB) : const Color(0xFF102A43);
   static Color get secondaryBackground =>
-      _useLightPalette ? const Color(0xFFEDF2F8) : const Color(0xFF111A2E);
+      _useLightPalette ? const Color(0xFFEAF4FA) : const Color(0xFF193B53);
   static Color get elevatedCard =>
-      _useLightPalette ? Colors.white : const Color(0xFF17243A);
+      _useLightPalette ? const Color(0xFFFFFFFF) : const Color(0xFF24485A);
 
   // Backward compatibility aliases
   static Color get surface => secondaryBackground;
   static Color get cardColor => elevatedCard;
   static Color get surfaceHighlight =>
-      _useLightPalette ? const Color(0xFFE0F2F1) : const Color(0xFF1F2F4A);
+      _useLightPalette ? const Color(0xFFDDF4EF) : const Color(0xFF1D4659);
 
   // ── Brand & Accent Colors ───────────────────────────────────────────────────
+  static Color get primaryBlue =>
+      _useLightPalette ? const Color(0xFF25658A) : const Color(0xFF24485A);
+  static Color get deepBlue =>
+      _useLightPalette ? const Color(0xFF174A6E) : const Color(0xFF102A43);
   static Color get primaryCyan =>
-      _useLightPalette ? const Color(0xFF087E8B) : const Color(0xFF25D9F8);
+      _useLightPalette ? const Color(0xFF25658A) : const Color(0xFF48C5B3);
   static Color get secondaryTeal =>
-      _useLightPalette ? const Color(0xFF0D9488) : const Color(0xFF35D6B4);
-  static Color get softViolet =>
-      _useLightPalette ? const Color(0xFF0F766E) : const Color(0xFF14B8A6);
-  static Color get violetAccent => softViolet;
+      _useLightPalette ? const Color(0xFF0F8B83) : const Color(0xFF48C5B3);
+  static Color get softMint =>
+      _useLightPalette ? const Color(0xFFDDF4EF) : const Color(0xFF244F50);
+  static Color get powderBlue =>
+      _useLightPalette ? const Color(0xFFDCE8F8) : const Color(0xFF1D4659);
+  static Color get softViolet => secondaryTeal;
+  static Color get violetAccent => secondaryTeal;
 
   // Backward compatibility aliases
   static Color get primaryTeal => secondaryTeal;
   static Color get primaryTealDim =>
-      _useLightPalette ? const Color(0xFF087E73) : const Color(0xFF209A80);
+      _useLightPalette ? const Color(0xFF0F8B83) : const Color(0xFF35586C);
 
   // ── Semantic Feedback Colors ────────────────────────────────────────────────
-  static const Color success = Color(0xFF36C98F);
-  static const Color warning = Color(0xFFF6BD60);
-  static const Color error = Color(0xFFFF647C);
+  static const Color success = Color(0xFF16845B);
+  static const Color warning = Color(0xFFC47A18);
+  static const Color error = Color(0xFFC74747);
 
   // Backward compatibility aliases
-  static const Color authenticGreen = Color(0xFF36C98F);
+  static const Color authenticGreen = Color(0xFF16845B);
   static Color get authenticBg =>
-      _useLightPalette ? const Color(0xFFE5F5EC) : const Color(0xFF0E2E20);
-  static const Color counterfeitRed = Color(0xFFFF647C);
+      _useLightPalette ? const Color(0xFFDDF4EF) : const Color(0xFF244F50);
+  static const Color counterfeitRed = Color(0xFFC74747);
   static Color get counterfeitBg =>
-      _useLightPalette ? const Color(0xFFFCE8EC) : const Color(0xFF34141E);
-  static const Color suspiciousAmber = Color(0xFFF6BD60);
+      _useLightPalette ? const Color(0xFFFDE8E8) : const Color(0xFF381418);
+  static const Color suspiciousAmber = Color(0xFFC47A18);
   static Color get suspiciousBg =>
-      _useLightPalette ? const Color(0xFFFFF3D9) : const Color(0xFF332612);
+      _useLightPalette ? const Color(0xFFFFF3D9) : const Color(0xFF382A0E);
 
   // ── Text & Typography Colors ────────────────────────────────────────────────
   static Color get textPrimary =>
-      _useLightPalette ? const Color(0xFF17212F) : const Color(0xFFF3F6FC);
+      _useLightPalette ? const Color(0xFF183247) : const Color(0xFFF0F6FA);
   static Color get textSecondary =>
-      _useLightPalette ? const Color(0xFF46566B) : const Color(0xFFA5B2C7);
+      _useLightPalette ? const Color(0xFF647B8C) : const Color(0xFFB9CCD9);
   static Color get textMuted =>
-      _useLightPalette ? const Color(0xFF5B6B80) : const Color(0xFF6B7C96);
+      _useLightPalette ? const Color(0xFF647B8C) : const Color(0xFFB9CCD9);
 
   // ── Borders & Dividers ──────────────────────────────────────────────────────
   static Color get border =>
-      _useLightPalette ? const Color(0xFFD5DEE9) : const Color(0xFF293952);
+      _useLightPalette ? const Color(0xFFDCE6ED) : const Color(0xFF35586C);
   static Color get borderSubtle =>
-      _useLightPalette ? const Color(0xFFE3EAF2) : const Color(0xFF1D2A3D);
+      _useLightPalette ? const Color(0xFFDCE6ED) : const Color(0xFF35586C);
   static Color get divider => border;
 
   // ── Distinct Typography Tokens with Graceful Fallbacks ──────────────────────
@@ -138,15 +143,15 @@ class AppTheme {
     letterSpacing: 0.2,
   );
 
-  // ── Dark Theme (Navy #0B1320 + Teal #19B6A4) ───────────────────────────────
+  // ── Dark Theme (Refined Blue-Slate #102A43 + Teal #48C5B3) ───────────────────
   static ThemeData get darkTheme {
-    const navyBackground = Color(0xFF0B1320);
-    const darkSurface = Color(0xFF111E33);
-    const elevatedCardColor = Color(0xFF142036);
-    const darkBorder = Color(0xFF1E2D4A);
-    const tealPrimary = Color(0xFF19B6A4);
-    const textLight = Color(0xFFF8FAFC);
-    const textDim = Color(0xFFA5B4CB);
+    const navyBackground = Color(0xFF102A43);
+    const darkSurface = Color(0xFF193B53);
+    const elevatedCardColor = Color(0xFF24485A);
+    const darkBorder = Color(0xFF35586C);
+    const tealPrimary = Color(0xFF48C5B3);
+    const textLight = Color(0xFFF0F6FA);
+    const textDim = Color(0xFFB9CCD9);
 
     return ThemeData(
       useMaterial3: true,
@@ -158,12 +163,12 @@ class AppTheme {
       extensions: const [PharmaThemeTokens.dark],
       colorScheme: const ColorScheme.dark(
         primary: tealPrimary,
-        secondary: Color(0xFF2DD4BF),
-        tertiary: Color(0xFF0F766E),
+        secondary: Color(0xFF24485A),
+        tertiary: Color(0xFF1D4659),
         surface: darkSurface,
         error: Color(0xFFEF4444),
         onPrimary: navyBackground,
-        onSecondary: navyBackground,
+        onSecondary: textLight,
         onSurface: textLight,
         outline: darkBorder,
       ),
@@ -256,7 +261,7 @@ class AppTheme {
         activeTrackColor: tealPrimary,
         inactiveTrackColor: darkBorder,
         thumbColor: tealPrimary,
-        overlayColor: Color(0x2219B6A4),
+        overlayColor: Color(0x2248C5B3),
         valueIndicatorColor: elevatedCardColor,
         valueIndicatorTextStyle: TextStyle(color: textLight, fontSize: 12),
       ),
@@ -267,7 +272,7 @@ class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: darkSurface,
-        indicatorColor: const Color(0x2419B6A4),
+        indicatorColor: const Color(0x3048C5B3),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final bool selected = states.contains(WidgetState.selected);
           return TextStyle(
@@ -276,30 +281,30 @@ class AppTheme {
             fontFamilyFallback: fontBodyFamilies,
             fontSize: 11,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            color: selected ? const Color(0xFF19B6A4) : const Color(0xFF7E91B0),
+            color: selected ? const Color(0xFF48C5B3) : const Color(0xFFB9CCD9),
             letterSpacing: 0.2,
           );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final bool selected = states.contains(WidgetState.selected);
           return IconThemeData(
-            color: selected ? const Color(0xFF19B6A4) : const Color(0xFF7E91B0),
+            color: selected ? const Color(0xFF48C5B3) : const Color(0xFFB9CCD9),
           );
         }),
       ),
     );
   }
 
-  // ── Light Theme Architecture ────────────────────────────────────────────────
+  // ── Light Theme Architecture (Refined Blue/Teal/Mint Palette) ────────────────
   static ThemeData get lightTheme {
-    const lightBg = Color(0xFFF8FAFC);
+    const lightBg = Color(0xFFF4F8FB);
     const lightSurface = Color(0xFFFFFFFF);
     const lightCard = Color(0xFFFFFFFF);
-    const lightBorder = Color(0xFFE2E8F0);
-    const lightTextPrimary = Color(0xFF0F172A);
-    const lightTextSecondary = Color(0xFF475569);
-    const lightTextMuted = Color(0xFF94A3B8);
-    const tealPrimary = Color(0xFF0D9488);
+    const lightBorder = Color(0xFFDCE6ED);
+    const lightTextPrimary = Color(0xFF183247);
+    const lightTextSecondary = Color(0xFF647B8C);
+    const primaryBlue = Color(0xFF25658A);
+    const accentTeal = Color(0xFF0F8B83);
 
     return ThemeData(
       useMaterial3: true,
@@ -310,11 +315,11 @@ class AppTheme {
       fontFamilyFallback: fontBodyFamilies,
       extensions: const [PharmaThemeTokens.light],
       colorScheme: const ColorScheme.light(
-        primary: tealPrimary,
-        secondary: Color(0xFF14B8A6),
-        tertiary: Color(0xFF102A43),
+        primary: primaryBlue,
+        secondary: accentTeal,
+        tertiary: Color(0xFF174A6E),
         surface: lightSurface,
-        error: Color(0xFFEF4444),
+        error: Color(0xFFC74747),
         onPrimary: Colors.white,
         onSecondary: Colors.white,
         onSurface: lightTextPrimary,
@@ -347,7 +352,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: tealPrimary,
+          backgroundColor: primaryBlue,
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -365,7 +370,7 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: tealPrimary,
+          foregroundColor: primaryBlue,
           side: const BorderSide(color: lightBorder, width: 1.2),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           shape: RoundedRectangleBorder(
@@ -396,15 +401,15 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: tealPrimary, width: 1.5),
+          borderSide: const BorderSide(color: primaryBlue, width: 1.5),
         ),
         labelStyle: const TextStyle(color: lightTextSecondary, fontSize: 13),
-        hintStyle: const TextStyle(color: lightTextMuted, fontSize: 13),
-        prefixIconColor: lightTextMuted,
+        hintStyle: const TextStyle(color: lightTextSecondary, fontSize: 13),
+        prefixIconColor: lightTextSecondary,
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: lightSurface,
-        indicatorColor: const Color(0x200D9488),
+        indicatorColor: const Color(0x2025658A),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final bool selected = states.contains(WidgetState.selected);
           return TextStyle(
@@ -413,14 +418,14 @@ class AppTheme {
             fontFamilyFallback: fontBodyFamilies,
             fontSize: 11,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            color: selected ? const Color(0xFF0D9488) : const Color(0xFF94A3B8),
+            color: selected ? const Color(0xFF25658A) : const Color(0xFF647B8C),
             letterSpacing: 0.2,
           );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final bool selected = states.contains(WidgetState.selected);
           return IconThemeData(
-            color: selected ? const Color(0xFF0D9488) : const Color(0xFF94A3B8),
+            color: selected ? const Color(0xFF25658A) : const Color(0xFF647B8C),
           );
         }),
       ),

@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pharma_assist/core/constants.dart';
+import 'package:pharma_assist/models/medicine_profile.dart';
+import 'package:pharma_assist/models/packaging_checklist.dart';
 import 'package:pharma_assist/models/scan_history_item.dart';
 import 'package:pharma_assist/models/sync_queue_item.dart';
 
@@ -353,5 +355,115 @@ class StorageService {
 
   bool isFavorite(String scanId) {
     return getFavoriteIds().contains(scanId);
+  }
+
+  // ── Medicine Profiles Persistence ─────────────────────────────────────────
+  List<MedicineProfile> getMedicineProfiles() {
+    final String? raw = _prefs?.getString(AppConstants.keyMedicineProfiles);
+    if (raw == null || raw.isEmpty) return [];
+
+    try {
+      final dynamic decoded = jsonDecode(raw);
+      if (decoded is! List) return [];
+
+      final List<MedicineProfile> items = [];
+      for (final item in decoded) {
+        if (item is Map<String, dynamic>) {
+          try {
+            items.add(MedicineProfile.fromJson(item));
+          } catch (_) {}
+        }
+      }
+      items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return items;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<bool> saveMedicineProfile(MedicineProfile profile) async {
+    final List<MedicineProfile> current = getMedicineProfiles();
+    final index = current.indexWhere((p) => p.id == profile.id);
+    if (index >= 0) {
+      current[index] = profile;
+    } else {
+      current.insert(0, profile);
+    }
+    final serialized = current.map((p) => p.toJson()).toList();
+    return await _prefs?.setString(
+          AppConstants.keyMedicineProfiles,
+          jsonEncode(serialized),
+        ) ??
+        false;
+  }
+
+  Future<bool> deleteMedicineProfile(String id) async {
+    final List<MedicineProfile> current = getMedicineProfiles();
+    final initialLength = current.length;
+    current.removeWhere((p) => p.id == id);
+    if (current.length != initialLength) {
+      final serialized = current.map((p) => p.toJson()).toList();
+      return await _prefs?.setString(
+            AppConstants.keyMedicineProfiles,
+            jsonEncode(serialized),
+          ) ??
+          false;
+    }
+    return false;
+  }
+
+  // ── Packaging Inspection Checklists Persistence ───────────────────────────
+  List<PackagingChecklistSummary> getChecklistSummaries() {
+    final String? raw = _prefs?.getString(AppConstants.keyChecklistSummaries);
+    if (raw == null || raw.isEmpty) return [];
+
+    try {
+      final dynamic decoded = jsonDecode(raw);
+      if (decoded is! List) return [];
+
+      final List<PackagingChecklistSummary> items = [];
+      for (final item in decoded) {
+        if (item is Map<String, dynamic>) {
+          try {
+            items.add(PackagingChecklistSummary.fromJson(item));
+          } catch (_) {}
+        }
+      }
+      items.sort((a, b) => b.inspectedAt.compareTo(a.inspectedAt));
+      return items;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<bool> saveChecklistSummary(PackagingChecklistSummary summary) async {
+    final List<PackagingChecklistSummary> current = getChecklistSummaries();
+    final index = current.indexWhere((s) => s.id == summary.id);
+    if (index >= 0) {
+      current[index] = summary;
+    } else {
+      current.insert(0, summary);
+    }
+    final serialized = current.map((s) => s.toJson()).toList();
+    return await _prefs?.setString(
+          AppConstants.keyChecklistSummaries,
+          jsonEncode(serialized),
+        ) ??
+        false;
+  }
+
+  Future<bool> deleteChecklistSummary(String id) async {
+    final List<PackagingChecklistSummary> current = getChecklistSummaries();
+    final initialLength = current.length;
+    current.removeWhere((s) => s.id == id);
+    if (current.length != initialLength) {
+      final serialized = current.map((s) => s.toJson()).toList();
+      return await _prefs?.setString(
+            AppConstants.keyChecklistSummaries,
+            jsonEncode(serialized),
+          ) ??
+          false;
+    }
+    return false;
   }
 }

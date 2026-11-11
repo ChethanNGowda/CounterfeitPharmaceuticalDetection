@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pharma_assist/core/constants.dart';
 import 'package:pharma_assist/core/theme.dart';
-import 'package:pharma_assist/screens/history_screen.dart';
 import 'package:pharma_assist/screens/home_screen.dart';
+import 'package:pharma_assist/screens/medicine_screen.dart';
 import 'package:pharma_assist/screens/more_hub_screen.dart';
 import 'package:pharma_assist/screens/records_screen.dart';
 import 'package:pharma_assist/screens/scan_screen.dart';
@@ -96,9 +96,9 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
   int _currentIndex = 0;
 
   final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
-  final GlobalKey<HistoryScreenState> _historyKey =
-      GlobalKey<HistoryScreenState>();
   final GlobalKey<ScanScreenState> _scanKey = GlobalKey<ScanScreenState>();
+  final GlobalKey<MedicineScreenState> _medicineKey =
+      GlobalKey<MedicineScreenState>();
   final GlobalKey<RecordsScreenState> _recordsKey =
       GlobalKey<RecordsScreenState>();
 
@@ -123,11 +123,11 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
         apiService: widget.apiService,
         onScanComplete: () {
           _homeKey.currentState?.refreshData();
-          _historyKey.currentState?.loadHistory();
+          _medicineKey.currentState?.loadProfiles();
           _recordsKey.currentState?.loadRecords();
         },
       ),
-      HistoryScreen(key: _historyKey, storage: widget.storage),
+      MedicineScreen(key: _medicineKey, storage: widget.storage),
       RecordsScreen(key: _recordsKey, storage: widget.storage),
       MoreHubScreen(
         storage: widget.storage,
@@ -141,7 +141,7 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
     if (index == 0) {
       _homeKey.currentState?.refreshData();
     } else if (index == 2) {
-      _historyKey.currentState?.loadHistory();
+      _medicineKey.currentState?.loadProfiles();
     } else if (index == 3) {
       _recordsKey.currentState?.loadRecords();
     }
@@ -189,9 +189,9 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
           label: 'Scan',
         ),
         NavigationDestination(
-          icon: Icon(Icons.history_outlined),
-          selectedIcon: Icon(Icons.history),
-          label: 'History',
+          icon: Icon(Icons.medication_outlined),
+          selectedIcon: Icon(Icons.medication),
+          label: 'Medicine',
         ),
         NavigationDestination(
           icon: Icon(Icons.folder_outlined),

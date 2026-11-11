@@ -25,6 +25,8 @@ class AppConstants {
   static const String keySyncConsent = 'pharma_sync_consent_v1';
   static const String keyThemeMode = 'pharma_theme_mode';
   static const String keyFavoriteIds = 'pharma_favorite_ids';
+  static const String keyMedicineProfiles = 'pharma_medicine_profiles_v1';
+  static const String keyChecklistSummaries = 'pharma_checklist_summaries_v1';
 
   // Defaults
   static const double defaultThreshold = 0.70;

@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:pharma_assist/core/theme_tokens.dart';
 import 'package:pharma_assist/screens/about_screen.dart';
 import 'package:pharma_assist/screens/model_lab_screen.dart';
+import 'package:pharma_assist/screens/packaging_checklist_screen.dart';
 import 'package:pharma_assist/screens/packaging_guide_screen.dart';
+import 'package:pharma_assist/screens/photo_comparison_screen.dart';
+import 'package:pharma_assist/screens/screening_insights_screen.dart';
 import 'package:pharma_assist/screens/settings_screen.dart';
 import 'package:pharma_assist/services/api_service.dart';
 import 'package:pharma_assist/services/storage_service.dart';
 import 'package:pharma_assist/widgets/pharma_components.dart';
 
-/// "More" Section Screen providing organized hub for secondary healthcare utilities
+/// "More" Section Screen providing organized hub for secondary healthcare utilities & diagnostics
 class MoreHubScreen extends StatelessWidget {
   final StorageService storage;
   final ApiService apiService;
@@ -28,27 +31,28 @@ class MoreHubScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Utilities & Settings'),
+        title: const Text('Utilities & Insights'),
         centerTitle: false,
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         children: [
+          // Clinical Platform Identity Card
           PharmaCard(
             padding: const EdgeInsets.all(16),
-            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.08),
-            borderColor: theme.colorScheme.primary.withValues(alpha: 0.25),
+            backgroundColor: tokens.surfaceSubtle,
+            borderColor: tokens.borderSubtle,
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                    color: tokens.tealAccent.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
                     Icons.health_and_safety_outlined,
-                    color: theme.colorScheme.primary,
+                    color: tokens.tealAccent,
                     size: 28,
                   ),
                 ),
@@ -61,11 +65,12 @@ class MoreHubScreen extends StatelessWidget {
                         'PharmaAssist Core',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
+                          color: tokens.deepBlue,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'AI-Assisted Visual Drug Screening Platform',
+                        'Pharmaceutical Screening & Inspection Suite',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: tokens.textMuted,
                         ),
@@ -77,6 +82,84 @@ class MoreHubScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
+
+          // Section 1: Clinical Insights & Packaging Verification
+          const PharmaSectionHeader(
+            title: 'Packaging & Clinical Insights',
+            subtitle: 'Screening history statistics, checklist inspections, and photo comparison',
+          ),
+          PharmaCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                _buildTile(
+                  context,
+                  icon: Icons.insights_outlined,
+                  title: 'Screening Insights',
+                  subtitle: 'Real local screening volumes, verdict distributions & quality metrics',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            ScreeningInsightsScreen(storage: storage),
+                      ),
+                    );
+                  },
+                ),
+                Divider(height: 1, color: tokens.borderSubtle),
+                _buildTile(
+                  context,
+                  icon: Icons.fact_check_outlined,
+                  title: 'Packaging Inspection Checklist',
+                  subtitle: 'Interactive 7-point visual inspection workflow for cartons and blisters',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            PackagingChecklistScreen(storage: storage),
+                      ),
+                    );
+                  },
+                ),
+                Divider(height: 1, color: tokens.borderSubtle),
+                _buildTile(
+                  context,
+                  icon: Icons.compare_outlined,
+                  title: 'Packaging Photo Comparison',
+                  subtitle: 'Dual side-by-side zoom & pan comparison for authentic vs suspect samples',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PhotoComparisonScreen(storage: storage),
+                      ),
+                    );
+                  },
+                ),
+                Divider(height: 1, color: tokens.borderSubtle),
+                _buildTile(
+                  context,
+                  icon: Icons.photo_camera_back_outlined,
+                  title: 'Packaging & Capture Guide',
+                  subtitle:
+                      'Optimal tablet, blister-pack and packaging photography',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PackagingGuideScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // Section 2: System, Diagnostics & Settings
           const PharmaSectionHeader(
             title: 'System & Diagnostics',
             subtitle:
@@ -123,33 +206,6 @@ class MoreHubScreen extends StatelessWidget {
                     );
                   },
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          const PharmaSectionHeader(
-            title: 'Compliance & Safety',
-            subtitle: 'Medical safety notices and regulatory disclaimers',
-          ),
-          PharmaCard(
-            padding: EdgeInsets.zero,
-            child: Column(
-              children: [
-                _buildTile(
-                  context,
-                  icon: Icons.photo_camera_back_outlined,
-                  title: 'Packaging & Capture Guide',
-                  subtitle:
-                      'Optimal tablet, blister-pack and packaging photography',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const PackagingGuideScreen(),
-                      ),
-                    );
-                  },
-                ),
                 Divider(height: 1, color: tokens.borderSubtle),
                 _buildTile(
                   context,
@@ -168,9 +224,10 @@ class MoreHubScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
+
           Center(
             child: Text(
-              'PharmaAssist v1.2.0 • Hybrid Sync Edition',
+              'PharmaAssist v1.2.0 • Hybrid Intelligence Edition',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: tokens.textMuted,
                 fontSize: 11,
@@ -197,7 +254,7 @@ class MoreHubScreen extends StatelessWidget {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: theme.colorScheme.primary.withValues(alpha: 0.1),
+          color: tokens.surfaceSubtle,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: theme.colorScheme.primary, size: 20),

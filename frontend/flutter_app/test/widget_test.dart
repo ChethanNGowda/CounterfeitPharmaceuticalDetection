@@ -10,10 +10,15 @@ import 'package:pharma_assist/models/prediction_response.dart';
 import 'package:pharma_assist/models/scan_history_item.dart';
 import 'package:pharma_assist/screens/history_screen.dart';
 import 'package:pharma_assist/screens/home_screen.dart';
+import 'package:pharma_assist/screens/medicine_screen.dart';
 import 'package:pharma_assist/screens/model_lab_screen.dart';
+import 'package:pharma_assist/screens/packaging_checklist_screen.dart';
+import 'package:pharma_assist/screens/photo_comparison_screen.dart';
 import 'package:pharma_assist/screens/records_screen.dart';
 import 'package:pharma_assist/screens/reports_screen.dart';
 import 'package:pharma_assist/screens/results_screen.dart';
+import 'package:pharma_assist/screens/screening_insights_screen.dart';
+import 'package:pharma_assist/services/medicine_ocr_service.dart';
 import 'package:pharma_assist/services/simple_pdf_report_generator.dart';
 import 'package:pharma_assist/screens/scan_screen.dart';
 import 'package:pharma_assist/screens/settings_screen.dart';
@@ -115,14 +120,14 @@ void main() {
   group('App theme palette', () {
     test('light and dark selections update the shared screen palette', () {
       AppTheme.setPalette(true);
-      expect(AppTheme.background, const Color(0xFFF5F8FC));
-      expect(AppTheme.textPrimary, const Color(0xFF17212F));
-      expect(AppTheme.primaryCyan, const Color(0xFF087E8B));
+      expect(AppTheme.background, const Color(0xFFF4F8FB));
+      expect(AppTheme.textPrimary, const Color(0xFF183247));
+      expect(AppTheme.primaryCyan, const Color(0xFF25658A));
 
       AppTheme.setPalette(false);
-      expect(AppTheme.background, const Color(0xFF0B1020));
-      expect(AppTheme.textPrimary, const Color(0xFFF3F6FC));
-      expect(AppTheme.primaryCyan, const Color(0xFF25D9F8));
+      expect(AppTheme.background, const Color(0xFF102A43));
+      expect(AppTheme.textPrimary, const Color(0xFFF0F6FA));
+      expect(AppTheme.primaryCyan, const Color(0xFF48C5B3));
     });
   });
 
@@ -1190,53 +1195,54 @@ void main() {
       },
     );
 
-    testWidgets('Main navigation renders 5 destinations including More', (
-      tester,
-    ) async {
-      SharedPreferences.setMockInitialValues({});
-      StorageService.resetForTesting();
+    testWidgets(
+      'Main navigation renders 5 destinations including Medicine, Records, and More',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        StorageService.resetForTesting();
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          home: Scaffold(
-            body: const Text('Test Body'),
-            bottomNavigationBar: NavigationBar(
-              selectedIndex: 0,
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.dashboard),
-                  label: 'Home',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.document_scanner),
-                  label: 'Scan',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.history),
-                  label: 'History',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.assignment),
-                  label: 'Reports',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.grid_view_rounded),
-                  label: 'More',
-                ),
-              ],
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            home: Scaffold(
+              body: const Text('Test Body'),
+              bottomNavigationBar: NavigationBar(
+                selectedIndex: 0,
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.dashboard_outlined),
+                    label: 'Home',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.document_scanner_outlined),
+                    label: 'Scan',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.medication_outlined),
+                    label: 'Medicine',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.folder_outlined),
+                    label: 'Records',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.grid_view_outlined),
+                    label: 'More',
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      expect(find.text('Home'), findsOneWidget);
-      expect(find.text('Scan'), findsOneWidget);
-      expect(find.text('History'), findsOneWidget);
-      expect(find.text('Reports'), findsOneWidget);
-      expect(find.text('More'), findsOneWidget);
-    });
+        expect(find.text('Home'), findsOneWidget);
+        expect(find.text('Scan'), findsOneWidget);
+        expect(find.text('Medicine'), findsOneWidget);
+        expect(find.text('Records'), findsOneWidget);
+        expect(find.text('More'), findsOneWidget);
+      },
+    );
 
     testWidgets(
       'ReportsScreen displays empty state when no inspections recorded',
@@ -1445,9 +1451,9 @@ void main() {
             home: Builder(
               builder: (context) {
                 final tokens = context.pharmaTokens;
-                expect(tokens.navyBrand, const Color(0xFF0B1320));
-                expect(tokens.tealAccent, const Color(0xFF19B6A4));
-                expect(tokens.authenticGreen, const Color(0xFF10B981));
+                expect(tokens.navyBrand, const Color(0xFF102A43));
+                expect(tokens.tealAccent, const Color(0xFF48C5B3));
+                expect(tokens.authenticGreen, const Color(0xFF16845B));
                 return const SizedBox.shrink();
               },
             ),
@@ -1455,5 +1461,100 @@ void main() {
         );
       },
     );
+
+    test('MedicineOcrService extracts pharmaceutical entities from text', () {
+      const sampleText = '''
+Amoxicillin Trihydrate
+Tablets 500 mg
+Batch No: B-98421
+Mfg Date: 01/2026
+Exp Date: 12/2027
+Mfd by: Global Healthcare Ltd.
+''';
+      final result = MedicineOcrService.parsePackagingText(sampleText);
+      expect(result.medicineName, 'Amoxicillin Trihydrate');
+      expect(result.strength, '500 mg');
+      expect(result.dosageForm, 'Tablets');
+      expect(result.batchNumber, 'B-98421');
+      expect(result.expiryDate, '12/2027');
+      expect(result.manufacturingDate, '01/2026');
+      expect(result.confidence, 'HIGH');
+    });
+
+    testWidgets('MedicineScreen renders empty state and action buttons', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      StorageService.resetForTesting();
+      final storage = await StorageService.getInstance();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: MedicineScreen(storage: storage),
+        ),
+      );
+
+      expect(find.text('Medicine Information'), findsOneWidget);
+      expect(find.text('No Medicine Profiles'), findsOneWidget);
+      expect(find.text('Scan Packaging'), findsOneWidget);
+    });
+
+    testWidgets('PackagingChecklistScreen renders 7 default inspection items', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      StorageService.resetForTesting();
+      final storage = await StorageService.getInstance();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: PackagingChecklistScreen(storage: storage),
+        ),
+      );
+
+      expect(find.text('Packaging Inspection Checklist'), findsOneWidget);
+      expect(find.text('Inspection Metadata'), findsOneWidget);
+      expect(find.text('Packaging Seal & Tamper Evidence'), findsOneWidget);
+    });
+
+    testWidgets(
+      'PhotoComparisonScreen renders side-by-side comparison panels',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        StorageService.resetForTesting();
+        final storage = await StorageService.getInstance();
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: PhotoComparisonScreen(storage: storage),
+          ),
+        );
+
+        expect(find.text('Packaging Photo Comparison'), findsOneWidget);
+        expect(find.text('Reference Sample (A)'), findsOneWidget);
+        expect(find.text('Suspect Sample (B)'), findsOneWidget);
+      },
+    );
+
+    testWidgets('ScreeningInsightsScreen renders metrics and data notice', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      StorageService.resetForTesting();
+      final storage = await StorageService.getInstance();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: ScreeningInsightsScreen(storage: storage),
+        ),
+      );
+
+      expect(find.text('Screening Insights'), findsOneWidget);
+      expect(find.text('No Screening Insights Yet'), findsOneWidget);
+    });
   });
 }

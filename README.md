@@ -38,7 +38,7 @@ PharmaAssist is designed to support preliminary inspection and awareness. It is 
 | Backend | Python / FastAPI |
 | Machine Learning | PyTorch / EfficientNet-B0 |
 | Database | SQLite (optional synchronization) |
-| License | Apache License 2.0 (proposed) |
+| License | Apache License 2.0 |
 | Development Year | 2026 |
 
 ## About the Project
@@ -999,19 +999,15 @@ Only officially published releases should be treated as versioned releases. Deve
 
 Copyright © 2026 Chethan N.
 
-PharmaAssist is intended to be distributed under the **Apache License, Version 2.0**.
+The original PharmaAssist source code and documentation authored by Chethan N. in this repository are licensed under the **Apache License, Version 2.0**. Copyright © 2026 Chethan N.
 
-Under this license, users may use, reproduce, modify and distribute the project subject to the license conditions, including preservation of applicable copyright and license notices.
+You may use, reproduce, modify and distribute the covered work subject to the Apache License 2.0 terms, including its copyright, license, modification-notice and patent provisions.
 
-The full license text is available in the repository:
+The full license text is available in the repository: [LICENSE](LICENSE).
 
-[LICENSE](LICENSE)
+Official license information: https://www.apache.org/licenses/LICENSE-2.0
 
-Official license information:
-
-https://www.apache.org/licenses/LICENSE-2.0
-
-Third-party libraries, datasets, pretrained models and other external assets may have separate licenses and redistribution restrictions. Their respective licenses take precedence for those individual components.
+**Scope and third-party materials:** This license does not automatically relicense third-party libraries, datasets, pretrained model weights, externally sourced assets or other components whose rights belong to others. Those materials remain subject to their own applicable licenses, permissions and redistribution restrictions. Check the relevant notices and source terms before using or redistributing them.
 
 ---
 

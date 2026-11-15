@@ -83,6 +83,20 @@ jobs:
           cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/pharmaassist-android-universal.apk"
           cd "$GITHUB_WORKSPACE"
           sha256sum pharmaassist-android-universal.apk > pharmaassist-android-universal.apk.sha256
+          APK_SHA256=$(cut -d' ' -f1 pharmaassist-android-universal.apk.sha256)
+          RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${RELEASE_VERSION}"
+          APK_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_VERSION}/pharmaassist-android-universal.apk"
+          cat > pharmaassist-update.json <<EOF
+          {
+            "version": "$VERSION",
+            "tag_name": "$RELEASE_VERSION",
+            "title": "PharmaAssist $RELEASE_VERSION",
+            "notes": "Open the official GitHub release page for the changelog.",
+            "release_url": "$RELEASE_URL",
+            "apk_url": "$APK_URL",
+            "sha256": "$APK_SHA256"
+          }
+          EOF
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
@@ -92,3 +106,4 @@ jobs:
           files: |
             pharmaassist-android-universal.apk
             pharmaassist-android-universal.apk.sha256
+            pharmaassist-update.json

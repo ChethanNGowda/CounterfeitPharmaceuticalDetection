@@ -254,7 +254,68 @@ class MedicineOcrService {
 
   static String _extractManufacturer(List<String> lines) {
     final labelled = RegExp(
-      r'\b(?:mfd\.?\s*by|manufactured\s*by|marketed\s*by|manufacturers?\s*[:\-])\s*(.+)$',
+      r'\b(?:mfd\.?\s*by|manufactured\s*by|marketed\s*by|manufacturers?\s*[:\-])\s*[:\-]?\s*(.+),
+      caseSensitive: false,
+    );
+    for (final line in lines) {
+      final match = labelled.firstMatch(line);
+      if (match != null) {
+        return match.group(1)!.trim().replaceAll(RegExp(r'[;,]+$'), '');
+      }
+    }
+    final companyLine = RegExp(
+      r'\b(?:pharma(?:ceuticals?)?|laborator(?:y|ies)|healthcare|biotech|pvt\.?\s*ltd|limited|ltd\.?|inc\.?)\b',
+      caseSensitive: false,
+    );
+    for (final line in lines) {
+      if (companyLine.hasMatch(line) && line.length <= 90) return line;
+    }
+    return '';
+  }
+
+  static String _extractMedicineName(
+    List<String> lines, {
+    required String strength,
+    required String dosage,
+    required String manufacturer,
+  }) {
+    final excluded = RegExp(
+      r'\b(?:rx|medicine|pharmaceutical|batch|lot|exp(?:iry)?|mfg|mfd|manufactur|marketed|store|storage|keep out|prescription|composition|warning|caution|schedule|mrp|price|tablet|capsule|syrup|injection|suspension|ointment|cream|gel|solution|drops|inhaler|dosage|each film coated)\b',
+      caseSensitive: false,
+    );
+    for (final original in lines.take(10)) {
+      var candidate = original;
+      if (strength.isNotEmpty) {
+        candidate = candidate.replaceAll(
+          RegExp(RegExp.escape(strength), caseSensitive: false),
+          '',
+        );
+      }
+      if (dosage.isNotEmpty) {
+        candidate = candidate.replaceAll(
+          RegExp(RegExp.escape(dosage), caseSensitive: false),
+          '',
+        );
+      }
+      candidate = candidate
+          .replaceAll(RegExp(r'^[\s:|•-]+|[\s:|•-]+$'), '')
+          .trim();
+      if (candidate.length < 3 ||
+          candidate.length > 60 ||
+          excluded.hasMatch(candidate) ||
+          candidate == manufacturer ||
+          !RegExp(r'[A-Za-z\u0900-\u097F]{3}').hasMatch(candidate)) {
+        continue;
+      }
+      final letters = RegExp(r'[A-Za-z\u0900-\u097F]').allMatches(candidate).length;
+      final digits = RegExp(r'\d').allMatches(candidate).length;
+      if (letters < 3 || digits > letters) continue;
+      return candidate;
+    }
+    return '';
+  }
+}
+,
       caseSensitive: false,
     );
     for (final line in lines) {

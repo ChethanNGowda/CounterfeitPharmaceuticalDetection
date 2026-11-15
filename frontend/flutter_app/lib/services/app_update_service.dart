@@ -183,7 +183,7 @@ class AppUpdateService {
         }
         sink.add(chunk);
         final total = response.contentLength ?? 0;
-        if (total > 0) onProgress((received / total).clamp(0.0, 1.0));
+        if (total > 0) onProgress((received / total).clamp(0.0, 1.0).toDouble());
       }
       await sink.flush();
       await sink.close();

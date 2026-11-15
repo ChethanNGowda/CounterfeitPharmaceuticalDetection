@@ -170,13 +170,13 @@ class _AppUpdateCardState extends State<AppUpdateCard> {
             Text('Version ${release.version} is available'),
             if (release.notes.trim().isNotEmpty) ...[
               const SizedBox(height: 6),
-              Container(
-                constraints: const BoxConstraints(maxHeight: 120),
-                child: SingleChildScrollView(
-                  child: SelectableText(
-                    release.notes,
-                    style: theme.textTheme.bodySmall,
-                  ),
+              Text(release.notes, style: theme.textTheme.bodySmall),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => _service.openReleasePage(release.releaseUrl),
+                  icon: const Icon(Icons.open_in_new, size: 16),
+                  label: const Text('View release notes'),
                 ),
               ),
             ],

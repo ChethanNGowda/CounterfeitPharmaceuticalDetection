@@ -61,6 +61,17 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
 
+                "openReleasePage" -> {
+                    val rawUrl = call.argument<String>("url")
+                    val uri = Uri.parse(rawUrl ?: "")
+                    if (uri.scheme != "https" || uri.host != "github.com") {
+                        result.error("invalid_release_url", "Only official GitHub release links are allowed", null)
+                    } else {
+                        startActivity(Intent(Intent.ACTION_VIEW, uri))
+                        result.success(null)
+                    }
+                }
+
                 "installApk" -> {
                     try {
                         val path = call.argument<String>("path")

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:pharma_assist/core/constants.dart';
 import 'package:pharma_assist/core/theme.dart';
@@ -685,20 +687,24 @@ class HomeScreenState extends State<HomeScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
-          onTap: item.fullResponse != null
-              ? () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ResultsScreen(
-                        result: item.fullResponse!,
-                        sampleId: item.sampleId,
-                        medicineName: item.medicineName,
-                        notes: item.notes,
-                      ),
-                    ),
-                  );
-                }
-              : null,
+          onTap: () {
+            File? img;
+            if (item.imagePath != null && item.imagePath!.isNotEmpty) {
+              final f = File(item.imagePath!);
+              if (f.existsSync()) img = f;
+            }
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ResultsScreen(
+                  result: item.effectiveResponse,
+                  imageFile: img,
+                  sampleId: item.sampleId,
+                  medicineName: item.medicineName,
+                  notes: item.notes,
+                ),
+              ),
+            );
+          },
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Row(

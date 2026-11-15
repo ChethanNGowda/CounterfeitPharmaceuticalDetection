@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pharma_assist/core/theme.dart';
 import 'package:pharma_assist/models/prediction_response.dart';
+import 'package:pharma_assist/models/scan_history_item.dart';
+import 'package:pharma_assist/services/export_service.dart';
 import 'package:pharma_assist/services/report_service.dart';
 import 'package:pharma_assist/widgets/confidence_gauge.dart';
 import 'package:pharma_assist/widgets/disclaimer_banner.dart';
@@ -28,9 +30,7 @@ class ResultsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveSampleId =
-        sampleId ??
-        'SMP-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+    final effectiveSampleId = sampleId ?? 'PA-${DateTime.now().year}-0001';
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -56,7 +56,11 @@ class ResultsScreen extends StatelessWidget {
             // 1. Primary Verdict Banner (3 distinct outcome states)
             _buildOutcomeBanner(),
 
-            // 2. Sample Details Card
+            // 2. Photographic Evidence & Quality Assessment
+            const SizedBox(height: 12),
+            _buildPhotographicEvidenceCard(),
+
+            // 3. Sample Details Card
             const SizedBox(height: 12),
             _buildSampleInfoCard(effectiveSampleId),
 
@@ -799,6 +803,24 @@ class ResultsScreen extends StatelessWidget {
 
   // ── Action Buttons ──────────────────────────────────────────────────────────
 
+  ScanHistoryItem _buildHistoryItem(String effectiveSampleId) {
+    return ScanHistoryItem(
+      id: '${DateTime.now().microsecondsSinceEpoch}_$effectiveSampleId',
+      sampleId: effectiveSampleId,
+      medicineName: medicineName,
+      notes: notes,
+      imagePath: imageFile?.path,
+      timestamp: DateTime.now(),
+      finalResult: result.finalResult,
+      prediction: result.prediction,
+      confidence: result.confidence,
+      primaryModel: result.primaryModel,
+      needsHumanVerification: result.needsHumanVerification,
+      fileName: imageFile?.path.split(Platform.pathSeparator).last,
+      fullResponse: result,
+    );
+  }
+
   Widget _buildReportActionButtons(
     BuildContext context,
     String effectiveSampleId,
@@ -807,19 +829,91 @@ class ResultsScreen extends StatelessWidget {
       children: [
         SizedBox(
           width: double.infinity,
-          height: 46,
+          height: 44,
           child: OutlinedButton.icon(
             onPressed: () => _exportReport(context, effectiveSampleId),
-            icon: const Icon(Icons.description_outlined, size: 18),
+            icon: const Icon(Icons.share_outlined, size: 18),
             label: const Text(
               'SHARE / EXPORT INSPECTION REPORT',
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.6,
               ),
             ),
           ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 40,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final item = _buildHistoryItem(effectiveSampleId);
+                    final res = await ExportService.exportPdfReport(item);
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          res.success
+                              ? 'PDF report exported to phone'
+                              : 'Failed to export PDF: ${res.errorMessage}',
+                        ),
+                        backgroundColor: res.success
+                            ? AppTheme.success
+                            : AppTheme.error,
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
+                  label: const Text(
+                    'EXPORT PDF',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: SizedBox(
+                height: 40,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final item = _buildHistoryItem(effectiveSampleId);
+                    final res = await ExportService.exportTxtReport(item);
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          res.success
+                              ? 'Report saved to phone & clipboard'
+                              : 'Failed to export TXT: ${res.errorMessage}',
+                        ),
+                        backgroundColor: res.success
+                            ? AppTheme.success
+                            : AppTheme.error,
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.text_snippet_outlined, size: 16),
+                  label: const Text(
+                    'EXPORT TXT',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 10),
         SizedBox(
@@ -839,6 +933,173 @@ class ResultsScreen extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  // ── Photographic Evidence & Quality Assessment ─────────────────────────────
+
+  Widget _buildPhotographicEvidenceCard() {
+    final hasValidImage = imageFile != null && imageFile!.existsSync();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppTheme.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            color: AppTheme.secondaryBackground,
+            child: Row(
+              children: [
+                Icon(
+                  Icons.photo_camera_outlined,
+                  size: 18,
+                  color: AppTheme.primaryCyan,
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'PHOTOGRAPHIC EVIDENCE & QUALITY ASSESSMENT',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (hasValidImage) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      constraints: const BoxConstraints(maxHeight: 260),
+                      width: double.infinity,
+                      color: AppTheme.secondaryBackground,
+                      child: Image.file(imageFile!, fit: BoxFit.contain),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ] else ...[
+                  Container(
+                    height: 120,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: AppTheme.secondaryBackground,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppTheme.border),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.image_not_supported_outlined,
+                          color: AppTheme.textMuted,
+                          size: 36,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Original photograph not stored locally on this device',
+                          style: TextStyle(
+                            color: AppTheme.textMuted,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                // Quality Assessment Metrics Row
+                if (result.quality != null) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _qualityMetricTile(
+                          'Dimensions',
+                          result.quality!.dimensions.isNotEmpty
+                              ? '${result.quality!.dimensions.join(" × ")} px'
+                              : 'Standard',
+                          Icons.aspect_ratio_outlined,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _qualityMetricTile(
+                          'Sharpness',
+                          '${result.quality!.blurScore.toStringAsFixed(1)} (min 50)',
+                          Icons.blur_on_outlined,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _qualityMetricTile(
+                          'Brightness',
+                          '${result.quality!.brightnessMean.toStringAsFixed(1)} (15-245)',
+                          Icons.brightness_6_outlined,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _qualityMetricTile(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppTheme.secondaryBackground,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 12, color: AppTheme.primaryCyan),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: AppTheme.textMuted,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 

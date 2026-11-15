@@ -198,4 +198,28 @@ class ScanHistoryItem {
   String? get qwenAssessment => fullResponse?.qwen.assessment;
 
   PredictionResponse? toPredictionResponse() => fullResponse;
+
+  PredictionResponse get effectiveResponse =>
+      fullResponse ??
+      PredictionResponse(
+        primaryModel: primaryModel,
+        modelName: primaryModel,
+        prediction: prediction,
+        confidence: confidence,
+        authenticProbability: isLikelyAuthentic
+            ? confidence
+            : (1.0 - confidence),
+        counterfeitProbability: isLikelyCounterfeit
+            ? confidence
+            : (1.0 - confidence),
+        finalResult: finalResult,
+        threshold: 0.70,
+        reasons: [finalResult],
+        needsHumanVerification: needsHumanVerification,
+        status: 'ARCHIVED_SCREENING',
+        qwen: QwenReviewDetails(available: false),
+        secondaryExecuted: false,
+        disagreement: false,
+        disclaimer: 'AI-assisted preliminary screening only. Does not replace laboratory testing.',
+      );
 }

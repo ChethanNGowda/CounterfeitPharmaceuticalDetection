@@ -816,7 +816,7 @@ class MedicineScreenState extends State<MedicineScreen> {
           children: [
             const SizedBox(height: 4),
             Text(
-              '${profile.manufacturer.isNotEmpty ? profile.manufacturer : "Unknown Manufacturer"} • Batch: ${profile.batchNumber.isNotEmpty ? profile.batchNumber : "N/A"}',
+              '${profile.manufacturer.isNotEmpty ? profile.manufacturer : "Unknown Manufacturer"} ΓÇó Batch: ${profile.batchNumber.isNotEmpty ? profile.batchNumber : "N/A"}',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: tokens.textMuted,
                 fontSize: 11,

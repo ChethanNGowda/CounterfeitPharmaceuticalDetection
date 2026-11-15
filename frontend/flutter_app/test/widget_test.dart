@@ -18,6 +18,7 @@ import 'package:pharma_assist/screens/records_screen.dart';
 import 'package:pharma_assist/screens/reports_screen.dart';
 import 'package:pharma_assist/screens/results_screen.dart';
 import 'package:pharma_assist/screens/screening_insights_screen.dart';
+import 'package:pharma_assist/services/export_service.dart';
 import 'package:pharma_assist/services/medicine_ocr_service.dart';
 import 'package:pharma_assist/services/simple_pdf_report_generator.dart';
 import 'package:pharma_assist/screens/scan_screen.dart';
@@ -1555,6 +1556,70 @@ Mfd by: Global Healthcare Ltd.
 
       expect(find.text('Screening Insights'), findsOneWidget);
       expect(find.text('No Screening Insights Yet'), findsOneWidget);
+    });
+
+    test(
+      'StorageService generates sequential PA-YYYY-XXXX sample IDs',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        StorageService.resetForTesting();
+        final storage = await StorageService.getInstance();
+
+        final peekId = storage.peekNextSampleId(year: 2026);
+        expect(peekId, 'PA-2026-0001');
+
+        final id1 = await storage.getNextSampleId(year: 2026);
+        expect(id1, 'PA-2026-0001');
+
+        final id2 = await storage.getNextSampleId(year: 2026);
+        expect(id2, 'PA-2026-0002');
+
+        final id3 = await storage.getNextSampleId(year: 2026);
+        expect(id3, 'PA-2026-0003');
+      },
+    );
+
+    test('MedicineOcrService accurately extracts MRP and distinguishes MFD from EXP', () {
+      const sampleText = '''
+Rx Amoxicillin Trihydrate
+Capsules 500 mg
+B.No. : B98412
+Mfg Date : 03/2024
+Exp Date : 02/2027
+M.R.P. : ₹ 165.50
+Mfd by : Cipla Pharmaceuticals Ltd.
+''';
+
+      final res = MedicineOcrService.parsePackagingText(sampleText);
+      expect(res.medicineName, contains('Amoxicillin'));
+      expect(res.strength, '500 mg');
+      expect(res.dosageForm, 'Capsules');
+      expect(res.batchNumber, 'B98412');
+      expect(res.manufacturingDate, '03/2024');
+      expect(res.expiryDate, '02/2027');
+      expect(res.mrp, contains('165.50'));
+      expect(res.manufacturer, contains('Cipla Pharmaceuticals'));
+      expect(res.confidence, 'HIGH');
+    });
+
+    test('ExportService exports valid PDF and TXT report files', () async {
+      SharedPreferences.setMockInitialValues({});
+      StorageService.resetForTesting();
+
+      final item = ScanHistoryItem.fromPrediction(
+        PredictionResponse.fromJson(_authenticJson()),
+        sampleId: 'PA-2026-0001',
+        medicineName: 'Azithromycin 250mg',
+        notes: 'Clinical trial verification sample.',
+      );
+
+      final pdfRes = await ExportService.exportPdfReport(item);
+      expect(pdfRes.success, isTrue);
+      expect(pdfRes.filePath, endsWith('.pdf'));
+
+      final txtRes = await ExportService.exportTxtReport(item);
+      expect(txtRes.success, isTrue);
+      expect(txtRes.filePath, endsWith('.txt'));
     });
   });
 }

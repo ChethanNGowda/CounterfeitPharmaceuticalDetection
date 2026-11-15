@@ -64,3 +64,7 @@ desktop.ini
 
 # Python notebook checkpoints
 .ipynb_checkpoints/
+
+# Private Android signing files
+*.jks
+key.properties

@@ -78,12 +78,7 @@ class ScanScreenState extends State<ScanScreen> {
   }
 
   void _generateDefaultSampleId() {
-    final now = DateTime.now();
-    final y = now.year.toString().substring(2);
-    final m = now.month.toString().padLeft(2, '0');
-    final d = now.day.toString().padLeft(2, '0');
-    final suffix = now.millisecondsSinceEpoch.toString().substring(9);
-    _sampleIdController.text = 'SMP-$y$m$d-$suffix';
+    _sampleIdController.text = widget.storage.peekNextSampleId();
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -223,9 +218,13 @@ class ScanScreenState extends State<ScanScreen> {
 
       if (mounted) setState(() => _analysisStep = 4);
 
+      final String generatedId = widget.storage.peekNextSampleId();
       final String currentSampleId = _sampleIdController.text.trim().isNotEmpty
           ? _sampleIdController.text.trim()
-          : 'SMP-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+          : generatedId;
+      if (currentSampleId == generatedId) {
+        await widget.storage.getNextSampleId();
+      }
       final String? currentMedicine =
           _medicineNameController.text.trim().isNotEmpty
           ? _medicineNameController.text.trim()
@@ -890,7 +889,7 @@ class ScanScreenState extends State<ScanScreen> {
                   style: TextStyle(fontSize: 12.5, color: AppTheme.textPrimary),
                   decoration: const InputDecoration(
                     labelText: 'Sample / Lot ID *',
-                    hintText: 'e.g. SMP-261018-01',
+                    hintText: 'e.g. PA-2026-0001',
                     prefixIcon: Icon(Icons.tag, size: 16),
                   ),
                 ),

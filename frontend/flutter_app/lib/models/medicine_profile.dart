@@ -10,6 +10,7 @@ class MedicineProfile {
   final String batchNumber;
   final String manufacturingDate;
   final String expiryDate;
+  final String mrp;
   final String rawOcrText;
   final String confidence; // 'HIGH', 'MEDIUM', 'UNCERTAIN'
   final bool isVerifiedByUser;
@@ -26,6 +27,7 @@ class MedicineProfile {
     this.batchNumber = '',
     this.manufacturingDate = '',
     this.expiryDate = '',
+    this.mrp = '',
     this.rawOcrText = '',
     this.confidence = 'UNCERTAIN',
     this.isVerifiedByUser = false,
@@ -95,6 +97,7 @@ class MedicineProfile {
     String? batchNumber,
     String? manufacturingDate,
     String? expiryDate,
+    String? mrp,
     String? rawOcrText,
     String? confidence,
     bool? isVerifiedByUser,
@@ -111,6 +114,7 @@ class MedicineProfile {
       batchNumber: batchNumber ?? this.batchNumber,
       manufacturingDate: manufacturingDate ?? this.manufacturingDate,
       expiryDate: expiryDate ?? this.expiryDate,
+      mrp: mrp ?? this.mrp,
       rawOcrText: rawOcrText ?? this.rawOcrText,
       confidence: confidence ?? this.confidence,
       isVerifiedByUser: isVerifiedByUser ?? this.isVerifiedByUser,
@@ -130,6 +134,7 @@ class MedicineProfile {
       'batch_number': batchNumber,
       'manufacturing_date': manufacturingDate,
       'expiry_date': expiryDate,
+      'mrp': mrp,
       'raw_ocr_text': rawOcrText,
       'confidence': confidence,
       'is_verified_by_user': isVerifiedByUser,
@@ -151,6 +156,7 @@ class MedicineProfile {
       batchNumber: json['batch_number'] as String? ?? '',
       manufacturingDate: json['manufacturing_date'] as String? ?? '',
       expiryDate: json['expiry_date'] as String? ?? '',
+      mrp: json['mrp'] as String? ?? '',
       rawOcrText: json['raw_ocr_text'] as String? ?? '',
       confidence: json['confidence'] as String? ?? 'UNCERTAIN',
       isVerifiedByUser: json['is_verified_by_user'] as bool? ?? false,

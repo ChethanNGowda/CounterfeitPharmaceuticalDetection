@@ -1,21 +1,17 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:pharma_assist/core/theme.dart';
 import 'package:pharma_assist/core/theme_tokens.dart';
 import 'package:pharma_assist/models/scan_history_item.dart';
 import 'package:pharma_assist/screens/results_screen.dart';
-import 'package:pharma_assist/services/history_csv_exporter.dart';
-import 'package:pharma_assist/services/report_service.dart';
-import 'package:pharma_assist/services/simple_pdf_report_generator.dart';
+import 'package:pharma_assist/services/export_service.dart';
 import 'package:pharma_assist/services/storage_service.dart';
 import 'package:pharma_assist/widgets/status_badge.dart';
 
-/// Unified Pharmaceutical Inspection Records & Reports Screen
-/// Combines historical screenings, date/verdict filtering, search,
-/// and comprehensive exports (PDF, CSV, TXT) into a single cohesive interface.
+/// Clean, professional Screening Records Screen consolidating inspection history,
+/// multi-criteria search, filters, and Android-native PDF/TXT/CSV exports.
 class RecordsScreen extends StatefulWidget {
   final StorageService storage;
 
@@ -29,9 +25,8 @@ class RecordsScreenState extends State<RecordsScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<ScanHistoryItem> _allRecords = [];
   List<ScanHistoryItem> _filteredRecords = [];
-
   String _selectedFilter =
-      'ALL'; // ALL, AUTHENTIC, COUNTERFEIT, REVIEW, FAVORITES
+      'ALL'; // 'ALL', 'AUTHENTIC', 'COUNTERFEIT', 'REVIEW', 'FAVORITES'
   bool _sortNewestFirst = true;
   DateTimeRange? _selectedDateRange;
 
@@ -58,7 +53,7 @@ class RecordsScreenState extends State<RecordsScreen> {
     }
   }
 
-  // Alias for backward compatibility
+  // Aliases for backward compatibility
   void loadHistory() => loadRecords();
   void loadReports() => loadRecords();
 
@@ -159,35 +154,28 @@ class RecordsScreenState extends State<RecordsScreen> {
     });
   }
 
-  // ── Single Record Exports ───────────────────────────────────────────────────
+  // ── Single Record Exports via ExportService ────────────────────────────────
 
   Future<void> _exportPdfReport(ScanHistoryItem item) async {
-    try {
-      final bytes = SimplePdfReportGenerator.generateReportPdf(item);
-      final tempDir = Directory.systemTemp;
-      final file = File(
-        '${tempDir.path}${Platform.pathSeparator}pharma_report_${item.sampleId}.pdf',
-      );
-      await file.writeAsBytes(bytes);
+    final result = await ExportService.exportPdfReport(item);
+    if (!mounted) return;
 
-      if (!mounted) return;
+    if (result.success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('PDF generated: ${file.path}'),
+          content: Text(
+            result.publicDownloadsPath != null
+                ? 'PDF report saved to Downloads: ${result.filePath.split(Platform.pathSeparator).last}'
+                : 'PDF report exported: ${result.filePath}',
+          ),
           backgroundColor: AppTheme.success,
           duration: const Duration(seconds: 4),
-          action: SnackBarAction(
-            label: 'Copy Path',
-            textColor: Colors.white,
-            onPressed: () => Clipboard.setData(ClipboardData(text: file.path)),
-          ),
         ),
       );
-    } catch (e) {
-      if (!mounted) return;
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to export PDF: $e'),
+          content: Text('Failed to export PDF: ${result.errorMessage}'),
           backgroundColor: AppTheme.error,
         ),
       );
@@ -195,29 +183,25 @@ class RecordsScreenState extends State<RecordsScreen> {
   }
 
   Future<void> _exportTxtReport(ScanHistoryItem item) async {
-    try {
-      final reportText = ReportService.generateReportFromHistory(item);
-      await Clipboard.setData(ClipboardData(text: reportText));
+    final result = await ExportService.exportTxtReport(item);
+    if (!mounted) return;
 
-      final tempDir = Directory.systemTemp;
-      final file = File(
-        '${tempDir.path}${Platform.pathSeparator}report_${item.sampleId}.txt',
-      );
-      await file.writeAsString(reportText);
-
-      if (!mounted) return;
+    if (result.success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Report saved to ${file.path} and copied to clipboard'),
+          content: Text(
+            result.publicDownloadsPath != null
+                ? 'Report saved to Downloads and copied to clipboard'
+                : 'Report exported to ${result.filePath} and copied',
+          ),
           backgroundColor: AppTheme.success,
           duration: const Duration(seconds: 4),
         ),
       );
-    } catch (e) {
-      if (!mounted) return;
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to export TXT: $e'),
+          content: Text('Failed to export TXT: ${result.errorMessage}'),
           backgroundColor: AppTheme.error,
         ),
       );
@@ -235,55 +219,41 @@ class RecordsScreenState extends State<RecordsScreen> {
       return;
     }
 
-    try {
-      final csv = HistoryCsvExporter.encode(_filteredRecords);
-      await Clipboard.setData(ClipboardData(text: csv));
+    final result = await ExportService.exportHistoryCsv(_filteredRecords);
+    if (!mounted) return;
 
-      final tempDir = Directory.systemTemp;
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final file = File(
-        '${tempDir.path}${Platform.pathSeparator}pharma_assist_screenings_$timestamp.csv',
-      );
-      await file.writeAsString(csv);
-
-      if (!mounted) return;
+    if (result.success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Exported ${_filteredRecords.length} records to ${file.path} & clipboard',
-          ),
+          content: Text('Exported ${_filteredRecords.length} records to CSV'),
           backgroundColor: AppTheme.success,
           duration: const Duration(seconds: 4),
-          action: SnackBarAction(
-            label: 'Copy Path',
-            textColor: Colors.white,
-            onPressed: () => Clipboard.setData(ClipboardData(text: file.path)),
-          ),
         ),
       );
-    } catch (e) {
-      if (!mounted) return;
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to export CSV: $e'),
+          content: Text('Failed to export CSV: ${result.errorMessage}'),
           backgroundColor: AppTheme.error,
         ),
       );
     }
   }
 
-  Future<void> _toggleFavorite(ScanHistoryItem item) async {
-    await widget.storage.toggleFavorite(item.id);
-    loadRecords();
+  Future<void> _toggleFavorite(String id) async {
+    await widget.storage.toggleFavorite(id);
+    setState(() {
+      _applyFilters();
+    });
   }
 
-  Future<void> _deleteRecord(ScanHistoryItem item) async {
+  Future<void> _confirmDelete(ScanHistoryItem item) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Inspection Record'),
         content: Text(
-          'Are you sure you want to delete ${item.sampleId}? This cannot be undone.',
+          'Are you sure you want to delete screening record "${item.sampleId}"? This action cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -312,9 +282,40 @@ class RecordsScreenState extends State<RecordsScreen> {
     }
   }
 
+  void _openFullReport(ScanHistoryItem item) {
+    File? originalImage;
+    if (item.imagePath != null && item.imagePath!.isNotEmpty) {
+      final f = File(item.imagePath!);
+      if (f.existsSync()) {
+        originalImage = f;
+      }
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ResultsScreen(
+          result: item.effectiveResponse,
+          imageFile: originalImage,
+          sampleId: item.sampleId,
+          medicineName: item.medicineName,
+          notes: item.notes,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.pharmaTokens;
+    final theme = Theme.of(context);
+
+    final authenticCount = _allRecords.where((r) => r.isLikelyAuthentic).length;
+    final counterfeitCount = _allRecords
+        .where((r) => r.isLikelyCounterfeit)
+        .length;
+    final reviewCount = _allRecords
+        .where((r) => r.isSuspicious || r.needsHumanVerification)
+        .length;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -336,66 +337,26 @@ class RecordsScreenState extends State<RecordsScreen> {
                 ? _pickDateRange
                 : _clearDateRange,
           ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            tooltip: 'Export & Actions',
-            onSelected: (val) {
-              if (val == 'csv') _exportAllCsv();
-              if (val == 'sort') {
-                setState(() {
-                  _sortNewestFirst = !_sortNewestFirst;
-                  _applyFilters();
-                });
-              }
-              if (val == 'clear_date') _clearDateRange();
+          IconButton(
+            icon: Icon(
+              _sortNewestFirst ? Icons.arrow_downward : Icons.arrow_upward,
+              size: 20,
+              color: tokens.tealAccent,
+            ),
+            tooltip: _sortNewestFirst
+                ? 'Sort: Oldest First'
+                : 'Sort: Newest First',
+            onPressed: () {
+              setState(() {
+                _sortNewestFirst = !_sortNewestFirst;
+                _applyFilters();
+              });
             },
-            itemBuilder: (ctx) => [
-              PopupMenuItem(
-                value: 'csv',
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.table_view_outlined,
-                      size: 18,
-                      color: tokens.tealAccent,
-                    ),
-                    const SizedBox(width: 10),
-                    Text('Export ${_filteredRecords.length} to CSV'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'sort',
-                child: Row(
-                  children: [
-                    Icon(
-                      _sortNewestFirst
-                          ? Icons.arrow_downward
-                          : Icons.arrow_upward,
-                      size: 18,
-                      color: tokens.tealAccent,
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      _sortNewestFirst
-                          ? 'Sort: Oldest First'
-                          : 'Sort: Newest First',
-                    ),
-                  ],
-                ),
-              ),
-              if (_selectedDateRange != null)
-                const PopupMenuItem(
-                  value: 'clear_date',
-                  child: Row(
-                    children: [
-                      Icon(Icons.event_busy, size: 18, color: AppTheme.warning),
-                      SizedBox(width: 10),
-                      Text('Clear Date Filter'),
-                    ],
-                  ),
-                ),
-            ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.file_download_outlined),
+            tooltip: 'Export all to CSV',
+            onPressed: _allRecords.isNotEmpty ? _exportAllCsv : null,
           ),
         ],
         bottom: PreferredSize(
@@ -406,12 +367,49 @@ class RecordsScreenState extends State<RecordsScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Search & Category Filters Bar
+            // Top Description & Summary Strip
             Container(
               color: AppTheme.secondaryBackground,
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    'Audit trail of pharmaceutical inspections, classifications, and exports.',
+                    style: TextStyle(fontSize: 12, color: tokens.textMuted),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Metrics Summary Row
+                  Row(
+                    children: [
+                      _summaryChip(
+                        'Total: ${_allRecords.length}',
+                        tokens.navyBrand,
+                        tokens.surfaceSubtle,
+                      ),
+                      const SizedBox(width: 8),
+                      _summaryChip(
+                        'Authentic: $authenticCount',
+                        tokens.authenticGreen,
+                        tokens.authenticGreenBg,
+                      ),
+                      const SizedBox(width: 8),
+                      _summaryChip(
+                        'Counterfeit: $counterfeitCount',
+                        tokens.counterfeitRed,
+                        tokens.counterfeitRedBg,
+                      ),
+                      const SizedBox(width: 8),
+                      _summaryChip(
+                        'Review: $reviewCount',
+                        tokens.suspiciousAmber,
+                        tokens.suspiciousAmberBg,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
                   // Search TextField
                   TextField(
                     controller: _searchController,
@@ -443,98 +441,84 @@ class RecordsScreenState extends State<RecordsScreen> {
                       children: [
                         _filterChip('ALL', 'All (${_allRecords.length})'),
                         const SizedBox(width: 6),
-                        _filterChip(
-                          'AUTHENTIC',
-                          'Authentic (${_allRecords.where((r) => r.isLikelyAuthentic).length})',
-                        ),
+                        _filterChip('AUTHENTIC', 'Authentic ($authenticCount)'),
                         const SizedBox(width: 6),
                         _filterChip(
                           'COUNTERFEIT',
-                          'Counterfeit (${_allRecords.where((r) => r.isLikelyCounterfeit).length})',
+                          'Counterfeit ($counterfeitCount)',
                         ),
                         const SizedBox(width: 6),
-                        _filterChip(
-                          'REVIEW',
-                          'Review (${_allRecords.where((r) => r.isSuspicious || r.needsHumanVerification).length})',
-                        ),
+                        _filterChip('REVIEW', 'Review ($reviewCount)'),
                         const SizedBox(width: 6),
                         _filterChip(
                           'FAVORITES',
-                          'Starred (${_allRecords.where((r) => widget.storage.getFavoriteIds().contains(r.id)).length})',
+                          'Starred (${widget.storage.getFavoriteIds().length})',
                         ),
                       ],
                     ),
                   ),
-
-                  // Active Date Range Badge
-                  if (_selectedDateRange != null) ...[
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: tokens.tealAccent.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: tokens.tealAccent.withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.calendar_today,
-                                size: 12,
-                                color: tokens.tealAccent,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                '${DateFormat('MMM d').format(_selectedDateRange!.start)} - ${DateFormat('MMM d, yyyy').format(_selectedDateRange!.end)}',
-                                style: TextStyle(
-                                  color: tokens.tealAccent,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              InkWell(
-                                onTap: _clearDateRange,
-                                child: Icon(
-                                  Icons.close,
-                                  size: 14,
-                                  color: tokens.tealAccent,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
                 ],
               ),
             ),
 
-            // Records List
+            // Active Date Filter Notification
+            if (_selectedDateRange != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
+                color: tokens.tealAccent.withValues(alpha: 0.12),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.filter_alt_outlined,
+                      size: 14,
+                      color: tokens.tealAccent,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Filtered: ${DateFormat('yyyy-MM-dd').format(_selectedDateRange!.start)} → ${DateFormat('yyyy-MM-dd').format(_selectedDateRange!.end)}',
+                        style: TextStyle(
+                          color: tokens.tealAccent,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    InkWell(
+                      onTap: _clearDateRange,
+                      child: Text(
+                        'Clear',
+                        style: TextStyle(
+                          color: tokens.counterfeitRed,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Records List View
             Expanded(
               child: _filteredRecords.isEmpty
                   ? _buildEmptyState()
-                  : RefreshIndicator(
-                      onRefresh: () async => loadRecords(),
-                      child: ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _filteredRecords.length,
-                        separatorBuilder: (ctx, idx) =>
-                            const SizedBox(height: 10),
-                        itemBuilder: (ctx, idx) {
-                          final item = _filteredRecords[idx];
-                          return _buildRecordCard(item, tokens);
-                        },
-                      ),
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                      itemCount: _filteredRecords.length,
+                      separatorBuilder: (_, index) =>
+                          const SizedBox(height: 10),
+                      itemBuilder: (ctx, index) {
+                        return _buildRecordCard(
+                          _filteredRecords[index],
+                          tokens,
+                          theme,
+                        );
+                      },
                     ),
             ),
           ],
@@ -543,47 +527,70 @@ class RecordsScreenState extends State<RecordsScreen> {
     );
   }
 
-  Widget _filterChip(String filterKey, String label) {
-    final isSelected = _selectedFilter == filterKey;
-    final tokens = context.pharmaTokens;
-
-    return ChoiceChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        if (selected) {
-          setState(() {
-            _selectedFilter = filterKey;
-            _applyFilters();
-          });
-        }
-      },
-      labelStyle: TextStyle(
-        fontSize: 11.5,
-        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-        color: isSelected ? Colors.white : tokens.textMuted,
+  Widget _summaryChip(String text, Color textColor, Color bgColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(4),
       ),
-      backgroundColor: AppTheme.elevatedCard,
-      selectedColor: tokens.tealAccent,
-      side: BorderSide(
-        color: isSelected ? tokens.tealAccent : tokens.borderSubtle,
+      child: Text(
+        text,
+        style: TextStyle(
+          color: textColor,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+        ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      visualDensity: VisualDensity.compact,
     );
   }
 
-  Widget _buildRecordCard(ScanHistoryItem item, PharmaThemeTokens tokens) {
-    final double confPct = item.confidence <= 1.0
-        ? (item.confidence * 100)
-        : item.confidence;
+  Widget _filterChip(String filterKey, String label) {
+    final tokens = context.pharmaTokens;
+    final isSelected = _selectedFilter == filterKey;
+
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedFilter = filterKey;
+          _applyFilters();
+        });
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? tokens.tealAccent : tokens.surfaceSubtle,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? tokens.tealAccent : tokens.borderSubtle,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : tokens.textMuted,
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecordCard(
+    ScanHistoryItem item,
+    PharmaThemeTokens tokens,
+    ThemeData theme,
+  ) {
     final isFav = widget.storage.getFavoriteIds().contains(item.id);
 
-    Color indicatorColor = tokens.suspiciousAmber;
-    if (item.isLikelyAuthentic) {
-      indicatorColor = tokens.authenticGreen;
-    } else if (item.isLikelyCounterfeit) {
-      indicatorColor = tokens.counterfeitRed;
+    File? imageFile;
+    if (item.imagePath != null && item.imagePath!.isNotEmpty) {
+      final f = File(item.imagePath!);
+      if (f.existsSync()) {
+        imageFile = f;
+      }
     }
 
     return Container(
@@ -596,85 +603,111 @@ class RecordsScreenState extends State<RecordsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          InkWell(
-            onTap: () {
-              if (item.fullResponse != null) {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ResultsScreen(
-                      result: item.fullResponse!,
-                      sampleId: item.sampleId,
-                      medicineName: item.medicineName,
-                      notes: item.notes,
+          // Top Row: Sample ID and Status Badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            color: tokens.surfaceSubtle,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    item.sampleId,
+                    style: TextStyle(
+                      fontFamily: 'Space Grotesk',
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      color: tokens.primaryBlue,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                );
-              } else {
-                _showRecordDetailDialog(item);
-              }
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+                ),
+                const SizedBox(width: 8),
+                StatusBadge(statusText: item.finalResult),
+              ],
+            ),
+          ),
+
+          // Middle Section: Thumbnail, Medicine Name, Date, Model
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Thumbnail
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    width: 54,
+                    height: 54,
+                    color: tokens.surfaceSubtle,
+                    child: imageFile != null
+                        ? Image.file(
+                            imageFile,
+                            width: 54,
+                            height: 54,
+                            fit: BoxFit.cover,
+                          )
+                        : Icon(
+                            Icons.medication_outlined,
+                            color: tokens.textMuted,
+                            size: 26,
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Details Column
+                Expanded(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 4,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: indicatorColor,
-                          borderRadius: BorderRadius.circular(2),
+                      Text(
+                        item.medicineName != null &&
+                                item.medicineName!.isNotEmpty
+                            ? item.medicineName!
+                            : 'Unlabeled Medicine Sample',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13.5,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.sampleId,
-                              style: const TextStyle(
-                                fontFamily: 'Space Grotesk',
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13.5,
-                              ),
-                            ),
-                            if (item.medicineName != null &&
-                                item.medicineName!.isNotEmpty) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                item.medicineName!,
-                                style: TextStyle(
-                                  color: tokens.tealAccent,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 2),
-                            Text(
-                              DateFormat('MMM d, yyyy · HH:mm')
-                                  .format(item.timestamp),
-                              style: TextStyle(
-                                color: tokens.textMuted,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
+                      const SizedBox(height: 3),
+                      Text(
+                        DateFormat('MMM d, yyyy · HH:mm')
+                            .format(item.timestamp),
+                        style: TextStyle(color: tokens.textMuted, fontSize: 11),
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                      const SizedBox(height: 4),
+                      Row(
                         children: [
-                          StatusBadge(statusText: item.finalResult),
-                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: tokens.surfaceSubtle,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: tokens.borderSubtle),
+                            ),
+                            child: Text(
+                              item.primaryModel,
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                color: tokens.textMuted,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           Text(
-                            '${confPct.toStringAsFixed(1)}% match',
+                            '${(item.confidence * 100).toStringAsFixed(1)}% match',
                             style: AppTheme.monoNumeric(
-                              color: tokens.textMuted,
+                              color: tokens.tealAccent,
                               fontSize: 10.5,
                             ),
                           ),
@@ -682,53 +715,26 @@ class RecordsScreenState extends State<RecordsScreen> {
                       ),
                     ],
                   ),
-                  if (item.notes != null && item.notes!.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.secondaryBackground,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        item.notes!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: tokens.textMuted,
-                          fontSize: 11,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-          Container(height: 1, color: tokens.borderSubtle),
+
+          // Divider
+          Divider(height: 1, thickness: 1, color: tokens.borderSubtle),
+
+          // Bottom Action Row
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             child: Row(
               children: [
+                // Primary View Report action
                 TextButton.icon(
-                  onPressed: () => _exportPdfReport(item),
-                  icon: const Icon(Icons.picture_as_pdf_outlined, size: 15),
-                  label: const Text('PDF', style: TextStyle(fontSize: 11.5)),
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    foregroundColor: tokens.tealAccent,
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: () => _exportTxtReport(item),
-                  icon: const Icon(Icons.copy_outlined, size: 15),
+                  onPressed: () => _openFullReport(item),
+                  icon: const Icon(Icons.analytics_outlined, size: 15),
                   label: const Text(
-                    'Copy TXT',
-                    style: TextStyle(fontSize: 11.5),
+                    'Full Report',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                   ),
                   style: TextButton.styleFrom(
                     visualDensity: VisualDensity.compact,
@@ -736,83 +742,48 @@ class RecordsScreenState extends State<RecordsScreen> {
                   ),
                 ),
                 const Spacer(),
+
+                // PDF Export
+                IconButton(
+                  icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                  tooltip: 'Export PDF to Phone',
+                  onPressed: () => _exportPdfReport(item),
+                  visualDensity: VisualDensity.compact,
+                ),
+
+                // TXT Export
+                IconButton(
+                  icon: const Icon(Icons.copy_outlined, size: 18),
+                  tooltip: 'Save / Share TXT',
+                  onPressed: () => _exportTxtReport(item),
+                  visualDensity: VisualDensity.compact,
+                ),
+
+                // Favorite Star
                 IconButton(
                   icon: Icon(
                     isFav ? Icons.star : Icons.star_border,
+                    size: 19,
                     color: isFav ? AppTheme.warning : tokens.textMuted,
-                    size: 18,
                   ),
-                  tooltip: isFav ? 'Unstar' : 'Star',
-                  onPressed: () => _toggleFavorite(item),
+                  tooltip: isFav ? 'Remove Star' : 'Star Record',
+                  onPressed: () => _toggleFavorite(item.id),
                   visualDensity: VisualDensity.compact,
                 ),
+
+                // Delete
                 IconButton(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.delete_outline,
-                    color: AppTheme.error,
                     size: 18,
+                    color: tokens.counterfeitRed,
                   ),
-                  tooltip: 'Delete',
-                  onPressed: () => _deleteRecord(item),
+                  tooltip: 'Delete Record',
+                  onPressed: () => _confirmDelete(item),
                   visualDensity: VisualDensity.compact,
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showRecordDetailDialog(ScanHistoryItem item) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(item.sampleId, style: const TextStyle(fontSize: 16)),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (item.medicineName != null) ...[
-                Text(
-                  'Medicine: ${item.medicineName}',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 4),
-              ],
-              Text('Verdict: ${item.finalResult}'),
-              Text(
-                'Confidence: ${(item.confidence * 100).toStringAsFixed(1)}%',
-              ),
-              Text(
-                'Timestamp: ${DateFormat('yyyy-MM-dd HH:mm').format(item.timestamp)}',
-              ),
-              if (item.notes != null) ...[
-                const SizedBox(height: 4),
-                Text('Notes: ${item.notes}'),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _exportPdfReport(item);
-            },
-            child: const Text('Export PDF'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _exportTxtReport(item);
-            },
-            child: const Text('Save TXT'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
           ),
         ],
       ),
@@ -848,23 +819,10 @@ class RecordsScreenState extends State<RecordsScreen> {
             Text(
               _allRecords.isEmpty
                   ? 'Perform a sample scan to record your first pharmaceutical inspection.'
-                  : 'No records match your active search, date, or category filters.',
-              style: AppTheme.bodyText(color: tokens.textMuted, fontSize: 12),
+                  : 'No inspection records match the current filter criteria.',
               textAlign: TextAlign.center,
+              style: TextStyle(color: tokens.textMuted, fontSize: 11),
             ),
-            if (_selectedDateRange != null ||
-                _searchController.text.isNotEmpty ||
-                _selectedFilter != 'ALL') ...[
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () {
-                  _searchController.clear();
-                  _selectedFilter = 'ALL';
-                  _clearDateRange();
-                },
-                child: const Text('Clear All Filters'),
-              ),
-            ],
           ],
         ),
       ),

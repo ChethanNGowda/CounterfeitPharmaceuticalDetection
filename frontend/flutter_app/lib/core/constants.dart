@@ -30,6 +30,7 @@ class AppConstants {
   static const String keyFavoriteIds = 'pharma_favorite_ids';
   static const String keyMedicineProfiles = 'pharma_medicine_profiles_v1';
   static const String keyChecklistSummaries = 'pharma_checklist_summaries_v1';
+  static const String keySampleIdSequence = 'pharma_sample_id_sequence_v1';
 
   // Defaults
   static const double defaultThreshold = 0.70;

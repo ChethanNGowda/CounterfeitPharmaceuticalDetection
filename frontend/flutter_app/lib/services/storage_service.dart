@@ -466,4 +466,36 @@ class StorageService {
     }
     return false;
   }
+
+  // ── Sequential Sample ID Generation ───────────────────────────────────────
+
+  /// Generates the next sequential sample ID in the format PA-YYYY-XXXX (e.g. PA-2026-0001).
+  /// Increments the persistent sequence counter atomically.
+  Future<String> getNextSampleId({int? year}) async {
+    final currentYear = year ?? DateTime.now().year;
+    int currentSeq = _prefs?.getInt(AppConstants.keySampleIdSequence) ?? 0;
+    if (currentSeq == 0) {
+      final history = getScanHistory();
+      if (history.isNotEmpty) {
+        currentSeq = history.length;
+      }
+    }
+    final nextSeq = currentSeq + 1;
+    await _prefs?.setInt(AppConstants.keySampleIdSequence, nextSeq);
+    return 'PA-$currentYear-${nextSeq.toString().padLeft(4, '0')}';
+  }
+
+  /// Peeks the next sequential sample ID without incrementing the counter.
+  String peekNextSampleId({int? year}) {
+    final currentYear = year ?? DateTime.now().year;
+    int currentSeq = _prefs?.getInt(AppConstants.keySampleIdSequence) ?? 0;
+    if (currentSeq == 0) {
+      final history = getScanHistory();
+      if (history.isNotEmpty) {
+        currentSeq = history.length;
+      }
+    }
+    final nextSeq = currentSeq + 1;
+    return 'PA-$currentYear-${nextSeq.toString().padLeft(4, '0')}';
+  }
 }

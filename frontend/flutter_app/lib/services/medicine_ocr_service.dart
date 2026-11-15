@@ -14,6 +14,7 @@ class OcrExtractionResult {
   final String batchNumber;
   final String manufacturingDate;
   final String expiryDate;
+  final String mrp;
   final String rawText;
   final String confidence;
   final Map<String, bool> fieldConfidence;
@@ -26,6 +27,7 @@ class OcrExtractionResult {
     required this.batchNumber,
     required this.manufacturingDate,
     required this.expiryDate,
+    required this.mrp,
     required this.rawText,
     required this.confidence,
     required this.fieldConfidence,
@@ -41,6 +43,7 @@ class OcrExtractionResult {
       batchNumber: batchNumber,
       manufacturingDate: manufacturingDate,
       expiryDate: expiryDate,
+      mrp: mrp,
       rawOcrText: rawText,
       confidence: confidence,
       isVerifiedByUser: false,
@@ -58,7 +61,7 @@ class MedicineOcrService {
     r'\b(?:\d{1,2}[/. -]\d{2,4}|\d{4}[/. -]\d{1,2}|[A-Za-z]{3,9}[ ./-]*\d{2,4})\b',
   );
   static final RegExp _strengthRegex = RegExp(
-    r'\b\d+(?:\.\d+)?\s*(?:mcg|μg|ug|mg|kg|g|ml|mL|IU|units?|mmol|%)(?:\s*/\s*\d+(?:\.\d+)?\s*(?:ml|mL|g|mg))?\b',
+    r'\b\d+(?:\.\d+)?\s*(?:mcg|â•¬â•g|ug|mg|kg|g|ml|mL|IU|units?|mmol|%)(?:\s*/\s*\d+(?:\.\d+)?\s*(?:ml|mL|g|mg))?\b',
     caseSensitive: false,
   );
   static final RegExp _dosageFormRegex = RegExp(
@@ -119,6 +122,7 @@ class MedicineOcrService {
       'expiry': false,
       'mfgDate': false,
       'manufacturer': false,
+      'mrp': false,
     };
     if (lines.isEmpty) {
       return const OcrExtractionResult(
@@ -129,6 +133,7 @@ class MedicineOcrService {
         batchNumber: '',
         manufacturingDate: '',
         expiryDate: '',
+        mrp: '',
         rawText: '',
         confidence: 'UNCERTAIN',
         fieldConfidence: emptyFields,
@@ -156,6 +161,15 @@ class MedicineOcrService {
         caseSensitive: false,
       ),
       RegExp(r'([A-Z0-9][A-Z0-9./_-]{1,})', caseSensitive: false),
+    );
+
+    final mrp = _extractLabelledValue(
+      lines,
+      RegExp(
+        r'\b(?:m\.?\s*r\.?\s*p\.?|maximum\s*retail\s*price)\b',
+        caseSensitive: false,
+      ),
+      RegExp(r'([0-9]+(?:[.,][0-9]{1,2})?)'),
     );
 
     String strength = '';
@@ -192,6 +206,7 @@ class MedicineOcrService {
       'expiry': expiry.isNotEmpty,
       'mfgDate': manufacturing.isNotEmpty,
       'manufacturer': manufacturer.isNotEmpty,
+      'mrp': mrp.isNotEmpty,
     };
     final matched = fields.values.where((value) => value).length;
     final confidence = matched >= 5
@@ -208,6 +223,7 @@ class MedicineOcrService {
       batchNumber: batch,
       manufacturingDate: manufacturing,
       expiryDate: expiry,
+      mrp: mrp,
       rawText: normalizedText,
       confidence: confidence,
       fieldConfidence: fields,
@@ -254,7 +270,7 @@ class MedicineOcrService {
 
   static String _extractManufacturer(List<String> lines) {
     final labelled = RegExp(
-      r'\b(?:mfd\.?\s*by|manufactured\s*by|marketed\s*by|manufacturers?\s*[:\-])\s*[:\-]?\s*(.+),
+      r'\b(?:mfd\.?\s*by|manufactured\s*by|marketed\s*by|manufacturers?\s*[:\-])\s*[:\-]?\s*(.+)',
       caseSensitive: false,
     );
     for (final line in lines) {
@@ -284,7 +300,10 @@ class MedicineOcrService {
       caseSensitive: false,
     );
     for (final original in lines.take(10)) {
-      var candidate = original;
+      var candidate = original.replaceFirst(
+        RegExp(r'^\s*rx\b[\s:.-]*', caseSensitive: false),
+        '',
+      );
       if (strength.isNotEmpty) {
         candidate = candidate.replaceAll(
           RegExp(RegExp.escape(strength), caseSensitive: false),
@@ -298,68 +317,7 @@ class MedicineOcrService {
         );
       }
       candidate = candidate
-          .replaceAll(RegExp(r'^[\s:|•-]+|[\s:|•-]+$'), '')
-          .trim();
-      if (candidate.length < 3 ||
-          candidate.length > 60 ||
-          excluded.hasMatch(candidate) ||
-          candidate == manufacturer ||
-          !RegExp(r'[A-Za-z\u0900-\u097F]{3}').hasMatch(candidate)) {
-        continue;
-      }
-      final letters = RegExp(r'[A-Za-z\u0900-\u097F]').allMatches(candidate).length;
-      final digits = RegExp(r'\d').allMatches(candidate).length;
-      if (letters < 3 || digits > letters) continue;
-      return candidate;
-    }
-    return '';
-  }
-}
-,
-      caseSensitive: false,
-    );
-    for (final line in lines) {
-      final match = labelled.firstMatch(line);
-      if (match != null) {
-        return match.group(1)!.trim().replaceAll(RegExp(r'[;,]+$'), '');
-      }
-    }
-    final companyLine = RegExp(
-      r'\b(?:pharma(?:ceuticals?)?|laborator(?:y|ies)|healthcare|biotech|pvt\.?\s*ltd|limited|ltd\.?|inc\.?)\b',
-      caseSensitive: false,
-    );
-    for (final line in lines) {
-      if (companyLine.hasMatch(line) && line.length <= 90) return line;
-    }
-    return '';
-  }
-
-  static String _extractMedicineName(
-    List<String> lines, {
-    required String strength,
-    required String dosage,
-    required String manufacturer,
-  }) {
-    final excluded = RegExp(
-      r'\b(?:rx|medicine|pharmaceutical|batch|lot|exp(?:iry)?|mfg|mfd|manufactur|marketed|store|storage|keep out|prescription|composition|warning|caution|schedule|mrp|price|tablet|capsule|syrup|injection|suspension|ointment|cream|gel|solution|drops|inhaler|dosage|each film coated)\b',
-      caseSensitive: false,
-    );
-    for (final original in lines.take(10)) {
-      var candidate = original;
-      if (strength.isNotEmpty) {
-        candidate = candidate.replaceAll(
-          RegExp(RegExp.escape(strength), caseSensitive: false),
-          '',
-        );
-      }
-      if (dosage.isNotEmpty) {
-        candidate = candidate.replaceAll(
-          RegExp(RegExp.escape(dosage), caseSensitive: false),
-          '',
-        );
-      }
-      candidate = candidate
-          .replaceAll(RegExp(r'^[\s:|•-]+|[\s:|•-]+$'), '')
+          .replaceAll(RegExp(r'^[\s:|\-\u2022]+|[\s:|\-\u2022]+$'), '')
           .trim();
       if (candidate.length < 3 ||
           candidate.length > 60 ||

@@ -2,7 +2,10 @@ class AppConstants {
   static const String appName = 'PharmaAssist';
   static const String appTitle = 'Pharmaceutical Screening Instrument';
   static const String appSubtitle = 'Field-Screening & Quality Triage System';
-  static const String appVersion = '1.2.1';
+  static const String appVersion = String.fromEnvironment(
+    'PHARMA_APP_VERSION',
+    defaultValue: '1.2.1',
+  );
 
   // Override for a build or configure at runtime in Settings. The default is
   // loopback so a developer's private LAN address is never shipped.

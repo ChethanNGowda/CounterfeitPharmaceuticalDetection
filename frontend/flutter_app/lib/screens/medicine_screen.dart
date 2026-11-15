@@ -82,9 +82,9 @@ class MedicineScreenState extends State<MedicineScreen> {
     try {
       final XFile? file = await _picker.pickImage(
         source: source,
-        maxWidth: 1600,
-        maxHeight: 1600,
-        imageQuality: 85,
+        maxWidth: 2400,
+        maxHeight: 2400,
+        imageQuality: 95,
       );
 
       if (file == null) return;

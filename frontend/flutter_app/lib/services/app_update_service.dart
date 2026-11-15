@@ -15,6 +15,7 @@ class AppReleaseInfo {
   final String releaseUrl;
   final String apkUrl;
   final String? sha256Digest;
+  final String? sha256Url;
 
   const AppReleaseInfo({
     required this.version,
@@ -24,6 +25,7 @@ class AppReleaseInfo {
     required this.releaseUrl,
     required this.apkUrl,
     required this.sha256Digest,
+    required this.sha256Url,
   });
 }
 
@@ -105,6 +107,18 @@ class AppUpdateService {
       throw const FormatException('The release APK URL is not a trusted GitHub HTTPS URL.');
     }
 
+    final checksumAsset = assets.whereType<Map<String, dynamic>>().where(
+      (item) => item['name']?.toString() == '$apkAssetName.sha256',
+    ).firstOrNull;
+    final checksumUrl = checksumAsset?['browser_download_url']?.toString();
+    if (checksumUrl != null) {
+      final checksumUri = Uri.tryParse(checksumUrl);
+      if (checksumUri == null ||
+          checksumUri.scheme != 'https' ||
+          checksumUri.host != 'github.com') {
+        throw const FormatException('The release checksum URL is not a trusted GitHub HTTPS URL.');
+      }
+    }
     final digest = asset['digest']?.toString();
     return AppUpdateCheck(
       currentVersion: packageInfo.version,
@@ -118,6 +132,7 @@ class AppUpdateService {
         sha256Digest: digest != null && digest.startsWith('sha256:')
             ? digest.substring(7).toLowerCase()
             : null,
+        sha256Url: checksumUrl,
       ),
     );
   }
@@ -199,12 +214,41 @@ class AppUpdateService {
       await file.delete();
       throw StateError('The downloaded APK is unexpectedly small.');
     }
-    if (release.sha256Digest != null) {
-      final actual = await sha256.bind(file.openRead()).first;
-      if (actual.toString().toLowerCase() != release.sha256Digest) {
+    var expectedDigest = release.sha256Digest;
+    if (expectedDigest == null && release.sha256Url != null) {
+      final checksumResponse = await http.get(Uri.parse(release.sha256Url!)).timeout(
+        const Duration(seconds: 15),
+      );
+      if (checksumResponse.statusCode != 200) {
         await file.delete();
-        throw StateError('APK SHA-256 verification failed. The file was discarded.');
+        throw HttpException('Release checksum download failed (HTTP ${checksumResponse.statusCode}).');
       }
+      expectedDigest = checksumResponse.body.trim().split(RegExp(r'\\s+')).first.toLowerCase();
+    }
+    if (expectedDigest == null || !RegExp(r'^[a-f0-9]{64}
+    onProgress(1);
+    return file.path;
+  }
+
+  Future<bool> canInstallUnknownApps() async =>
+      await _channel.invokeMethod<bool>('canInstallUnknownApps') ?? false;
+
+  Future<void> openInstallPermissionSettings() async {
+    await _channel.invokeMethod<void>('openInstallPermissionSettings');
+  }
+
+  Future<void> installApk(String path) async {
+    await _channel.invokeMethod<void>('installApk', {'path': path});
+  }
+}
+).hasMatch(expectedDigest)) {
+      await file.delete();
+      throw StateError('The release does not provide a valid SHA-256 checksum. The APK was discarded.');
+    }
+    final actual = await sha256.bind(file.openRead()).first;
+    if (actual.toString().toLowerCase() != expectedDigest) {
+      await file.delete();
+      throw StateError('APK SHA-256 verification failed. The file was discarded.');
     }
     onProgress(1);
     return file.path;

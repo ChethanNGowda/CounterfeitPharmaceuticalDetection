@@ -58,14 +58,12 @@ class AboutScreen extends StatelessWidget {
                 _InfoItem(
                   label: 'Primary Convolutional Classifier',
                   body:
-                      'Fine-tuned EfficientNet-B0 trained on 10,551 deduplicated pharmaceutical tablet images. '
-                      'Test accuracy 99.88%, macro F1 99.82%, ROC-AUC 0.9988. Evaluated on a clean, leakage-controlled test split.',
+                      'EfficientNet-B0 is the default registered primary classifier. Model availability and screening output depend on the deployed checkpoint. Current dataset audits have not certified leakage-free generalization or reproduced historical benchmark metrics.',
                 ),
                 _InfoItem(
                   label: 'Secondary AI Vision Verifier',
                   body:
-                      'Qwen Vision (4B parameters) vision-language model running via local Ollama. '
-                      'Inspects physical tablet shape, color consistency, surface texture, and packaging integrity.',
+                      'Optional Qwen vision-language advisory review through a locally configured Ollama service. It is secondary evidence only and cannot override the primary decision policy or replace professional review.',
                 ),
                 _InfoItem(
                   label: 'OpenCV Quality & Feature Engine',
@@ -134,7 +132,7 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: 24),
             Center(
               child: Text(
-                'PharmaAssist v${AppConstants.appVersion} · Build 2026.10',
+                'PharmaAssist v${AppConstants.appVersion} · Developed by Chethan N. · Apache-2.0',
                 style: TextStyle(color: AppTheme.textMuted, fontSize: 10),
               ),
             ),
@@ -197,7 +195,7 @@ class AboutScreen extends StatelessWidget {
                         border: Border.all(color: AppTheme.border),
                       ),
                       child: Text(
-                        'v1.2.0',
+                        'v${AppConstants.appVersion}',
                         style: TextStyle(
                           color: AppTheme.primaryTeal,
                           fontSize: 9.5,

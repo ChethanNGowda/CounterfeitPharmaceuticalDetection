@@ -78,7 +78,7 @@ jobs:
           RELEASE_BUILD: ${{ github.run_number }}
         run: |
           VERSION="${RELEASE_VERSION#v}"
-          flutter build apk --release --build-name="$VERSION" --build-number="$RELEASE_BUILD"
+          flutter build apk --release --build-name="$VERSION" --build-number="$RELEASE_BUILD" --dart-define=PHARMA_APP_VERSION="$VERSION"
           cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/pharmaassist-android-universal.apk"
           cd "$GITHUB_WORKSPACE"
           sha256sum pharmaassist-android-universal.apk > pharmaassist-android-universal.apk.sha256

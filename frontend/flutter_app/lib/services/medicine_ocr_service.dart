@@ -280,7 +280,7 @@ class MedicineOcrService {
     required String manufacturer,
   }) {
     final excluded = RegExp(
-      r'\b(?:batch|lot|exp(?:iry)?|mfg|mfd|manufactur|marketed|store|storage|keep out|prescription|composition|warning|caution|schedule|mrp|price|tablet|capsule|syrup|injection|suspension|ointment|cream|gel|solution|drops|inhaler|dosage|each film coated)\b',
+      r'\b(?:rx|medicine|pharmaceutical|batch|lot|exp(?:iry)?|mfg|mfd|manufactur|marketed|store|storage|keep out|prescription|composition|warning|caution|schedule|mrp|price|tablet|capsule|syrup|injection|suspension|ointment|cream|gel|solution|drops|inhaler|dosage|each film coated)\b',
       caseSensitive: false,
     );
     for (final original in lines.take(10)) {

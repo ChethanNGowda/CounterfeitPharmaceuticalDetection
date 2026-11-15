@@ -5,9 +5,10 @@ import 'package:pharma_assist/models/health_response.dart';
 import 'package:pharma_assist/screens/about_screen.dart';
 import 'package:pharma_assist/screens/model_lab_screen.dart';
 import 'package:pharma_assist/services/api_service.dart';
-import 'package:pharma_assist/services/storage_service.dart';
 import 'package:pharma_assist/services/credential_service.dart';
+import 'package:pharma_assist/services/storage_service.dart';
 import 'package:pharma_assist/services/sync_service.dart';
+import 'package:pharma_assist/widgets/app_update_card.dart';
 
 class SettingsScreen extends StatefulWidget {
   final StorageService storage;
@@ -493,6 +494,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 20),
 
             // 7. About Link & Model Lab (nested under settings)
+            _buildSectionLabel('APP UPDATES'),
+            const SizedBox(height: 8),
+            const AppUpdateCard(),
+
+            const SizedBox(height: 20),
+
             _buildSectionLabel('INSTRUMENT SPECIFICATIONS'),
             const SizedBox(height: 8),
             _buildAboutCard(),

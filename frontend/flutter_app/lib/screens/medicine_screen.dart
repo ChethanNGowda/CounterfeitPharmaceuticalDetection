@@ -82,26 +82,23 @@ class MedicineScreenState extends State<MedicineScreen> {
     try {
       final XFile? file = await _picker.pickImage(
         source: source,
-        maxWidth: 1600,
-        maxHeight: 1600,
-        imageQuality: 85,
+        maxWidth: 2400,
+        maxHeight: 2400,
+        imageQuality: 95,
       );
 
       if (file == null) return;
 
       setState(() => _isProcessingOcr = true);
 
-      // Simulate on-device OCR scan & regex pattern analysis
-      await Future.delayed(const Duration(milliseconds: 600));
-
-      final basename = file.name.replaceAll('_', ' ').replaceAll('-', ' ');
-      final syntheticText =
-          'Rx Medicine\nSample Product: $basename\nBatch No: B-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}\n'
-          'Mfg Date: ${DateFormat('MM/yyyy').format(DateTime.now().subtract(const Duration(days: 90)))}\n'
-          'Exp Date: ${DateFormat('MM/yyyy').format(DateTime.now().add(const Duration(days: 365)))}\n'
-          'Strength: 500 mg\nTablets\nMfd by: Standard Pharma Labs Ltd.\n';
-
-      final ocrResult = MedicineOcrService.parsePackagingText(syntheticText);
+      // Read the actual medicine packaging photograph on-device.
+      final ocrResult = await MedicineOcrService.recognizeImage(file.path);
+      if (ocrResult.rawText.trim().isEmpty) {
+        throw StateError(
+          'No readable text was found. Retake the photo with better lighting, '
+          'less glare, steady focus, and the medicine label filling the frame.',
+        );
+      }
       final profile = ocrResult.toProfile(
         imagePath: file.path,
         notes:
@@ -138,7 +135,7 @@ class MedicineScreenState extends State<MedicineScreen> {
     final mfgDateCtrl = TextEditingController(text: profile.manufacturingDate);
     final expDateCtrl = TextEditingController(text: profile.expiryDate);
     final notesCtrl = TextEditingController(text: profile.notes ?? '');
-    bool isVerified = profile.isVerifiedByUser || isNew;
+    bool isVerified = profile.isVerifiedByUser;
 
     showModalBottomSheet(
       context: context,
@@ -234,7 +231,7 @@ class MedicineScreenState extends State<MedicineScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'OCR extraction confidence: ${profile.confidence}. Please confirm details against the physical packaging.',
+                              'Extracted field coverage: ${profile.confidence}. This is not an authenticity score. Confirm every value against the physical packaging.',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: tokens.textMuted,
                                 fontSize: 11,
@@ -245,6 +242,31 @@ class MedicineScreenState extends State<MedicineScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
+
+                    if (profile.rawOcrText.trim().isNotEmpty) ...[
+                      ExpansionTile(
+                        tilePadding: EdgeInsets.zero,
+                        childrenPadding: const EdgeInsets.only(bottom: 12),
+                        title: const Text('Recognized packaging text'),
+                        subtitle: const Text(
+                          'Review the original text before confirming extracted fields.',
+                        ),
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: tokens.surfaceSubtle,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: SelectableText(
+                              profile.rawOcrText,
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
 
                     // Form fields
                     TextField(
@@ -318,7 +340,7 @@ class MedicineScreenState extends State<MedicineScreen> {
                           child: TextField(
                             controller: expDateCtrl,
                             decoration: InputDecoration(
-                              labelText: 'Expiry Date *',
+                              labelText: 'Expiry Date',
                               hintText: 'MM/yyyy',
                               suffixIcon: IconButton(
                                 icon: const Icon(

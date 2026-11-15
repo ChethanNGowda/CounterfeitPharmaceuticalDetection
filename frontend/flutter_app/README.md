@@ -94,3 +94,20 @@ Camera and internet permissions are declared in
 See the repository [README](../../README.md) for backend setup, API examples,
 model requirements, dataset evidence, decision semantics, Ollama
 troubleshooting, and responsible-use limitations.
+
+## On-device medicine OCR
+
+The Medicine destination uses Google ML Kit Text Recognition on the selected
+image. Latin recognition is included, with the optional Devanagari model
+bundled for Android. It extracts suggested packaging fields and keeps the raw
+recognized text visible for manual review. Missing values are left blank; OCR
+does not verify medicine identity, authenticity, composition or safety.
+
+## App updates
+
+Release builds check GitHub Releases at startup and expose a manual check under
+**More → Settings → App Updates**. Users can review release notes, download the
+signed universal APK and approve installation in Android's system installer.
+
+Publishing requires the persistent Android signing key and GitHub Actions
+secrets documented in [the release guide](../../docs/ANDROID_RELEASES_AND_UPDATES.md).

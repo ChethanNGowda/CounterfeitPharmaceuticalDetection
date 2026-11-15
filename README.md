@@ -876,7 +876,7 @@ It:
 
 - Installs pinned Python dependencies.
 - Runs backend and ML contract tests.
-- Installs locked Flutter dependencies.
+- Resolves Flutter dependencies from the declared package constraints.
 - Runs Flutter analysis.
 - Runs Flutter tests.
 
@@ -994,6 +994,34 @@ Official releases and version-specific changes will be published here:
 Only officially published releases should be treated as versioned releases. Development commits do not necessarily represent production-ready versions.
 
 ---
+
+## Android App Updates
+
+The Flutter Android client includes a GitHub Releases update channel. Release
+builds check for a newer stable version at startup; users can also check
+manually from **More → Settings → App Updates**. Users can review release notes,
+download the APK over HTTPS, and confirm installation through Android's system
+package installer.
+
+A tagged release is built and published by
+`.github/workflows/android-release.yml`. The workflow requires the four
+repository Actions secrets documented in
+[`docs/ANDROID_RELEASES_AND_UPDATES.md`](docs/ANDROID_RELEASES_AND_UPDATES.md).
+A persistent signing keystore is mandatory for normal in-place Android
+updates. Never commit the keystore or passwords.
+
+## Medicine Packaging OCR
+
+The Medicine screen uses on-device Google ML Kit Text Recognition against the
+actual selected photograph. It supports Latin text and includes the optional
+Android Devanagari recognizer. The parser suggests medicine name, strength,
+dosage form, batch/lot number, manufacturer, manufacturing date and expiry
+date, and preserves the raw recognized text for review.
+
+OCR output is not guaranteed to be correct. Missing fields remain blank;
+users must compare every suggestion with the physical package and manually
+confirm the profile. OCR confidence describes extraction completeness, not
+medicine authenticity.
 
 # License
 

@@ -1,6 +1,11 @@
+import 'dart:io';
+
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:pharma_assist/models/medicine_profile.dart';
 
-/// Structured result of pharmaceutical packaging OCR parsing
+/// Structured result of real text recognition and packaging-field extraction.
+/// Confidence describes extraction completeness, not authenticity or a
+/// calibrated OCR probability.
 class OcrExtractionResult {
   final String medicineName;
   final String manufacturer;
@@ -10,9 +15,8 @@ class OcrExtractionResult {
   final String manufacturingDate;
   final String expiryDate;
   final String rawText;
-  final String confidence; // 'HIGH', 'MEDIUM', 'UNCERTAIN'
-  final Map<String, bool>
-  fieldConfidence; // true if field matched strong pattern
+  final String confidence;
+  final Map<String, bool> fieldConfidence;
 
   const OcrExtractionResult({
     required this.medicineName,
@@ -33,7 +37,7 @@ class OcrExtractionResult {
       medicineName: medicineName.isNotEmpty ? medicineName : 'Unlabeled Sample',
       manufacturer: manufacturer,
       strength: strength,
-      dosageForm: dosageForm,
+      dosageForm: dosageForm.isNotEmpty ? dosageForm : 'Not detected',
       batchNumber: batchNumber,
       manufacturingDate: manufacturingDate,
       expiryDate: expiryDate,
@@ -47,71 +51,67 @@ class OcrExtractionResult {
   }
 }
 
-/// Specialized Optical Character & Pattern Recognition Service for Medicine Packaging
+/// On-device OCR using Google ML Kit. Latin is always attempted; Devanagari
+/// is additionally attempted on Android when its optional model is bundled.
 class MedicineOcrService {
-  // Regex patterns for pharmaceutical packaging entities
+  static final RegExp _dateRegex = RegExp(
+    r'\b(?:\d{1,2}[/. -]\d{2,4}|\d{4}[/. -]\d{1,2}|[A-Za-z]{3,9}[ ./-]*\d{2,4})\b',
+  );
   static final RegExp _strengthRegex = RegExp(
-    r'\b(\d+(?:\.\d+)?\s*(?:mg|g|mcg|ml|iu|%|w\/v|w\/w))\b',
+    r'\b\d+(?:\.\d+)?\s*(?:mcg|μg|ug|mg|kg|g|ml|mL|IU|units?|mmol|%)(?:\s*/\s*\d+(?:\.\d+)?\s*(?:ml|mL|g|mg))?\b',
     caseSensitive: false,
   );
-
-  static final RegExp _batchRegex = RegExp(
-    r'(?:B\.?\s*No\.?|Batch(?:\s*No\.?)?|Lot(?:\s*No\.?)?|LOT|BATCH|B\/N)[\s:]*([A-Za-z0-9\-]+)',
-    caseSensitive: false,
-  );
-
-  static final RegExp _expiryRegex = RegExp(
-    r'(?:Exp\.?\s*Date|EXPIRY|EXP|Expiry(?:\s*Date)?|Best\s*Before|Use\s*Before|BB)[\s:]*([0-9]{1,2}[\/\-\.][0-9]{2,4}|[A-Za-z]{3,9}[\s\.\-\/]*[0-9]{2,4}|[0-9]{4}[\/\-\.][0-9]{1,2})',
-    caseSensitive: false,
-  );
-
-  static final RegExp _mfgRegex = RegExp(
-    r'(?:Mfg\.?\s*Date|MFD|MFG|Manufactured(?:\s*Date)?|Mfd)[\s:]*([0-9]{1,2}[\/\-\.][0-9]{2,4}|[A-Za-z]{3,9}[\s\.\-\/]*[0-9]{2,4}|[0-9]{4}[\/\-\.][0-9]{1,2})',
-    caseSensitive: false,
-  );
-
   static final RegExp _dosageFormRegex = RegExp(
-    r'\b(Tablets?|Capsules?|Syrup|Injection|Suspension|Ointment|Cream|Gel|Solution|Drops?|Inhaler|Caplets?|Oral\s*Solution)\b',
+    r'\b(?:tablets?|capsules?|syrups?|injections?|suspensions?|ointments?|creams?|gels?|solutions?|drops?|inhalers?|caplets?|granules?|powders?|sachets?|sprays?|lozenges?|suppositories?)\b',
     caseSensitive: false,
   );
 
-  static final RegExp _mfgNameRegex = RegExp(
-    r'(?:Mfd\.?\s*by|Manufactured\s*by|Marketed\s*by|Mfg\s*by|Pharma|Laboratories|Lab|Ltd\.?|Pvt\.?|Inc\.?)[\s:]*([A-Za-z0-9\s,\.\&]+)',
-    caseSensitive: false,
-  );
+  /// Reads the selected image itself. No values are generated from filenames.
+  static Future<OcrExtractionResult> recognizeImage(String imagePath) async {
+    final inputImage = InputImage.fromFilePath(imagePath);
+    final recognizedTexts = <String>[];
 
-  /// Parse text extracted from packaging image into structured fields
-  static OcrExtractionResult parsePackagingText(String text) {
-    if (text.trim().isEmpty) {
-      return const OcrExtractionResult(
-        medicineName: '',
-        manufacturer: '',
-        strength: '',
-        dosageForm: 'Tablet',
-        batchNumber: '',
-        manufacturingDate: '',
-        expiryDate: '',
-        rawText: '',
-        confidence: 'UNCERTAIN',
-        fieldConfidence: {},
-      );
+    final latinRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+    try {
+      final result = await latinRecognizer.processImage(inputImage);
+      if (result.text.trim().isNotEmpty) recognizedTexts.add(result.text.trim());
+    } finally {
+      await latinRecognizer.close();
     }
 
-    final lines = text
+    if (Platform.isAndroid) {
+      final devanagariRecognizer = TextRecognizer(
+        script: TextRecognitionScript.devanagiri,
+      );
+      try {
+        final result = await devanagariRecognizer.processImage(inputImage);
+        final text = result.text.trim();
+        if (text.isNotEmpty &&
+            !recognizedTexts.any(
+              (existing) => existing.toLowerCase() == text.toLowerCase(),
+            )) {
+          recognizedTexts.add(text);
+        }
+      } on Exception {
+        // Keep Latin OCR available if the optional script model fails.
+      } finally {
+        await devanagariRecognizer.close();
+      }
+    }
+    return parsePackagingText(recognizedTexts.join('\n'));
+  }
+
+  /// Parses OCR text into editable fields. Missing values remain blank;
+  /// batch numbers, dates, and strengths are never fabricated.
+  static OcrExtractionResult parsePackagingText(String text) {
+    final normalizedText = text.replaceAll('\r', '\n').trim();
+    final lines = normalizedText
         .split('\n')
-        .map((l) => l.trim())
-        .where((l) => l.isNotEmpty)
+        .map((line) => line.replaceAll(RegExp(r'\s+'), ' ').trim())
+        .where((line) => line.isNotEmpty)
         .toList();
 
-    String detectedStrength = '';
-    String detectedBatch = '';
-    String detectedExpiry = '';
-    String detectedMfgDate = '';
-    String detectedDosage = 'Tablet';
-    String detectedManufacturer = '';
-    String detectedName = '';
-
-    final Map<String, bool> fieldConfidence = {
+    const emptyFields = {
       'name': false,
       'strength': false,
       'dosage': false,
@@ -120,96 +120,259 @@ class MedicineOcrService {
       'mfgDate': false,
       'manufacturer': false,
     };
-
-    // 1. Search batch number
-    final batchMatch = _batchRegex.firstMatch(text);
-    if (batchMatch != null && batchMatch.groupCount >= 1) {
-      detectedBatch = batchMatch.group(1)?.trim() ?? '';
-      fieldConfidence['batch'] = detectedBatch.isNotEmpty;
+    if (lines.isEmpty) {
+      return const OcrExtractionResult(
+        medicineName: '',
+        manufacturer: '',
+        strength: '',
+        dosageForm: '',
+        batchNumber: '',
+        manufacturingDate: '',
+        expiryDate: '',
+        rawText: '',
+        confidence: 'UNCERTAIN',
+        fieldConfidence: emptyFields,
+      );
     }
 
-    // 2. Search expiry date
-    final expiryMatch = _expiryRegex.firstMatch(text);
-    if (expiryMatch != null && expiryMatch.groupCount >= 1) {
-      detectedExpiry = expiryMatch.group(1)?.trim() ?? '';
-      fieldConfidence['expiry'] = detectedExpiry.isNotEmpty;
-    }
+    final expiry = _extractLabelledDate(
+      lines,
+      RegExp(
+        r'\b(?:exp(?:iry)?\.?\s*(?:date|dt)?|use\s*before|best\s*before|valid\s*(?:upto|up\s*to))\b',
+        caseSensitive: false,
+      ),
+    );
+    final manufacturing = _extractLabelledDate(
+      lines,
+      RegExp(
+        r'\b(?:mfg\.?\s*(?:date|dt)?|mfd\.?\s*(?:date|dt)?|manufactured\s*(?:date)?)\b',
+        caseSensitive: false,
+      ),
+    );
+    final batch = _extractLabelledValue(
+      lines,
+      RegExp(
+        r'\b(?:batch(?:\s*(?:no|number))?|b\.?\s*no\.?|lot(?:\s*(?:no|number))?|b/n)\b',
+        caseSensitive: false,
+      ),
+      RegExp(r'([A-Z0-9][A-Z0-9./_-]{1,})', caseSensitive: false),
+    );
 
-    // 3. Search manufacturing date
-    final mfgMatch = _mfgRegex.firstMatch(text);
-    if (mfgMatch != null && mfgMatch.groupCount >= 1) {
-      detectedMfgDate = mfgMatch.group(1)?.trim() ?? '';
-      fieldConfidence['mfgDate'] = detectedMfgDate.isNotEmpty;
-    }
-
-    // 4. Search strength
-    final strengthMatch = _strengthRegex.firstMatch(text);
-    if (strengthMatch != null && strengthMatch.groupCount >= 1) {
-      detectedStrength = strengthMatch.group(1)?.trim() ?? '';
-      fieldConfidence['strength'] = detectedStrength.isNotEmpty;
-    }
-
-    // 5. Search dosage form
-    final dosageMatch = _dosageFormRegex.firstMatch(text);
-    if (dosageMatch != null && dosageMatch.groupCount >= 1) {
-      detectedDosage = dosageMatch.group(1)?.trim() ?? 'Tablet';
-      fieldConfidence['dosage'] = true;
-    }
-
-    // 6. Search manufacturer
-    final mfgNameMatch = _mfgNameRegex.firstMatch(text);
-    if (mfgNameMatch != null && mfgNameMatch.groupCount >= 1) {
-      final rawMfg = mfgNameMatch.group(1)?.trim() ?? '';
-      detectedManufacturer = rawMfg.split(RegExp(r'[\r\n,]')).first.trim();
-      fieldConfidence['manufacturer'] = detectedManufacturer.isNotEmpty;
-    }
-
-    // 7. Heuristic for Medicine Name:
-    // Generally the largest/first prominent line that doesn't match batch/expiry/mfg keywords
+    String strength = '';
     for (final line in lines) {
-      if (line.length < 3) continue;
-      final lower = line.toLowerCase();
-      final isKeyword =
-          lower.contains('batch') ||
-          lower.contains('exp') ||
-          lower.contains('mfg') ||
-          lower.contains('mfd') ||
-          lower.contains('tablets') ||
-          lower.contains('capsules') ||
-          lower.contains('manufactured') ||
-          lower.contains('keep out of reach') ||
-          lower.contains('store in');
-      if (!isKeyword && detectedName.isEmpty) {
-        // Strip trailing punctuation
-        detectedName = line.replaceAll(
-          RegExp(r'^[^\w]+|[^\w\s\-\.\(\)]+$'),
-          '',
-        );
-        fieldConfidence['name'] = detectedName.isNotEmpty;
-        break;
+      final match = _strengthRegex.firstMatch(line);
+      if (match != null) {
+        strength = match.group(0)?.trim() ?? '';
+        if (strength.isNotEmpty) break;
       }
     }
 
-    // Calculate overall extraction confidence
-    final confidentCount = fieldConfidence.values.where((v) => v).length;
-    String overallConfidence = 'UNCERTAIN';
-    if (confidentCount >= 4) {
-      overallConfidence = 'HIGH';
-    } else if (confidentCount >= 2) {
-      overallConfidence = 'MEDIUM';
+    String dosage = '';
+    for (final line in lines) {
+      final match = _dosageFormRegex.firstMatch(line);
+      if (match != null) {
+        dosage = match.group(0) ?? '';
+        if (dosage.isNotEmpty) break;
+      }
     }
 
-    return OcrExtractionResult(
-      medicineName: detectedName,
-      manufacturer: detectedManufacturer,
-      strength: detectedStrength,
-      dosageForm: detectedDosage,
-      batchNumber: detectedBatch,
-      manufacturingDate: detectedMfgDate,
-      expiryDate: detectedExpiry,
-      rawText: text,
-      confidence: overallConfidence,
-      fieldConfidence: fieldConfidence,
+    final manufacturer = _extractManufacturer(lines);
+    final medicineName = _extractMedicineName(
+      lines,
+      strength: strength,
+      dosage: dosage,
+      manufacturer: manufacturer,
     );
+
+    final fields = <String, bool>{
+      'name': medicineName.isNotEmpty,
+      'strength': strength.isNotEmpty,
+      'dosage': dosage.isNotEmpty,
+      'batch': batch.isNotEmpty,
+      'expiry': expiry.isNotEmpty,
+      'mfgDate': manufacturing.isNotEmpty,
+      'manufacturer': manufacturer.isNotEmpty,
+    };
+    final matched = fields.values.where((value) => value).length;
+    final confidence = matched >= 5
+        ? 'HIGH'
+        : matched >= 3
+        ? 'MEDIUM'
+        : 'UNCERTAIN';
+
+    return OcrExtractionResult(
+      medicineName: medicineName,
+      manufacturer: manufacturer,
+      strength: strength,
+      dosageForm: dosage,
+      batchNumber: batch,
+      manufacturingDate: manufacturing,
+      expiryDate: expiry,
+      rawText: normalizedText,
+      confidence: confidence,
+      fieldConfidence: fields,
+    );
+  }
+
+  static String _extractLabelledDate(List<String> lines, RegExp label) {
+    for (var index = 0; index < lines.length; index++) {
+      final match = label.firstMatch(lines[index]);
+      if (match == null) continue;
+      final remainder = lines[index]
+          .substring(match.end)
+          .replaceFirst(RegExp(r'^\s*[:#=\-]?\s*'), '');
+      final inlineDate = _dateRegex.firstMatch(remainder);
+      if (inlineDate != null) return inlineDate.group(0)!.trim();
+      if (index + 1 < lines.length) {
+        final nextDate = _dateRegex.firstMatch(lines[index + 1]);
+        if (nextDate != null) return nextDate.group(0)!.trim();
+      }
+    }
+    return '';
+  }
+
+  static String _extractLabelledValue(
+    List<String> lines,
+    RegExp label,
+    RegExp valuePattern,
+  ) {
+    for (var index = 0; index < lines.length; index++) {
+      final match = label.firstMatch(lines[index]);
+      if (match == null) continue;
+      final remainder = lines[index]
+          .substring(match.end)
+          .replaceFirst(RegExp(r'^\s*[:#=\-]?\s*'), '');
+      final inlineValue = valuePattern.firstMatch(remainder);
+      if (inlineValue != null) return inlineValue.group(1)!.trim();
+      if (index + 1 < lines.length) {
+        final nextValue = valuePattern.firstMatch(lines[index + 1]);
+        if (nextValue != null) return nextValue.group(1)!.trim();
+      }
+    }
+    return '';
+  }
+
+  static String _extractManufacturer(List<String> lines) {
+    final labelled = RegExp(
+      r'\b(?:mfd\.?\s*by|manufactured\s*by|marketed\s*by|manufacturers?\s*[:\-])\s*[:\-]?\s*(.+),
+      caseSensitive: false,
+    );
+    for (final line in lines) {
+      final match = labelled.firstMatch(line);
+      if (match != null) {
+        return match.group(1)!.trim().replaceAll(RegExp(r'[;,]+$'), '');
+      }
+    }
+    final companyLine = RegExp(
+      r'\b(?:pharma(?:ceuticals?)?|laborator(?:y|ies)|healthcare|biotech|pvt\.?\s*ltd|limited|ltd\.?|inc\.?)\b',
+      caseSensitive: false,
+    );
+    for (final line in lines) {
+      if (companyLine.hasMatch(line) && line.length <= 90) return line;
+    }
+    return '';
+  }
+
+  static String _extractMedicineName(
+    List<String> lines, {
+    required String strength,
+    required String dosage,
+    required String manufacturer,
+  }) {
+    final excluded = RegExp(
+      r'\b(?:rx|medicine|pharmaceutical|batch|lot|exp(?:iry)?|mfg|mfd|manufactur|marketed|store|storage|keep out|prescription|composition|warning|caution|schedule|mrp|price|tablet|capsule|syrup|injection|suspension|ointment|cream|gel|solution|drops|inhaler|dosage|each film coated)\b',
+      caseSensitive: false,
+    );
+    for (final original in lines.take(10)) {
+      var candidate = original;
+      if (strength.isNotEmpty) {
+        candidate = candidate.replaceAll(
+          RegExp(RegExp.escape(strength), caseSensitive: false),
+          '',
+        );
+      }
+      if (dosage.isNotEmpty) {
+        candidate = candidate.replaceAll(
+          RegExp(RegExp.escape(dosage), caseSensitive: false),
+          '',
+        );
+      }
+      candidate = candidate
+          .replaceAll(RegExp(r'^[\s:|•-]+|[\s:|•-]+$'), '')
+          .trim();
+      if (candidate.length < 3 ||
+          candidate.length > 60 ||
+          excluded.hasMatch(candidate) ||
+          candidate == manufacturer ||
+          !RegExp(r'[A-Za-z\u0900-\u097F]{3}').hasMatch(candidate)) {
+        continue;
+      }
+      final letters = RegExp(r'[A-Za-z\u0900-\u097F]').allMatches(candidate).length;
+      final digits = RegExp(r'\d').allMatches(candidate).length;
+      if (letters < 3 || digits > letters) continue;
+      return candidate;
+    }
+    return '';
+  }
+}
+,
+      caseSensitive: false,
+    );
+    for (final line in lines) {
+      final match = labelled.firstMatch(line);
+      if (match != null) {
+        return match.group(1)!.trim().replaceAll(RegExp(r'[;,]+$'), '');
+      }
+    }
+    final companyLine = RegExp(
+      r'\b(?:pharma(?:ceuticals?)?|laborator(?:y|ies)|healthcare|biotech|pvt\.?\s*ltd|limited|ltd\.?|inc\.?)\b',
+      caseSensitive: false,
+    );
+    for (final line in lines) {
+      if (companyLine.hasMatch(line) && line.length <= 90) return line;
+    }
+    return '';
+  }
+
+  static String _extractMedicineName(
+    List<String> lines, {
+    required String strength,
+    required String dosage,
+    required String manufacturer,
+  }) {
+    final excluded = RegExp(
+      r'\b(?:rx|medicine|pharmaceutical|batch|lot|exp(?:iry)?|mfg|mfd|manufactur|marketed|store|storage|keep out|prescription|composition|warning|caution|schedule|mrp|price|tablet|capsule|syrup|injection|suspension|ointment|cream|gel|solution|drops|inhaler|dosage|each film coated)\b',
+      caseSensitive: false,
+    );
+    for (final original in lines.take(10)) {
+      var candidate = original;
+      if (strength.isNotEmpty) {
+        candidate = candidate.replaceAll(
+          RegExp(RegExp.escape(strength), caseSensitive: false),
+          '',
+        );
+      }
+      if (dosage.isNotEmpty) {
+        candidate = candidate.replaceAll(
+          RegExp(RegExp.escape(dosage), caseSensitive: false),
+          '',
+        );
+      }
+      candidate = candidate
+          .replaceAll(RegExp(r'^[\s:|•-]+|[\s:|•-]+$'), '')
+          .trim();
+      if (candidate.length < 3 ||
+          candidate.length > 60 ||
+          excluded.hasMatch(candidate) ||
+          candidate == manufacturer ||
+          !RegExp(r'[A-Za-z\u0900-\u097F]{3}').hasMatch(candidate)) {
+        continue;
+      }
+      final letters = RegExp(r'[A-Za-z\u0900-\u097F]').allMatches(candidate).length;
+      final digits = RegExp(r'\d').allMatches(candidate).length;
+      if (letters < 3 || digits > letters) continue;
+      return candidate;
+    }
+    return '';
   }
 }

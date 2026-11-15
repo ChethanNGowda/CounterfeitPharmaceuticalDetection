@@ -107,10 +107,12 @@ class AppUpdateService {
       throw const FormatException('The release APK URL is not a trusted GitHub HTTPS URL.');
     }
 
-    final checksumAsset = assets.whereType<Map<String, dynamic>>().where(
+    final checksumAssets = assets.whereType<Map<String, dynamic>>().where(
       (item) => item['name']?.toString() == '$apkAssetName.sha256',
-    ).firstOrNull;
-    final checksumUrl = checksumAsset?['browser_download_url']?.toString();
+    ).toList();
+    final checksumUrl = checksumAssets.isEmpty
+        ? null
+        : checksumAssets.first['browser_download_url']?.toString();
     if (checksumUrl != null) {
       final checksumUri = Uri.tryParse(checksumUrl);
       if (checksumUri == null ||
@@ -223,7 +225,7 @@ class AppUpdateService {
         await file.delete();
         throw HttpException('Release checksum download failed (HTTP ${checksumResponse.statusCode}).');
       }
-      expectedDigest = checksumResponse.body.trim().split(RegExp(r'\\s+')).first.toLowerCase();
+      expectedDigest = checksumResponse.body.trim().split(RegExp(r'\s+')).first.toLowerCase();
     }
     if (expectedDigest == null || !RegExp(r'^[a-f0-9]{64}
     onProgress(1);

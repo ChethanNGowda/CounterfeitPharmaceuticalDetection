@@ -48,6 +48,9 @@ class AppUpdateService {
     'com.chethan.pharmaassist.pharma_assist/updates',
   );
 
+  Future<String> getInstalledVersion() async =>
+      (await PackageInfo.fromPlatform()).version;
+
   static Uri get _latestReleaseUri => Uri.parse(
     'https://api.github.com/repos/$owner/$repository/releases/latest',
   );

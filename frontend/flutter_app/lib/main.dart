@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:pharma_assist/core/constants.dart';
 import 'package:pharma_assist/core/theme.dart';
 import 'package:pharma_assist/screens/home_screen.dart';
@@ -8,6 +9,8 @@ import 'package:pharma_assist/screens/records_screen.dart';
 import 'package:pharma_assist/screens/scan_screen.dart';
 import 'package:pharma_assist/services/api_service.dart';
 import 'package:pharma_assist/services/storage_service.dart';
+import 'package:pharma_assist/services/app_update_service.dart';
+import 'package:pharma_assist/screens/settings_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -107,6 +110,11 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
   @override
   void initState() {
     super.initState();
+    if (kReleaseMode) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkForStartupUpdate();
+      });
+    }
     _screens = [
       HomeScreen(
         key: _homeKey,
@@ -135,6 +143,58 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
         onThemeChanged: widget.onThemeChanged,
       ),
     ];
+  }
+
+  Future<void> _checkForStartupUpdate() async {
+    try {
+      final update = await AppUpdateService().checkForUpdate();
+      if (!mounted || !update.updateAvailable) return;
+      final release = update.release!;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('PharmaAssist update available'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${release.title} · v${release.version}'),
+                const SizedBox(height: 10),
+                Text(
+                  release.notes,
+                  maxLines: 8,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Later'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => SettingsScreen(
+                      storage: widget.storage,
+                      apiService: widget.apiService,
+                      onThemeChanged: widget.onThemeChanged,
+                    ),
+                  ),
+                );
+              },
+              child: const Text('View update'),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {
+      // Offline or unpublished releases must never block app startup.
+    }
   }
 
   void _onTabTapped(int index) {

@@ -231,7 +231,7 @@ class MedicineScreenState extends State<MedicineScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'OCR extraction confidence: ${profile.confidence}. Please confirm details against the physical packaging.',
+                              'Extracted field coverage: ${profile.confidence}. This is not an authenticity score. Confirm every value against the physical packaging.',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: tokens.textMuted,
                                 fontSize: 11,

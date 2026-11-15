@@ -28,6 +28,12 @@ class _AppUpdateCardState extends State<AppUpdateCard> {
 
   Future<void> _loadCurrentVersion() async {
     try {
+      final version = await _service.getInstalledVersion();
+      if (mounted) setState(() => _currentVersion = version);
+    } catch (_) {
+      // Keep the loading placeholder if package metadata is unavailable.
+    }
+    try {
       final result = await _service.checkForUpdate();
       if (!mounted) return;
       setState(() {
@@ -38,7 +44,7 @@ class _AppUpdateCardState extends State<AppUpdateCard> {
             : 'You are using the latest published version.';
       });
     } catch (_) {
-      if (mounted) setState(() => _currentVersion = 'Installed version');
+      // Manual check shows any network or release-channel errors.
     }
   }
 

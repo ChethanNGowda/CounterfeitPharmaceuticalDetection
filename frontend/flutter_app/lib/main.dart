@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:pharma_assist/core/constants.dart';
 import 'package:pharma_assist/core/theme.dart';
 import 'package:pharma_assist/screens/home_screen.dart';
@@ -7,10 +7,10 @@ import 'package:pharma_assist/screens/medicine_screen.dart';
 import 'package:pharma_assist/screens/more_hub_screen.dart';
 import 'package:pharma_assist/screens/records_screen.dart';
 import 'package:pharma_assist/screens/scan_screen.dart';
-import 'package:pharma_assist/services/api_service.dart';
-import 'package:pharma_assist/services/storage_service.dart';
-import 'package:pharma_assist/services/app_update_service.dart';
 import 'package:pharma_assist/screens/settings_screen.dart';
+import 'package:pharma_assist/services/api_service.dart';
+import 'package:pharma_assist/services/app_update_service.dart';
+import 'package:pharma_assist/services/storage_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

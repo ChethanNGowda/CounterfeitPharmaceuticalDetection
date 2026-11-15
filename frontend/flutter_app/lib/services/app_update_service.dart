@@ -215,4 +215,8 @@ class AppUpdateService {
   Future<void> installApk(String path) async {
     await _channel.invokeMethod<void>('installApk', {'path': path});
   }
+
+  Future<void> openReleasePage(String url) async {
+    await _channel.invokeMethod<void>('openReleasePage', {'url': url});
+  }
 }

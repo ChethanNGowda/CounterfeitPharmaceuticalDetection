@@ -876,7 +876,7 @@ It:
 
 - Installs pinned Python dependencies.
 - Runs backend and ML contract tests.
-- Installs locked Flutter dependencies.
+- Resolves Flutter dependencies from the declared package constraints.
 - Runs Flutter analysis.
 - Runs Flutter tests.
 

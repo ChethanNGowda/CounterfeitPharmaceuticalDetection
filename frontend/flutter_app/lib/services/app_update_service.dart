@@ -14,8 +14,7 @@ class AppReleaseInfo {
   final String notes;
   final String releaseUrl;
   final String apkUrl;
-  final String? sha256Digest;
-  final String? sha256Url;
+  final String sha256Digest;
 
   const AppReleaseInfo({
     required this.version,
@@ -25,7 +24,6 @@ class AppReleaseInfo {
     required this.releaseUrl,
     required this.apkUrl,
     required this.sha256Digest,
-    required this.sha256Url,
   });
 }
 
@@ -40,8 +38,11 @@ class AppUpdateCheck {
       AppUpdateService.isNewerVersion(release!.version, currentVersion);
 }
 
-/// Public GitHub Releases update channel. Downloads are HTTPS-only, optionally
-/// SHA-256 verified, and installed only after Android's system confirmation.
+/// GitHub Releases update channel using a static latest-release manifest.
+///
+/// A static manifest avoids unauthenticated GitHub API rate limits. The APK
+/// is downloaded over HTTPS, SHA-256 verified, then handed to Android's
+/// package installer. Android always asks the user to confirm installation.
 class AppUpdateService {
   static const String owner = 'ChethanNGowda';
   static const String repository = 'CounterfeitPharmaceuticalDetection';
@@ -53,19 +54,18 @@ class AppUpdateService {
   Future<String> getInstalledVersion() async =>
       (await PackageInfo.fromPlatform()).version;
 
-  static Uri get _latestReleaseUri => Uri.parse(
-    'https://api.github.com/repos/$owner/$repository/releases/latest',
+  static Uri get _latestManifestUri => Uri.parse(
+    'https://github.com/$owner/$repository/releases/latest/download/pharmaassist-update.json',
   );
 
   Future<AppUpdateCheck> checkForUpdate() async {
     final packageInfo = await PackageInfo.fromPlatform();
     final response = await http
         .get(
-          _latestReleaseUri,
+          _latestManifestUri,
           headers: const {
-            'Accept': 'application/vnd.github+json',
+            'Accept': 'application/json',
             'User-Agent': 'PharmaAssist-Android-Updater',
-            'X-GitHub-Api-Version': '2026-03-10',
           },
         )
         .timeout(const Duration(seconds: 20));
@@ -75,66 +75,46 @@ class AppUpdateService {
     }
     if (response.statusCode != 200) {
       throw HttpException(
-        'GitHub update check failed (HTTP ${response.statusCode}).',
+        'GitHub update manifest failed (HTTP ${response.statusCode}).',
       );
     }
 
     final payload = jsonDecode(response.body);
     if (payload is! Map<String, dynamic>) {
-      throw const FormatException('GitHub returned an invalid release record.');
+      throw const FormatException('GitHub returned an invalid update manifest.');
     }
-    final assets = payload['assets'];
-    if (assets is! List) {
-      throw const FormatException('The GitHub release has no APK assets.');
-    }
-    final apkAssets = assets.whereType<Map<String, dynamic>>().where((asset) {
-      final name = asset['name']?.toString().toLowerCase() ?? '';
-      return name == apkAssetName || name.endsWith('.apk');
-    }).toList();
-    if (apkAssets.isEmpty) {
-      throw StateError('The latest GitHub release does not contain an Android APK.');
-    }
-
-    final asset = apkAssets.firstWhere(
-      (item) => item['name'] == apkAssetName,
-      orElse: () => apkAssets.first,
-    );
+    final version = payload['version']?.toString() ?? '';
     final tag = payload['tag_name']?.toString() ?? '';
-    final version = tag.replaceFirst(RegExp(r'^[vV]'), '');
-    final apkUrl = asset['browser_download_url']?.toString() ?? '';
-    final uri = Uri.tryParse(apkUrl);
-    if (uri == null || uri.scheme != 'https' || uri.host != 'github.com') {
-      throw const FormatException('The release APK URL is not a trusted GitHub HTTPS URL.');
+    final apkUrl = payload['apk_url']?.toString() ?? '';
+    final releaseUrl = payload['release_url']?.toString() ?? '';
+    final digest = payload['sha256']?.toString().toLowerCase() ?? '';
+
+    final apkUri = Uri.tryParse(apkUrl);
+    final releaseUri = Uri.tryParse(releaseUrl);
+    if (version.isEmpty ||
+        tag.isEmpty ||
+        apkUri == null ||
+        apkUri.scheme != 'https' ||
+        apkUri.host != 'github.com' ||
+        releaseUri == null ||
+        releaseUri.scheme != 'https' ||
+        releaseUri.host != 'github.com') {
+      throw const FormatException('The update manifest contains invalid release links or version information.');
+    }
+    if (!RegExp(r'^[a-f0-9]{64}$').hasMatch(digest)) {
+      throw const FormatException('The update manifest does not contain a valid SHA-256 digest.');
     }
 
-    final checksumAssets = assets.whereType<Map<String, dynamic>>().where(
-      (item) => item['name']?.toString() == '$apkAssetName.sha256',
-    ).toList();
-    final checksumUrl = checksumAssets.isEmpty
-        ? null
-        : checksumAssets.first['browser_download_url']?.toString();
-    if (checksumUrl != null) {
-      final checksumUri = Uri.tryParse(checksumUrl);
-      if (checksumUri == null ||
-          checksumUri.scheme != 'https' ||
-          checksumUri.host != 'github.com') {
-        throw const FormatException('The release checksum URL is not a trusted GitHub HTTPS URL.');
-      }
-    }
-    final digest = asset['digest']?.toString();
     return AppUpdateCheck(
       currentVersion: packageInfo.version,
       release: AppReleaseInfo(
         version: version,
         tagName: tag,
-        title: payload['name']?.toString() ?? 'PharmaAssist $tag',
-        notes: payload['body']?.toString() ?? 'No release notes provided.',
-        releaseUrl: payload['html_url']?.toString() ?? '',
+        title: payload['title']?.toString() ?? 'PharmaAssist $tag',
+        notes: payload['notes']?.toString() ?? 'Open the release page for changes.',
+        releaseUrl: releaseUrl,
         apkUrl: apkUrl,
-        sha256Digest: digest != null && digest.startsWith('sha256:')
-            ? digest.substring(7).toLowerCase()
-            : null,
-        sha256Url: checksumUrl,
+        sha256Digest: digest,
       ),
     );
   }
@@ -216,39 +196,8 @@ class AppUpdateService {
       await file.delete();
       throw StateError('The downloaded APK is unexpectedly small.');
     }
-    var expectedDigest = release.sha256Digest;
-    if (expectedDigest == null && release.sha256Url != null) {
-      final checksumResponse = await http.get(Uri.parse(release.sha256Url!)).timeout(
-        const Duration(seconds: 15),
-      );
-      if (checksumResponse.statusCode != 200) {
-        await file.delete();
-        throw HttpException('Release checksum download failed (HTTP ${checksumResponse.statusCode}).');
-      }
-      expectedDigest = checksumResponse.body.trim().split(RegExp(r'\s+')).first.toLowerCase();
-    }
-    if (expectedDigest == null || !RegExp(r'^[a-f0-9]{64}
-    onProgress(1);
-    return file.path;
-  }
-
-  Future<bool> canInstallUnknownApps() async =>
-      await _channel.invokeMethod<bool>('canInstallUnknownApps') ?? false;
-
-  Future<void> openInstallPermissionSettings() async {
-    await _channel.invokeMethod<void>('openInstallPermissionSettings');
-  }
-
-  Future<void> installApk(String path) async {
-    await _channel.invokeMethod<void>('installApk', {'path': path});
-  }
-}
-).hasMatch(expectedDigest)) {
-      await file.delete();
-      throw StateError('The release does not provide a valid SHA-256 checksum. The APK was discarded.');
-    }
     final actual = await sha256.bind(file.openRead()).first;
-    if (actual.toString().toLowerCase() != expectedDigest) {
+    if (actual.toString().toLowerCase() != release.sha256Digest) {
       await file.delete();
       throw StateError('APK SHA-256 verification failed. The file was discarded.');
     }

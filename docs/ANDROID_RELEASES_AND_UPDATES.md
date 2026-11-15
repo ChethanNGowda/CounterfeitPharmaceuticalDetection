@@ -1,8 +1,8 @@
 # PharmaAssist Android releases and in-app updates
 
-PharmaAssist checks the public GitHub Releases endpoint for the latest non-draft,
-non-prerelease release. The Android app can display release notes, download the
-universal APK over HTTPS, verify the GitHub asset SHA-256 digest when supplied,
+PharmaAssist checks a static manifest attached to the latest GitHub Release,
+avoiding unauthenticated GitHub API rate limits. The Android app can display
+release information, download the universal APK over HTTPS, verify its SHA-256 digest,
 and open Android's package installer. Android always asks the user to confirm
 installation. The app never silently installs an update.
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pharma_assist/screens/pharma_license_screen.dart';
 import 'package:pharma_assist/core/constants.dart';
 import 'package:pharma_assist/core/theme.dart';
 import 'package:pharma_assist/widgets/disclaimer_banner.dart';
@@ -129,6 +130,12 @@ class AboutScreen extends StatelessWidget {
               ],
             ),
 
+
+            const SizedBox(height: 20),
+            _buildSectionLabel('LICENCES & ATTRIBUTIONS'),
+            const SizedBox(height: 8),
+            _buildLicenseActions(context),
+
             const SizedBox(height: 24),
             Center(
               child: Text(
@@ -138,6 +145,54 @@ class AboutScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildLicenseActions(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Column(
+        children: [
+          ListTile(
+            leading: Icon(Icons.article_outlined, color: AppTheme.primaryTeal),
+            title: Text(
+              'PharmaAssist Licence',
+              style: TextStyle(color: AppTheme.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              'Apache License 2.0 · Copyright © 2026 Chethan N.',
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 10.5),
+            ),
+            trailing: Icon(Icons.chevron_right, color: AppTheme.textMuted),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PharmaLicenseScreen()),
+            ),
+          ),
+          Container(height: 1, color: AppTheme.borderSubtle),
+          ListTile(
+            leading: Icon(Icons.code_outlined, color: AppTheme.primaryTeal),
+            title: Text(
+              'Open-source licences',
+              style: TextStyle(color: AppTheme.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              'Licences and acknowledgements for Flutter and bundled dependencies.',
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 10.5),
+            ),
+            trailing: Icon(Icons.chevron_right, color: AppTheme.textMuted),
+            onTap: () => showLicensePage(
+              context: context,
+              applicationName: AppConstants.appName,
+              applicationVersion: AppConstants.appVersion,
+              applicationLegalese: 'Copyright © 2026 Chethan N.',
+            ),
+          ),
+        ],
       ),
     );
   }

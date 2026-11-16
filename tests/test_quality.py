@@ -68,6 +68,29 @@ def test_blurry_image_fails(tmp_path):
     assert "excessive blur" in res.reason
 
 
+
+def test_regional_sharpness_can_rescue_package_detail_from_smooth_background():
+    # Two adjacent package regions retain high-frequency printed detail.
+    arr = np.full((300, 300, 3), 120, dtype=np.uint8)
+    pattern = np.indices((100, 200)).sum(axis=0) % 2
+    detail = np.where(pattern[..., None] == 0, 40, 220).astype(np.uint8)
+    arr[100:200, 0:200] = np.repeat(detail, 3, axis=2)
+    result = check_image_quality(Image.fromarray(arr))
+    assert result.is_valid is True
+    assert result.blur_score < 50.0
+    assert result.regional_sharpness_score >= 50.0
+    assert result.sharp_regions >= 2
+    assert result.to_dict()["regional_sharpness_score"] >= 50.0
+
+
+def test_uniform_image_still_fails_regional_sharpness_gate():
+    image = Image.fromarray(np.full((300, 300, 3), 120, dtype=np.uint8))
+    result = check_image_quality(image)
+    assert result.is_valid is False
+    assert result.sharp_regions == 0
+    assert "excessive blur" in result.reason
+
+
 def test_missing_file_fails():
     res = check_image_quality("non_existent_image_path.jpg")
     assert res.is_valid is False

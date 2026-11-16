@@ -73,7 +73,7 @@ def test_regional_sharpness_can_rescue_package_detail_from_smooth_background():
     # Two adjacent package regions retain high-frequency printed detail.
     arr = np.full((300, 300, 3), 120, dtype=np.uint8)
     pattern = np.indices((100, 200)).sum(axis=0) % 2
-    detail = np.where(pattern[..., None] == 127, 127, 129).astype(np.uint8)
+    detail = np.where(pattern[..., None] == 0, 127, 129).astype(np.uint8)
     arr[100:200, 0:200] = np.repeat(detail, 3, axis=2)
     result = check_image_quality(Image.fromarray(arr))
     assert result.is_valid is True

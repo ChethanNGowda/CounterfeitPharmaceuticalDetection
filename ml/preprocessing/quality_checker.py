@@ -27,12 +27,16 @@ class QualityCheckResult:
     exposure_status: str = "Normal Exposure"
     sharpness_status: str = "High Sharpness"
     suitability: str = "SUITABLE FOR SCREENING"
+    regional_sharpness_score: float = 0.0
+    sharp_regions: int = 0
 
     def to_dict(self) -> dict:
         return {
             "is_valid": self.is_valid,
             "reason": self.reason,
             "blur_score": round(self.blur_score, 2),
+            "regional_sharpness_score": round(self.regional_sharpness_score, 2),
+            "sharp_regions": self.sharp_regions,
             "brightness_mean": round(self.brightness_mean, 2),
             "dimensions": [self.width, self.height],
             "aspect_ratio": round(self.aspect_ratio, 2),
@@ -136,9 +140,33 @@ def check_image_quality(
     # 3. Convert to grayscale for blur, brightness, and contrast analysis
     gray = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY) if cv_img.ndim == 3 else cv_img
 
-    # 4. Blur check via Laplacian variance
+    # 4. Sharpness: retain the full-frame score for compatibility, but also
+    # inspect a 3x3 grid. Smooth backgrounds can dilute the full-frame score
+    # even when several package regions contain readable printed detail.
     laplacian_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
     min_blur = cfg.get("min_laplacian_var", 50.0)
+    tile_scores = []
+    tile_h = max(1, height // 3)
+    tile_w = max(1, width // 3)
+    for row in range(3):
+        for col in range(3):
+            y0 = row * tile_h
+            x0 = col * tile_w
+            y1 = height if row == 2 else (row + 1) * tile_h
+            x1 = width if col == 2 else (col + 1) * tile_w
+            tile = gray[y0:y1, x0:x1]
+            if tile.shape[0] >= 16 and tile.shape[1] >= 16:
+                tile_scores.append(float(cv2.Laplacian(tile, cv2.CV_64F).var()))
+
+    strongest_tiles = sorted(tile_scores, reverse=True)[:3]
+    regional_score = float(np.mean(strongest_tiles)) if strongest_tiles else 0.0
+    sharp_regions = sum(score >= min_blur * 0.5 for score in tile_scores)
+    regional_pass = (
+        len(strongest_tiles) >= 2
+        and sharp_regions >= 2
+        and regional_score >= min_blur
+    )
+    effective_sharpness = max(laplacian_var, regional_score if regional_pass else 0.0)
 
     # 5. Brightness and Contrast checks
     brightness_mean = float(np.mean(gray))
@@ -157,9 +185,9 @@ def check_image_quality(
     else:
         exp_status = "Normal Exposure"
 
-    if laplacian_var < min_blur:
+    if effective_sharpness < min_blur:
         sharp_status = "Excessive Blur"
-    elif laplacian_var < 100.0:
+    elif effective_sharpness < 100.0:
         sharp_status = "Moderate Sharpness"
     else:
         sharp_status = "High Sharpness"
@@ -198,8 +226,12 @@ def check_image_quality(
             suitability=f"UNSUITABLE ({reason})",
         )
 
-    if laplacian_var < min_blur:
-        reason = f"Poor image quality: excessive blur (score {laplacian_var:.1f} < {min_blur})"
+    if effective_sharpness < min_blur:
+        reason = (
+            "Poor image quality: excessive blur "
+            f"(global score {laplacian_var:.1f}, regional score "
+            f"{regional_score:.1f}; required {min_blur})"
+        )
         return QualityCheckResult(
             is_valid=False,
             reason=reason,
@@ -213,6 +245,8 @@ def check_image_quality(
             exposure_status=exp_status,
             sharpness_status=sharp_status,
             suitability=f"UNSUITABLE ({reason})",
+            regional_sharpness_score=regional_score,
+            sharp_regions=sharp_regions,
         )
 
     return QualityCheckResult(
@@ -228,5 +262,7 @@ def check_image_quality(
         exposure_status=exp_status,
         sharpness_status=sharp_status,
         suitability="SUITABLE FOR ANALYSIS",
+        regional_sharpness_score=regional_score,
+        sharp_regions=sharp_regions,
     )
 

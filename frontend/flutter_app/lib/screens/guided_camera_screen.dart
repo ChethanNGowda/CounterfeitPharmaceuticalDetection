@@ -10,7 +10,7 @@ class GuidedCameraScreen extends StatefulWidget {
   State<GuidedCameraScreen> createState() => _GuidedCameraScreenState();
 }
 
-class _GuidedCameraScreenState extends State<GuidedCameraScreen> {
+class _GuidedCameraScreenState extends State<GuidedCameraScreen> with WidgetsBindingObserver {
   CameraController? _controller;
   bool _loading = true;
   bool _capturing = false;
@@ -21,7 +21,19 @@ class _GuidedCameraScreenState extends State<GuidedCameraScreen> {
   bool _hasExposure = false;
 
   @override
-  void initState() { super.initState(); _initialize(); }
+  void initState() { super.initState(); WidgetsBinding.instance.addObserver(this); _initialize(); }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final controller = _controller;
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+      _controller = null;
+      if (controller != null) unawaited(controller.dispose());
+    } else if (state == AppLifecycleState.resumed && mounted && !_loading) {
+      setState(() { _loading = true; _error = null; });
+      _initialize();
+    }
+  }
 
   Future<void> _initialize() async {
     try {
@@ -74,7 +86,7 @@ class _GuidedCameraScreenState extends State<GuidedCameraScreen> {
   }
 
   @override
-  void dispose() { final c = _controller; if (c != null) unawaited(c.dispose()); super.dispose(); }
+  void dispose() { WidgetsBinding.instance.removeObserver(this); final c = _controller; _controller = null; if (c != null) unawaited(c.dispose()); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {

@@ -607,9 +607,73 @@ class ScanScreenState extends State<ScanScreen> {
     );
   }
 
+  void _showImageFullScreen() {
+    final imageFile = _selectedImage;
+    if (imageFile == null) return;
+
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: SafeArea(
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: InteractiveViewer(
+                  minScale: 1,
+                  maxScale: 5,
+                  child: Center(
+                    child: Image.file(
+                      imageFile,
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.high,
+                      gaplessPlayback: true,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: IconButton(
+                  tooltip: 'Close enlarged photo',
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                ),
+              ),
+              const Positioned(
+                left: 0,
+                right: 0,
+                bottom: 18,
+                child: IgnorePointer(
+                  child: Center(
+                    child: Text(
+                      'Pinch to zoom • Drag to inspect details',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        shadows: [Shadow(color: Colors.black, blurRadius: 6)],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildActiveImagePreview() {
     final String sizeStr = _imageFileSize != null
-        ? '${(_imageFileSize! / 1024).toStringAsFixed(1)} KB'
+        ? _imageFileSize! >= 1024 * 1024
+            ? '${(_imageFileSize! / (1024 * 1024)).toStringAsFixed(2)} MB'
+            : '${(_imageFileSize! / 1024).toStringAsFixed(1)} KB'
         : '';
     final String dimStr = (_imageWidth != null && _imageHeight != null)
         ? '$_imageWidth x $_imageHeight px'
@@ -619,11 +683,22 @@ class ScanScreenState extends State<ScanScreen> {
       children: [
         Stack(
           children: [
-            Image.file(
-              _selectedImage!,
-              height: 220,
-              width: double.infinity,
-              fit: BoxFit.cover,
+            GestureDetector(
+              onTap: _showImageFullScreen,
+              child: Container(
+                width: double.infinity,
+                height: 320,
+                color: AppTheme.secondaryBackground,
+                alignment: Alignment.center,
+                child: Image.file(
+                  _selectedImage!,
+                  width: double.infinity,
+                  height: 320,
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.high,
+                  gaplessPlayback: true,
+                ),
+              ),
             ),
             Positioned(
               bottom: 8,

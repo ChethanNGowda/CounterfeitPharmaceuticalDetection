@@ -78,7 +78,7 @@ async def predict_pharmaceutical(
 ):
     """Screen an uploaded pharmaceutical tablet image using dual-model pipeline.
 
-    - Primary Model: EfficientNet-B0 visual classifier (99.88% test accuracy).
+    - Primary Model: EfficientNet-B0 visual classifier (performance metrics are not currently claimed).
     - Secondary Review: configured Qwen Vision model (via local Ollama).
     - Decision Engine: authentic probability below 50% indicates counterfeit; 50%
       through the configured cutoff (70% by default) requires manual review; above

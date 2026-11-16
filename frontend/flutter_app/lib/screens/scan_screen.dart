@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:pharma_assist/screens/guided_camera_screen.dart';
 import 'package:pharma_assist/core/constants.dart';
 import 'package:pharma_assist/core/theme.dart';
 import 'package:pharma_assist/models/prediction_response.dart';
@@ -87,7 +88,11 @@ class ScanScreenState extends State<ScanScreen> {
 
     try {
       // Keep the original pixels; compression can remove packaging detail used by the model.
-      final XFile? pickedFile = await _picker.pickImage(source: source);
+      final XFile? pickedFile = source == ImageSource.camera
+          ? await Navigator.of(context).push<XFile>(
+              MaterialPageRoute(builder: (_) => const GuidedCameraScreen()),
+            )
+          : await _picker.pickImage(source: ImageSource.gallery);
       if (pickedFile == null) return;
 
       final file = File(pickedFile.path);

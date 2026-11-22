@@ -19,7 +19,26 @@ relevant tests are checked.
 
 ## Phase 1: Flutter architecture and UI/UX
 
-- In progress.
+- Completed for the Flutter UI and navigation scope.
+- Reviewed all existing screens, shared components, theme configuration, and
+  navigation paths. Kept existing feature and data flows while applying shared
+  page framing, consistent section/card/status/loading/error components, and
+  responsive spacing to the screens.
+- Updated dashboard labels and layout to describe locally saved records
+  accurately, surface backend/model availability, and retain real stored
+  screening counts. Added a working Reports route from the dashboard and More
+  hub; made History & comparison a distinct destination from the Records tab.
+- Added adaptive bottom navigation for phones and a NavigationRail for wide
+  layouts. Long dashboard/settings/scanner/about titles now fit constrained
+  widths. Scanner action labels wrap, summary chips flow across lines, and
+  empty states accommodate enlarged text.
+- Added regression checks for phone/tablet navigation and Reports access, all
+  17 screen/page layouts at 360x720 and 1280x900 with 1.4x text, and live
+  system brightness changes. Camera preview and capture remain device checks
+  because the Flutter test environment has no Android camera hardware.
+- Validation: `flutter analyze` passed with no issues; `flutter test` passed
+  (89 tests); `git diff --check` passed. Flutter camera hardware behavior still
+  requires validation on a physical Android device.
 - Added the missing System appearance option while preserving existing dark and
   light preferences. Existing `system` values are no longer rewritten to dark
   when Settings opens, and the shared palette follows the device brightness

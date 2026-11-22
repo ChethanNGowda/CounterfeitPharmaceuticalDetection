@@ -523,196 +523,207 @@ class MedicineScreenState extends State<MedicineScreen> {
         ],
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            // Top Action Card & Scanner
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              color: AppTheme.elevatedCard,
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.camera_alt_outlined, size: 18),
-                          label: const Text('Scan Packaging'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            foregroundColor: theme.colorScheme.primary,
+        child: PharmaContentFrame(
+          maxWidth: 1100,
+          child: Column(
+            children: [
+              // Top Action Card & Scanner
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                color: AppTheme.elevatedCard,
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(
+                              Icons.camera_alt_outlined,
+                              size: 18,
+                            ),
+                            label: const Text('Scan Packaging'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              foregroundColor: theme.colorScheme.primary,
+                            ),
+                            onPressed: _isProcessingOcr
+                                ? null
+                                : () => _captureOrPickPackaging(
+                                    ImageSource.camera,
+                                  ),
                           ),
-                          onPressed: _isProcessingOcr
-                              ? null
-                              : () =>
-                                    _captureOrPickPackaging(ImageSource.camera),
                         ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(
+                              Icons.photo_library_outlined,
+                              size: 18,
+                            ),
+                            label: const Text('From Gallery'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              foregroundColor: theme.colorScheme.primary,
+                            ),
+                            onPressed: _isProcessingOcr
+                                ? null
+                                : () => _captureOrPickPackaging(
+                                    ImageSource.gallery,
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_isProcessingOcr) ...[
+                      const SizedBox(height: 10),
+                      LinearProgressIndicator(color: tokens.tealAccent),
+                    ],
+                  ],
+                ),
+              ),
+
+              // Expiry Alert Banner if applicable
+              if (expiredCount > 0 || nearExpiryCount > 0) ...[
+                Container(
+                  margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: expiredCount > 0
+                        ? tokens.counterfeitRedBg
+                        : tokens.suspiciousAmberBg,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: expiredCount > 0
+                          ? tokens.counterfeitRed
+                          : tokens.suspiciousAmber,
+                      width: 0.8,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        expiredCount > 0
+                            ? Icons.error_outline
+                            : Icons.warning_amber_rounded,
+                        size: 20,
+                        color: expiredCount > 0
+                            ? tokens.counterfeitRed
+                            : tokens.suspiciousAmber,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(
-                            Icons.photo_library_outlined,
-                            size: 18,
+                        child: Text(
+                          expiredCount > 0
+                              ? '$expiredCount medicine profile(s) have expired!'
+                              : '$nearExpiryCount medicine profile(s) expiring within 60 days.',
+                          style: TextStyle(
+                            color: expiredCount > 0
+                                ? tokens.counterfeitRed
+                                : tokens.suspiciousAmber,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
                           ),
-                          label: const Text('From Gallery'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            foregroundColor: theme.colorScheme.primary,
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            _selectedFilter = expiredCount > 0
+                                ? 'EXPIRED'
+                                : 'NEAR_EXPIRY';
+                            _applyFilters();
+                          });
+                        },
+                        child: Text(
+                          'View',
+                          style: TextStyle(
+                            color: expiredCount > 0
+                                ? tokens.counterfeitRed
+                                : tokens.suspiciousAmber,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
                           ),
-                          onPressed: _isProcessingOcr
-                              ? null
-                              : () => _captureOrPickPackaging(
-                                  ImageSource.gallery,
-                                ),
                         ),
                       ),
                     ],
                   ),
-                  if (_isProcessingOcr) ...[
-                    const SizedBox(height: 10),
-                    LinearProgressIndicator(color: tokens.tealAccent),
-                  ],
-                ],
-              ),
-            ),
-
-            // Expiry Alert Banner if applicable
-            if (expiredCount > 0 || nearExpiryCount > 0) ...[
-              Container(
-                margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
                 ),
-                decoration: BoxDecoration(
-                  color: expiredCount > 0
-                      ? tokens.counterfeitRedBg
-                      : tokens.suspiciousAmberBg,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: expiredCount > 0
-                        ? tokens.counterfeitRed
-                        : tokens.suspiciousAmber,
-                    width: 0.8,
+              ],
+
+              // Search Bar & Filter Chips
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search medicine name, batch, manufacturer...',
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              _searchController.clear();
+                              _applyFilters();
+                            },
+                          )
+                        : null,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                   ),
+                ),
+              ),
+
+              // Filter Chips
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
                 ),
                 child: Row(
                   children: [
-                    Icon(
-                      expiredCount > 0
-                          ? Icons.error_outline
-                          : Icons.warning_amber_rounded,
-                      size: 20,
-                      color: expiredCount > 0
-                          ? tokens.counterfeitRed
-                          : tokens.suspiciousAmber,
+                    _filterChip('ALL', 'All (${_allProfiles.length})'),
+                    const SizedBox(width: 6),
+                    _filterChip(
+                      'NEAR_EXPIRY',
+                      'Expiring Soon (${_allProfiles.where((p) => p.isNearExpiry(60)).length})',
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        expiredCount > 0
-                            ? '$expiredCount medicine profile(s) have expired!'
-                            : '$nearExpiryCount medicine profile(s) expiring within 60 days.',
-                        style: TextStyle(
-                          color: expiredCount > 0
-                              ? tokens.counterfeitRed
-                              : tokens.suspiciousAmber,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                    const SizedBox(width: 6),
+                    _filterChip(
+                      'EXPIRED',
+                      'Expired (${_allProfiles.where((p) => p.isExpired).length})',
                     ),
-                    InkWell(
-                      onTap: () {
-                        setState(() {
-                          _selectedFilter = expiredCount > 0
-                              ? 'EXPIRED'
-                              : 'NEAR_EXPIRY';
-                          _applyFilters();
-                        });
-                      },
-                      child: Text(
-                        'View',
-                        style: TextStyle(
-                          color: expiredCount > 0
-                              ? tokens.counterfeitRed
-                              : tokens.suspiciousAmber,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
+                    const SizedBox(width: 6),
+                    _filterChip(
+                      'VERIFIED',
+                      'Verified (${_allProfiles.where((p) => p.isVerifiedByUser).length})',
                     ),
                   ],
                 ),
               ),
+
+              // Profiles List
+              Expanded(
+                child: _filteredProfiles.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.separated(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _filteredProfiles.length,
+                        separatorBuilder: (ctx, i) =>
+                            const SizedBox(height: 10),
+                        itemBuilder: (ctx, i) {
+                          final profile = _filteredProfiles[i];
+                          return _buildProfileCard(profile, tokens, theme);
+                        },
+                      ),
+              ),
             ],
-
-            // Search Bar & Filter Chips
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Search medicine name, batch, manufacturer...',
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 18),
-                          onPressed: () {
-                            _searchController.clear();
-                            _applyFilters();
-                          },
-                        )
-                      : null,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                ),
-              ),
-            ),
-
-            // Filter Chips
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Row(
-                children: [
-                  _filterChip('ALL', 'All (${_allProfiles.length})'),
-                  const SizedBox(width: 6),
-                  _filterChip(
-                    'NEAR_EXPIRY',
-                    'Expiring Soon (${_allProfiles.where((p) => p.isNearExpiry(60)).length})',
-                  ),
-                  const SizedBox(width: 6),
-                  _filterChip(
-                    'EXPIRED',
-                    'Expired (${_allProfiles.where((p) => p.isExpired).length})',
-                  ),
-                  const SizedBox(width: 6),
-                  _filterChip(
-                    'VERIFIED',
-                    'Verified (${_allProfiles.where((p) => p.isVerifiedByUser).length})',
-                  ),
-                ],
-              ),
-            ),
-
-            // Profiles List
-            Expanded(
-              child: _filteredProfiles.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _filteredProfiles.length,
-                      separatorBuilder: (ctx, i) => const SizedBox(height: 10),
-                      itemBuilder: (ctx, i) {
-                        final profile = _filteredProfiles[i];
-                        return _buildProfileCard(profile, tokens, theme);
-                      },
-                    ),
-            ),
-          ],
+          ),
         ),
       ),
     );

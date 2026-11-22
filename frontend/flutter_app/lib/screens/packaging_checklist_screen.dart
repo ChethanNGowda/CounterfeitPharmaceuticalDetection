@@ -155,9 +155,12 @@ class _PackagingChecklistScreenState extends State<PackagingChecklistScreen> {
           ),
         ],
       ),
-      body: _showingSavedHistory
-          ? _buildSavedHistoryView(tokens, theme)
-          : _buildActiveInspectionView(tokens, theme),
+      body: PharmaContentFrame(
+        maxWidth: 960,
+        child: _showingSavedHistory
+            ? _buildSavedHistoryView(tokens, theme)
+            : _buildActiveInspectionView(tokens, theme),
+      ),
     );
   }
 

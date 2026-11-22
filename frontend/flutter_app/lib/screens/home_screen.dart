@@ -9,6 +9,7 @@ import 'package:pharma_assist/screens/scan_screen.dart';
 import 'package:pharma_assist/services/api_service.dart';
 import 'package:pharma_assist/services/storage_service.dart';
 import 'package:pharma_assist/widgets/disclaimer_banner.dart';
+import 'package:pharma_assist/widgets/pharma_components.dart';
 import 'package:pharma_assist/widgets/status_badge.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -131,33 +132,36 @@ class HomeScreenState extends State<HomeScreen> {
           onRefresh: refreshData,
           color: AppTheme.primaryCyan,
           backgroundColor: AppTheme.elevatedCard,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildGreeting(),
-                const SizedBox(height: 16),
-                // Primary Scan Card (High Visual Priority)
-                _buildPrimaryScanCard(),
-                const SizedBox(height: 16),
+          child: PharmaContentFrame(
+            maxWidth: 960,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildGreeting(),
+                  const SizedBox(height: 16),
+                  // Primary Scan Card (High Visual Priority)
+                  _buildPrimaryScanCard(),
+                  const SizedBox(height: 16),
 
-                // Compact Summary Statistics
-                _buildSummaryStats(),
-                const SizedBox(height: 16),
+                  // Compact Summary Statistics
+                  _buildSummaryStats(),
+                  const SizedBox(height: 16),
 
-                // Compact System Status
-                _buildSystemStatusCard(),
-                const SizedBox(height: 18),
+                  // Compact System Status
+                  _buildSystemStatusCard(),
+                  const SizedBox(height: 18),
 
-                // Recent Scans Section
-                _buildRecentScansSection(),
-                const SizedBox(height: 18),
+                  // Recent Scans Section
+                  _buildRecentScansSection(),
+                  const SizedBox(height: 18),
 
-                // Safety Reminder
-                const DisclaimerBanner(),
-              ],
+                  // Safety Reminder
+                  const DisclaimerBanner(),
+                ],
+              ),
             ),
           ),
         ),
@@ -169,29 +173,25 @@ class HomeScreenState extends State<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryCyan.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(
-                  color: AppTheme.primaryCyan.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Text(
-                'PHARMACEUTICAL SCREENING SYSTEM',
-                style: TextStyle(
-                  fontFamily: 'Space Grotesk',
-                  color: AppTheme.primaryCyan,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
-                ),
-              ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryCyan.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppTheme.primaryCyan.withValues(alpha: 0.3),
             ),
-          ],
+          ),
+          child: Text(
+            'PRELIMINARY MEDICINE SCREENING',
+            style: TextStyle(
+              fontFamily: 'Space Grotesk',
+              color: AppTheme.primaryCyan,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+            ),
+          ),
         ),
         const SizedBox(height: 8),
         Text(
@@ -200,7 +200,7 @@ class HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: 4),
         Text(
-          'Review medicine samples using dual-model visual verification and decision support.',
+          'Review preliminary model indications, service availability, and recent reports.',
           style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 12),
         ),
       ],
@@ -209,6 +209,7 @@ class HomeScreenState extends State<HomeScreen> {
 
   Widget _buildSummaryStats() {
     final history = widget.storage.getScanHistory();
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
     final authentic = history.where((item) => item.isLikelyAuthentic).length;
     final counterfeit = history
         .where((item) => item.isLikelyCounterfeit)
@@ -217,71 +218,88 @@ class HomeScreenState extends State<HomeScreen> {
         .where((item) => item.isSuspicious || item.needsHumanVerification)
         .length;
 
-    return Column(
-      children: [
-        Row(
-          children: [
-            _statCard(
-              'Total Screenings',
-              history.length.toString(),
-              Icons.fact_check_outlined,
-              AppTheme.primaryCyan,
-            ),
-            const SizedBox(width: 8),
-            _statCard(
-              'Likely Authentic',
-              authentic.toString(),
-              Icons.verified_outlined,
-              AppTheme.success,
-            ),
-          ],
+    final stats = [
+      (
+        'Saved screenings',
+        history.length,
+        Icons.fact_check_outlined,
+        AppTheme.primaryCyan,
+      ),
+      (
+        'Authentic indicated',
+        authentic,
+        Icons.verified_outlined,
+        AppTheme.success,
+      ),
+      (
+        'Potential counterfeit',
+        counterfeit,
+        Icons.gpp_bad_outlined,
+        AppTheme.error,
+      ),
+      (
+        'Inconclusive / review',
+        attention,
+        Icons.priority_high_rounded,
+        AppTheme.warning,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) => GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: stats.length,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: constraints.maxWidth >= 680 ? 4 : 2,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          mainAxisExtent: textScale >= 1.4 ? 152 : 104,
         ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            _statCard(
-              'Likely Counterfeit',
-              counterfeit.toString(),
-              Icons.gpp_bad_outlined,
-              AppTheme.error,
-            ),
-            const SizedBox(width: 8),
-            _statCard(
-              'Needs Review',
-              attention.toString(),
-              Icons.priority_high_rounded,
-              AppTheme.warning,
-            ),
-          ],
-        ),
-      ],
+        itemBuilder: (context, index) {
+          final item = stats[index];
+          return _statCard(item.$1, item.$2.toString(), item.$3, item.$4);
+        },
+      ),
     );
   }
 
   Widget _statCard(String label, String value, IconData icon, Color color) {
-    return Expanded(
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 82),
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: AppTheme.secondaryBackground,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 17, color: color),
-            const SizedBox(height: 6),
-            Text(value, style: AppTheme.headingMedium()),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 10),
+    return PharmaCard(
+      padding: const EdgeInsets.all(14),
+      backgroundColor: AppTheme.secondaryBackground,
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
             ),
-          ],
-        ),
+            child: Icon(icon, size: 21, color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(value, style: AppTheme.headingMedium()),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.bodyText(
+                    color: AppTheme.textMuted,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -303,19 +321,28 @@ class HomeScreenState extends State<HomeScreen> {
             child: const Icon(Icons.biotech, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(AppConstants.appName, style: AppTheme.headingSmall()),
-              Text(
-                'Smart Medicine, Safer Choices',
-                style: AppTheme.bodyText(
-                  color: AppTheme.textMuted,
-                  fontSize: 10,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  AppConstants.appName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.headingSmall(),
                 ),
-              ),
-            ],
+                Text(
+                  'Smart Medicine, Safer Choices',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.bodyText(
+                    color: AppTheme.textMuted,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -381,13 +408,8 @@ class HomeScreenState extends State<HomeScreen> {
       statusIcon = Icons.help_outline;
     }
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppTheme.elevatedCard,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.border),
-      ),
+    return PharmaCard(
+      padding: const EdgeInsets.all(16),
       child: Row(
         children: [
           Container(
@@ -407,9 +429,13 @@ class HomeScreenState extends State<HomeScreen> {
               children: [
                 Row(
                   children: [
-                    Text(
-                      statusTitle,
-                      style: AppTheme.headingSmall(color: badgeColor),
+                    Flexible(
+                      child: Text(
+                        statusTitle,
+                        style: AppTheme.headingSmall(color: badgeColor),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     const Spacer(),
                     Container(
@@ -479,17 +505,16 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildPrimaryScanCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.elevatedCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.border),
-      ),
-      padding: const EdgeInsets.all(18),
+    return PharmaCard(
+      padding: const EdgeInsets.all(22),
+      borderRadius: 18,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -501,17 +526,16 @@ class HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 child: Text(
-                  'PRIMARY ACTION',
+                  'PRELIMINARY VISUAL SCREENING',
                   style: TextStyle(
                     fontFamily: 'Space Grotesk',
                     color: AppTheme.primaryCyan,
-                    fontSize: 9.5,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.8,
                   ),
                 ),
               ),
-              const Spacer(),
               Icon(
                 Icons.shield_outlined,
                 color: AppTheme.secondaryTeal,
@@ -523,102 +547,93 @@ class HomeScreenState extends State<HomeScreen> {
           Text('Screen a medicine sample', style: AppTheme.headingLarge()),
           const SizedBox(height: 6),
           Text(
-            'Capture a clear image of a tablet or package in even light. The model provides a preliminary visual screening only.',
+            'Capture a clear image of a tablet or package in even light. Review the result as an initial visual indication only.',
             style: AppTheme.bodyText(
               color: AppTheme.textSecondary,
               fontSize: 12.5,
             ),
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    if (widget.onNavigateToScan != null) {
-                      widget.onNavigateToScan!();
-                    } else {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ScanScreen(
-                            storage: widget.storage,
-                            apiService: widget.apiService,
-                            onScanComplete: refreshData,
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.document_scanner_outlined, size: 18),
-                  label: const Text('Scan medicine'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryCyan,
-                    foregroundColor: const Color(0xFF0B1020),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                flex: 2,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    if (widget.onChooseGallery != null) {
-                      widget.onChooseGallery!();
-                    } else if (widget.onNavigateToScan != null) {
-                      widget.onNavigateToScan!();
-                    } else {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ScanScreen(
-                            storage: widget.storage,
-                            apiService: widget.apiService,
-                            onScanComplete: refreshData,
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.photo_library_outlined, size: 16),
-                  label: const Text('Choose image'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact =
+                  constraints.maxWidth < 480 ||
+                  MediaQuery.textScalerOf(context).scale(14) > 18;
+              final scan = PharmaPrimaryButton(
+                label: 'Scan medicine',
+                icon: Icons.document_scanner_outlined,
+                onPressed: _openScanner,
+                height: 52,
+              );
+              final gallery = PharmaSecondaryButton(
+                label: 'Choose image',
+                icon: Icons.photo_library_outlined,
+                onPressed: _openGallery,
+                height: 52,
+              );
+              return compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [scan, const SizedBox(height: 10), gallery],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(flex: 3, child: scan),
+                        const SizedBox(width: 12),
+                        Expanded(flex: 2, child: gallery),
+                      ],
+                    );
+            },
           ),
         ],
       ),
     );
   }
 
+  void _openScanner() {
+    if (widget.onNavigateToScan != null) {
+      widget.onNavigateToScan!();
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ScanScreen(
+          storage: widget.storage,
+          apiService: widget.apiService,
+          onScanComplete: refreshData,
+        ),
+      ),
+    );
+  }
+
+  void _openGallery() {
+    if (widget.onChooseGallery != null) {
+      widget.onChooseGallery!();
+      return;
+    }
+    if (widget.onNavigateToScan != null) {
+      widget.onNavigateToScan!();
+      return;
+    }
+    _openScanner();
+  }
+
   Widget _buildRecentScansSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'RECENT SCREENINGS',
-              style: TextStyle(
-                fontFamily: 'Space Grotesk',
-                color: AppTheme.textMuted,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.0,
-              ),
-            ),
-            Text(
-              '${widget.storage.getScanHistory().length} total',
-              style: AppTheme.monoNumeric(
-                color: AppTheme.textMuted,
-                fontSize: 11,
-              ),
-            ),
-          ],
+        PharmaSectionHeader(
+          title: 'Recent screenings',
+          subtitle:
+              '${widget.storage.getScanHistory().length} saved on this device',
+          icon: Icons.history_outlined,
+          trailing: widget.onNavigateToReports == null
+              ? null
+              : TextButton(
+                  onPressed: widget.onNavigateToReports,
+                  style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+                  child: const Text('View reports'),
+                ),
         ),
         const SizedBox(height: 8),
         if (_recentInspections.isEmpty)
@@ -630,36 +645,15 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildEmptyRecentScans() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      decoration: BoxDecoration(
-        color: AppTheme.elevatedCard,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Center(
-        child: Column(
-          children: [
-            Icon(
-              Icons.inventory_2_outlined,
-              color: AppTheme.textMuted,
-              size: 28,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'No Prior Screenings Recorded',
-              style: AppTheme.headingSmall(),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Use the Scan Medicine button above to perform your first sample triage.',
-              style: AppTheme.bodyText(
-                color: AppTheme.textSecondary,
-                fontSize: 11.5,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+    return PharmaCard(
+      child: PharmaEmptyState(
+        icon: Icons.inventory_2_outlined,
+        title: 'No screenings yet',
+        description: 'Start a screening to see saved results and reports here.',
+        action: PharmaSecondaryButton(
+          label: 'Start a scan',
+          icon: Icons.document_scanner_outlined,
+          onPressed: _openScanner,
         ),
       ),
     );

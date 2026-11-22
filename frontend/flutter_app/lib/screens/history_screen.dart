@@ -8,6 +8,7 @@ import 'package:pharma_assist/screens/results_screen.dart';
 import 'package:pharma_assist/services/storage_service.dart';
 import 'package:pharma_assist/services/history_csv_exporter.dart';
 import 'package:pharma_assist/widgets/status_badge.dart';
+import 'package:pharma_assist/widgets/pharma_components.dart';
 
 class HistoryScreen extends StatefulWidget {
   final StorageService storage;
@@ -396,17 +397,20 @@ class HistoryScreenState extends State<HistoryScreen> {
       backgroundColor: AppTheme.background,
       appBar: _buildAppBar(),
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildSearchAndFilters(),
-            if (_selectedForComparison.isNotEmpty) _buildComparisonBar(),
-            Divider(height: 1, color: AppTheme.border),
-            Expanded(
-              child: _filteredHistory.isEmpty
-                  ? _buildEmptyState()
-                  : _buildHistoryList(),
-            ),
-          ],
+        child: PharmaContentFrame(
+          maxWidth: 1200,
+          child: Column(
+            children: [
+              _buildSearchAndFilters(),
+              if (_selectedForComparison.isNotEmpty) _buildComparisonBar(),
+              Divider(height: 1, color: AppTheme.border),
+              Expanded(
+                child: _filteredHistory.isEmpty
+                    ? _buildEmptyState()
+                    : _buildHistoryList(),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -434,7 +438,7 @@ class HistoryScreenState extends State<HistoryScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Inspection Records',
+                  'History & comparison',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTheme.headingSmall(),

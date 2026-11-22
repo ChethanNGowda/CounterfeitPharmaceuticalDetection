@@ -78,7 +78,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                   ),
                   const SizedBox(width: 11),
-                  Text('PharmaAssist', style: AppTheme.headingMedium()),
+                  Expanded(
+                    child: Text(
+                      'PharmaAssist',
+                      style: AppTheme.headingMedium(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                   const Spacer(),
                   TextButton(
                     onPressed: widget.onComplete,

@@ -11,6 +11,7 @@ import 'package:pharma_assist/widgets/confidence_gauge.dart';
 import 'package:pharma_assist/widgets/disclaimer_banner.dart';
 import 'package:pharma_assist/widgets/expandable_card.dart';
 import 'package:pharma_assist/widgets/status_badge.dart';
+import 'package:pharma_assist/widgets/pharma_components.dart';
 
 class ResultsScreen extends StatelessWidget {
   final PredictionResponse result;
@@ -50,79 +51,83 @@ class ResultsScreen extends StatelessWidget {
         ),
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-          children: [
-            // 1. Primary Verdict Banner (3 distinct outcome states)
-            _buildOutcomeBanner(),
+        child: PharmaContentFrame(
+          maxWidth: 960,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+            children: [
+              // 1. Primary Verdict Banner (3 distinct outcome states)
+              _buildOutcomeBanner(),
 
-            // 2. Photographic Evidence & Quality Assessment
-            const SizedBox(height: 12),
-            _buildPhotographicEvidenceCard(),
-
-            // 3. Sample Details Card
-            const SizedBox(height: 12),
-            _buildSampleInfoCard(effectiveSampleId),
-
-            // 3. Human Review Alert if required
-            if (result.needsHumanVerification) ...[
+              // 2. Photographic Evidence & Quality Assessment
               const SizedBox(height: 12),
-              _buildHumanReviewAlert(),
-            ],
+              _buildPhotographicEvidenceCard(),
 
-            // 4. Warning Box if present
-            if (result.warning != null &&
-                result.warning!.trim().isNotEmpty) ...[
+              // 3. Sample Details Card
               const SizedBox(height: 12),
-              _buildWarningBox(result.warning!),
-            ],
+              _buildSampleInfoCard(effectiveSampleId),
 
-            // 5. Primary Confidence Gauge
-            const SizedBox(height: 16),
-            if (!result.imageQualityAccepted)
-              _buildInferenceNotRunCard()
-            else ...[
-              ConfidenceGauge(
-                confidence: result.confidence,
-                authenticProb: result.authenticProbability,
-                counterfeitProb: result.counterfeitProbability,
-                provisional: result.quality != null && !result.quality!.isValid,
-                finalResult: result.finalResult,
-              ),
-              if (result.quality != null && !result.quality!.isValid) ...[
-                const SizedBox(height: 8),
-                _buildProvisionalPredictionNotice(),
+              // 3. Human Review Alert if required
+              if (result.needsHumanVerification) ...[
+                const SizedBox(height: 12),
+                _buildHumanReviewAlert(),
               ],
-            ],
 
-            // 6. Pipeline Summary Card
-            const SizedBox(height: 12),
-            _buildPipelineSummary(),
+              // 4. Warning Box if present
+              if (result.warning != null &&
+                  result.warning!.trim().isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _buildWarningBox(result.warning!),
+              ],
 
-            // 7. Secondary AI Review (Qwen Vision)
-            const SizedBox(height: 6),
-            _buildQwenCard(),
+              // 5. Primary Confidence Gauge
+              const SizedBox(height: 16),
+              if (!result.imageQualityAccepted)
+                _buildInferenceNotRunCard()
+              else ...[
+                ConfidenceGauge(
+                  confidence: result.confidence,
+                  authenticProb: result.authenticProbability,
+                  counterfeitProb: result.counterfeitProbability,
+                  provisional:
+                      result.quality != null && !result.quality!.isValid,
+                  finalResult: result.finalResult,
+                ),
+                if (result.quality != null && !result.quality!.isValid) ...[
+                  const SizedBox(height: 8),
+                  _buildProvisionalPredictionNotice(),
+                ],
+              ],
 
-            // 8. Visual Feature Inspection (OpenCV)
-            if (result.visualAnalysis != null) ...[
+              // 6. Pipeline Summary Card
+              const SizedBox(height: 12),
+              _buildPipelineSummary(),
+
+              // 7. Secondary AI Review (Qwen Vision)
               const SizedBox(height: 6),
-              _buildVisualAnalysisCard(),
+              _buildQwenCard(),
+
+              // 8. Visual Feature Inspection (OpenCV)
+              if (result.visualAnalysis != null) ...[
+                const SizedBox(height: 6),
+                _buildVisualAnalysisCard(),
+              ],
+
+              // 9. Image Quality Assessment
+              if (result.quality != null) ...[
+                const SizedBox(height: 6),
+                _buildQualityCard(),
+              ],
+
+              // 10. Report Action Buttons
+              const SizedBox(height: 20),
+              _buildReportActionButtons(context, effectiveSampleId),
+
+              // 11. Mandatory Regulatory Disclaimer
+              const SizedBox(height: 20),
+              DisclaimerBanner(customText: result.disclaimer),
             ],
-
-            // 9. Image Quality Assessment
-            if (result.quality != null) ...[
-              const SizedBox(height: 6),
-              _buildQualityCard(),
-            ],
-
-            // 10. Report Action Buttons
-            const SizedBox(height: 20),
-            _buildReportActionButtons(context, effectiveSampleId),
-
-            // 11. Mandatory Regulatory Disclaimer
-            const SizedBox(height: 20),
-            DisclaimerBanner(customText: result.disclaimer),
-          ],
+          ),
         ),
       ),
     );
@@ -993,7 +998,8 @@ class ResultsScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                 ] else ...[
                   Container(
-                    height: 120,
+                    constraints: const BoxConstraints(minHeight: 120),
+                    padding: const EdgeInsets.all(12),
                     width: double.infinity,
                     decoration: BoxDecoration(
                       color: AppTheme.secondaryBackground,

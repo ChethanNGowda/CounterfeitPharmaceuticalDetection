@@ -4,7 +4,7 @@ class AppConstants {
   static const String appSubtitle = 'Field-Screening & Quality Triage System';
   static const String appVersion = String.fromEnvironment(
     'PHARMA_APP_VERSION',
-    defaultValue: '1.2.1',
+    defaultValue: '1.2.2',
   );
 
   // Override for a build or configure at runtime in Settings. The default is

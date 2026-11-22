@@ -6,6 +6,7 @@ import 'package:pharma_assist/screens/results_screen.dart';
 import 'package:pharma_assist/services/api_service.dart';
 import 'package:pharma_assist/services/storage_service.dart';
 import 'package:pharma_assist/widgets/status_badge.dart';
+import 'package:pharma_assist/widgets/pharma_components.dart';
 
 /// Model Laboratory — Screen 3
 ///
@@ -145,19 +146,21 @@ class _ModelLabScreenState extends State<ModelLabScreen>
               ),
             ),
             const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Model Laboratory', style: AppTheme.headingSmall()),
-                Text(
-                  'Registry · Benchmarks · History',
-                  style: AppTheme.bodyText(
-                    color: AppTheme.textMuted,
-                    fontSize: 9.5,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Model Laboratory', style: AppTheme.headingSmall()),
+                  Text(
+                    'Registry · Benchmarks · History',
+                    style: AppTheme.bodyText(
+                      color: AppTheme.textMuted,
+                      fontSize: 9.5,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -185,13 +188,16 @@ class _ModelLabScreenState extends State<ModelLabScreen>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildModelRegistryTab(),
-          _buildQwenTab(),
-          _buildHistoryTab(),
-        ],
+      body: PharmaContentFrame(
+        maxWidth: 1200,
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildModelRegistryTab(),
+            _buildQwenTab(),
+            _buildHistoryTab(),
+          ],
+        ),
       ),
     );
   }
@@ -200,21 +206,7 @@ class _ModelLabScreenState extends State<ModelLabScreen>
 
   Widget _buildModelRegistryTab() {
     if (_loadingModels) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Fetching model registry…',
-              style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
-            ),
-          ],
-        ),
-      );
+      return const PharmaLoadingState(message: 'Loading model registry…');
     }
     if (_modelsError != null) {
       return _buildErrorState(

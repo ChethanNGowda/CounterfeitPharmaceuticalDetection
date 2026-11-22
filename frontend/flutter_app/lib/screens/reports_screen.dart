@@ -361,133 +361,141 @@ class ReportsScreenState extends State<ReportsScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Search Bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search by sample ID, medicine, verdict...',
-                prefixIcon: const Icon(Icons.search, size: 20),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
-                        onPressed: () => _searchController.clear(),
-                      )
-                    : null,
+      body: PharmaContentFrame(
+        maxWidth: 1100,
+        child: Column(
+          children: [
+            // Search Bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search by sample ID, medicine, verdict...',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () => _searchController.clear(),
+                        )
+                      : null,
+                ),
               ),
             ),
-          ),
 
-          // Date Filter Badge (if active)
-          if (_selectedDateRange != null)
-            Padding(
+            // Date Filter Badge (if active)
+            if (_selectedDateRange != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withValues(
+                          alpha: 0.12,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: theme.colorScheme.primary,
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.calendar_today,
+                            size: 12,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${dateFmt.format(_selectedDateRange!.start)} to ${dateFmt.format(_selectedDateRange!.end)}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          GestureDetector(
+                            onTap: _clearDateRange,
+                            child: Icon(
+                              Icons.close,
+                              size: 14,
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Filter Chips
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: theme.colorScheme.primary,
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.calendar_today,
-                          size: 12,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${dateFmt.format(_selectedDateRange!.start)} to ${dateFmt.format(_selectedDateRange!.end)}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        GestureDetector(
-                          onTap: _clearDateRange,
-                          child: Icon(
-                            Icons.close,
-                            size: 14,
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                      ],
-                    ),
+                  _buildFilterChip('ALL', 'All (${_allReports.length})'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    'AUTHENTIC',
+                    'Authentic (${_allReports.where((e) => e.isLikelyAuthentic).length})',
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    'COUNTERFEIT',
+                    'Counterfeit (${_allReports.where((e) => e.isLikelyCounterfeit).length})',
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    'REVIEW',
+                    'Attention (${_allReports.where((e) => e.isSuspicious || e.needsHumanVerification).length})',
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 8),
 
-          // Filter Chips
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(
-              children: [
-                _buildFilterChip('ALL', 'All (${_allReports.length})'),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  'AUTHENTIC',
-                  'Authentic (${_allReports.where((e) => e.isLikelyAuthentic).length})',
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  'COUNTERFEIT',
-                  'Counterfeit (${_allReports.where((e) => e.isLikelyCounterfeit).length})',
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  'REVIEW',
-                  'Attention (${_allReports.where((e) => e.isSuspicious || e.needsHumanVerification).length})',
-                ),
-              ],
+            // Reports List or Empty State
+            Expanded(
+              child: _filteredReports.isEmpty
+                  ? PharmaEmptyState(
+                      icon: Icons.assignment_outlined,
+                      title:
+                          _searchController.text.isNotEmpty ||
+                              _selectedFilter != 'ALL' ||
+                              _selectedDateRange != null
+                          ? 'No Matching Reports'
+                          : 'No Inspection Reports',
+                      description:
+                          _searchController.text.isNotEmpty ||
+                              _selectedDateRange != null
+                          ? 'Try modifying your search query, filter tab, or date range.'
+                          : 'Completed medicine screenings will generate structured compliance reports here.',
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                      itemCount: _filteredReports.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final item = _filteredReports[index];
+                        return _buildReportCard(item, theme, tokens);
+                      },
+                    ),
             ),
-          ),
-          const SizedBox(height: 8),
-
-          // Reports List or Empty State
-          Expanded(
-            child: _filteredReports.isEmpty
-                ? PharmaEmptyState(
-                    icon: Icons.assignment_outlined,
-                    title:
-                        _searchController.text.isNotEmpty ||
-                            _selectedFilter != 'ALL' ||
-                            _selectedDateRange != null
-                        ? 'No Matching Reports'
-                        : 'No Inspection Reports',
-                    description:
-                        _searchController.text.isNotEmpty ||
-                            _selectedDateRange != null
-                        ? 'Try modifying your search query, filter tab, or date range.'
-                        : 'Completed medicine screenings will generate structured compliance reports here.',
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                    itemCount: _filteredReports.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final item = _filteredReports[index];
-                      return _buildReportCard(item, theme, tokens);
-                    },
-                  ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

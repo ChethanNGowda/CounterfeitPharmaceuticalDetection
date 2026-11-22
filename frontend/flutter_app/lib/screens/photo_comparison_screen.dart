@@ -198,147 +198,150 @@ class _PhotoComparisonScreenState extends State<PhotoComparisonScreen> {
         title: const Text('Packaging Photo Comparison'),
         centerTitle: false,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Safety Notice
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: tokens.surfaceSubtle,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: tokens.borderSubtle),
+      body: PharmaContentFrame(
+        maxWidth: 1120,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            // Safety Notice
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: tokens.surfaceSubtle,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: tokens.borderSubtle),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.zoom_in, size: 20, color: tokens.tealAccent),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Visual Comparison Notice: Pinch or double-tap each panel to zoom into printing, batch stamps, and seals. Visible visual similarity does NOT prove chemical authenticity or active ingredient purity.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: tokens.textMuted,
+                        fontSize: 11,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: Row(
+            const SizedBox(height: 16),
+
+            // Side-by-Side Dual Viewport
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.zoom_in, size: 20, color: tokens.tealAccent),
-                const SizedBox(width: 10),
+                // Panel A
                 Expanded(
-                  child: Text(
-                    'Visual Comparison Notice: Pinch or double-tap each panel to zoom into printing, batch stamps, and seals. Visible visual similarity does NOT prove chemical authenticity or active ingredient purity.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: tokens.textMuted,
-                      fontSize: 11,
-                      height: 1.4,
-                    ),
+                  child: _buildComparisonPanel(
+                    true,
+                    _imageA,
+                    _labelA,
+                    tokens,
+                    theme,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Panel B
+                Expanded(
+                  child: _buildComparisonPanel(
+                    false,
+                    _imageB,
+                    _labelB,
+                    tokens,
+                    theme,
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 18),
 
-          // Side-by-Side Dual Viewport
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Panel A
-              Expanded(
-                child: _buildComparisonPanel(
-                  true,
-                  _imageA,
-                  _labelA,
-                  tokens,
-                  theme,
-                ),
-              ),
-              const SizedBox(width: 10),
-              // Panel B
-              Expanded(
-                child: _buildComparisonPanel(
-                  false,
-                  _imageB,
-                  _labelB,
-                  tokens,
-                  theme,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-
-          // Observation Criteria Checklist
-          PharmaCard(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Physical Packaging Observations',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
+            // Observation Criteria Checklist
+            PharmaCard(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Physical Packaging Observations',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                ..._comparisonObservations.keys.map((key) {
-                  final val = _comparisonObservations[key] ?? false;
-                  return Material(
-                    color: Colors.transparent,
-                    child: CheckboxListTile(
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
-                      title: Text(
-                        key,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontSize: 12,
+                  const SizedBox(height: 10),
+                  ..._comparisonObservations.keys.map((key) {
+                    final val = _comparisonObservations[key] ?? false;
+                    return Material(
+                      color: Colors.transparent,
+                      child: CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: Text(
+                          key,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontSize: 12,
+                          ),
                         ),
+                        value: val,
+                        activeColor: tokens.tealAccent,
+                        onChanged: (newVal) {
+                          setState(() {
+                            _comparisonObservations[key] = newVal ?? false;
+                          });
+                        },
                       ),
-                      value: val,
-                      activeColor: tokens.tealAccent,
-                      onChanged: (newVal) {
-                        setState(() {
-                          _comparisonObservations[key] = newVal ?? false;
-                        });
-                      },
+                    );
+                  }),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Notes
+            TextField(
+              controller: _notesCtrl,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Comparison Observations & Notes',
+                hintText: 'Record noticed differences in blister pocket depth, foil thickness, font variations...',
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Action
+            PharmaPrimaryButton(
+              label: 'Copy Comparison Summary',
+              icon: Icons.copy,
+              onPressed: () async {
+                final observations = _comparisonObservations.entries
+                    .where((e) => e.value)
+                    .map((e) => '• ${e.key}')
+                    .join('\n');
+                final summary =
+                    'PHARMAASSIST PACKAGING COMPARISON\n'
+                    'Panel A: $_labelA\n'
+                    'Panel B: $_labelB\n\n'
+                    'Observations:\n$observations\n\n'
+                    'Notes: ${_notesCtrl.text.trim()}\n\n'
+                    'Disclaimer: Visual similarity does not guarantee pharmaceutical authenticity.';
+                await Clipboard.setData(ClipboardData(text: summary));
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Comparison summary copied to clipboard.'),
+                      backgroundColor: AppTheme.success,
                     ),
                   );
-                }),
-              ],
+                }
+              },
             ),
-          ),
-          const SizedBox(height: 14),
-
-          // Notes
-          TextField(
-            controller: _notesCtrl,
-            maxLines: 2,
-            decoration: const InputDecoration(
-              labelText: 'Comparison Observations & Notes',
-              hintText: 'Record noticed differences in blister pocket depth, foil thickness, font variations...',
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Action
-          PharmaPrimaryButton(
-            label: 'Copy Comparison Summary',
-            icon: Icons.copy,
-            onPressed: () async {
-              final observations = _comparisonObservations.entries
-                  .where((e) => e.value)
-                  .map((e) => '• ${e.key}')
-                  .join('\n');
-              final summary =
-                  'PHARMAASSIST PACKAGING COMPARISON\n'
-                  'Panel A: $_labelA\n'
-                  'Panel B: $_labelB\n\n'
-                  'Observations:\n$observations\n\n'
-                  'Notes: ${_notesCtrl.text.trim()}\n\n'
-                  'Disclaimer: Visual similarity does not guarantee pharmaceutical authenticity.';
-              await Clipboard.setData(ClipboardData(text: summary));
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Comparison summary copied to clipboard.'),
-                    backgroundColor: AppTheme.success,
-                  ),
-                );
-              }
-            },
-          ),
-          const SizedBox(height: 20),
-        ],
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }

@@ -35,14 +35,21 @@ class PharmaPrimaryButton extends StatelessWidget {
             ),
           )
         : Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (icon != null) ...[
                 Icon(icon, size: 18),
                 const SizedBox(width: 8),
               ],
-              Text(label),
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           );
 
@@ -82,14 +89,21 @@ class PharmaSecondaryButton extends StatelessWidget {
       child: OutlinedButton(
         onPressed: onPressed,
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (icon != null) ...[
               Icon(icon, size: 18),
               const SizedBox(width: 8),
             ],
-            Text(label),
+            Flexible(
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
       ),
@@ -121,23 +135,19 @@ class PharmaCard extends StatelessWidget {
     final theme = Theme.of(context);
     final tokens = context.pharmaTokens;
 
-    Widget cardWidget = Container(
-      decoration: BoxDecoration(
-        color: backgroundColor ?? theme.cardTheme.color ?? tokens.cardElevated,
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: borderColor ?? tokens.borderSubtle, width: 1),
-      ),
-      child: Padding(padding: padding, child: child),
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(borderRadius),
+      side: BorderSide(color: borderColor ?? tokens.borderSubtle, width: 1),
     );
-
-    if (onTap != null) {
-      return InkWell(
+    return Material(
+      color: backgroundColor ?? theme.cardTheme.color ?? tokens.cardElevated,
+      shape: shape,
+      child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(borderRadius),
-        child: cardWidget,
-      );
-    }
-    return cardWidget;
+        child: Padding(padding: padding, child: child),
+      ),
+    );
   }
 }
 
@@ -311,4 +321,121 @@ class PharmaHealthPill extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Keeps phone-oriented screens readable on tablets and desktop sized windows.
+class PharmaContentFrame extends StatelessWidget {
+  final Widget child;
+  final double maxWidth;
+
+  const PharmaContentFrame({
+    super.key,
+    required this.child,
+    this.maxWidth = 1120,
+  });
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.topCenter,
+    child: ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: child,
+    ),
+  );
+}
+
+/// Consistent, readable inline error panel with an optional recovery action.
+class PharmaErrorPanel extends StatelessWidget {
+  final String title;
+  final String message;
+  final VoidCallback? onRetry;
+  final String retryLabel;
+
+  const PharmaErrorPanel({
+    super.key,
+    this.title = 'Something went wrong',
+    required this.message,
+    this.onRetry,
+    this.retryLabel = 'Try again',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = context.pharmaTokens;
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: tokens.counterfeitRedBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: tokens.counterfeitRed.withValues(alpha: 0.55),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.error_outline, color: tokens.counterfeitRed),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: tokens.counterfeitRed,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(message, style: theme.textTheme.bodyMedium),
+                  if (onRetry != null) ...[
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: onRetry,
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: Text(retryLabel),
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(48, 48),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Accessible loading state for long running page or service operations.
+class PharmaLoadingState extends StatelessWidget {
+  final String message;
+
+  const PharmaLoadingState({super.key, required this.message});
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    liveRegion: true,
+    label: message,
+    child: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(message, textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    ),
+  );
 }

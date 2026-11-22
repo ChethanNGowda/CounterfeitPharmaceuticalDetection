@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:pharma_assist/core/theme_tokens.dart';
 import 'package:pharma_assist/screens/about_screen.dart';
+import 'package:pharma_assist/core/constants.dart';
+import 'package:pharma_assist/screens/history_screen.dart';
 import 'package:pharma_assist/screens/model_lab_screen.dart';
 import 'package:pharma_assist/screens/packaging_checklist_screen.dart';
 import 'package:pharma_assist/screens/packaging_guide_screen.dart';
 import 'package:pharma_assist/screens/photo_comparison_screen.dart';
+import 'package:pharma_assist/screens/reports_screen.dart';
 import 'package:pharma_assist/screens/screening_insights_screen.dart';
 import 'package:pharma_assist/screens/settings_screen.dart';
 import 'package:pharma_assist/services/api_service.dart';
@@ -34,208 +37,237 @@ class MoreHubScreen extends StatelessWidget {
         title: const Text('Utilities & Insights'),
         centerTitle: false,
       ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        children: [
-          // Clinical Platform Identity Card
-          PharmaCard(
-            padding: const EdgeInsets.all(16),
-            backgroundColor: tokens.surfaceSubtle,
-            borderColor: tokens.borderSubtle,
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: tokens.tealAccent.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
+      body: PharmaContentFrame(
+        maxWidth: 960,
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          children: [
+            // Clinical Platform Identity Card
+            PharmaCard(
+              padding: const EdgeInsets.all(16),
+              backgroundColor: tokens.surfaceSubtle,
+              borderColor: tokens.borderSubtle,
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: tokens.tealAccent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.health_and_safety_outlined,
+                      color: tokens.tealAccent,
+                      size: 28,
+                    ),
                   ),
-                  child: Icon(
-                    Icons.health_and_safety_outlined,
-                    color: tokens.tealAccent,
-                    size: 28,
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'PharmaAssist Core',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Pharmaceutical Screening & Inspection Suite',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: tokens.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'PharmaAssist Core',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: tokens.deepBlue,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Pharmaceutical Screening & Inspection Suite',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: tokens.textMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-
-          // Section 1: Clinical Insights & Packaging Verification
-          const PharmaSectionHeader(
-            title: 'Packaging & Clinical Insights',
-            subtitle: 'Screening history statistics, checklist inspections, and photo comparison',
-          ),
-          PharmaCard(
-            padding: EdgeInsets.zero,
-            child: Column(
-              children: [
-                _buildTile(
-                  context,
-                  icon: Icons.insights_outlined,
-                  title: 'Screening Insights',
-                  subtitle: 'Real local screening volumes, verdict distributions & quality metrics',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            ScreeningInsightsScreen(storage: storage),
-                      ),
-                    );
-                  },
-                ),
-                Divider(height: 1, color: tokens.borderSubtle),
-                _buildTile(
-                  context,
-                  icon: Icons.fact_check_outlined,
-                  title: 'Packaging Inspection Checklist',
-                  subtitle: 'Interactive 7-point visual inspection workflow for cartons and blisters',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            PackagingChecklistScreen(storage: storage),
-                      ),
-                    );
-                  },
-                ),
-                Divider(height: 1, color: tokens.borderSubtle),
-                _buildTile(
-                  context,
-                  icon: Icons.compare_outlined,
-                  title: 'Packaging Photo Comparison',
-                  subtitle: 'Dual side-by-side zoom & pan comparison for authentic vs suspect samples',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PhotoComparisonScreen(storage: storage),
-                      ),
-                    );
-                  },
-                ),
-                Divider(height: 1, color: tokens.borderSubtle),
-                _buildTile(
-                  context,
-                  icon: Icons.photo_camera_back_outlined,
-                  title: 'Packaging & Capture Guide',
-                  subtitle:
-                      'Optimal tablet, blister-pack and packaging photography',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const PackagingGuideScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-
-          // Section 2: System, Diagnostics & Settings
-          const PharmaSectionHeader(
-            title: 'System & Diagnostics',
-            subtitle:
-                'AI verification status, model lab, and system configuration',
-          ),
-          PharmaCard(
-            padding: EdgeInsets.zero,
-            child: Column(
-              children: [
-                _buildTile(
-                  context,
-                  icon: Icons.science_outlined,
-                  title: 'AI Diagnostics & Model Lab',
-                  subtitle: 'Inspect local Qwen Vision & ML classifier configurations',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ModelLabScreen(
-                          storage: storage,
-                          apiService: apiService,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                Divider(height: 1, color: tokens.borderSubtle),
-                _buildTile(
-                  context,
-                  icon: Icons.tune_outlined,
-                  title: 'Settings & Cloud Sync',
-                  subtitle:
-                      'Operating mode, backend URLs, themes & sync tokens',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SettingsScreen(
-                          storage: storage,
-                          apiService: apiService,
-                          onThemeChanged: onThemeChanged,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                Divider(height: 1, color: tokens.borderSubtle),
-                _buildTile(
-                  context,
-                  icon: Icons.info_outline,
-                  title: 'About PharmaAssist',
-                  subtitle:
-                      'Architecture, safety boundaries & versioning details',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const AboutScreen()),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          Center(
-            child: Text(
-              'PharmaAssist v1.2.0 • Hybrid Intelligence Edition',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: tokens.textMuted,
-                fontSize: 11,
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-        ],
+            const SizedBox(height: 18),
+
+            // Section 1: Clinical Insights & Packaging Verification
+            const PharmaSectionHeader(
+              title: 'Packaging & Clinical Insights',
+              subtitle: 'Screening history statistics, checklist inspections, and photo comparison',
+            ),
+            PharmaCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  _buildTile(
+                    context,
+                    icon: Icons.assignment_outlined,
+                    title: 'Screening reports',
+                    subtitle: 'Search saved screenings and open report details',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ReportsScreen(storage: storage),
+                      ),
+                    ),
+                  ),
+                  Divider(height: 1, color: tokens.borderSubtle),
+                  _buildTile(
+                    context,
+                    icon: Icons.compare_arrows_outlined,
+                    title: 'Screening history & comparison',
+                    subtitle: 'Search, bookmark, and compare saved records',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => HistoryScreen(storage: storage),
+                      ),
+                    ),
+                  ),
+                  Divider(height: 1, color: tokens.borderSubtle),
+                  _buildTile(
+                    context,
+                    icon: Icons.insights_outlined,
+                    title: 'Screening Insights',
+                    subtitle: 'Real local screening volumes, verdict distributions & quality metrics',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              ScreeningInsightsScreen(storage: storage),
+                        ),
+                      );
+                    },
+                  ),
+                  Divider(height: 1, color: tokens.borderSubtle),
+                  _buildTile(
+                    context,
+                    icon: Icons.fact_check_outlined,
+                    title: 'Packaging Inspection Checklist',
+                    subtitle: 'Interactive 7-point visual inspection workflow for cartons and blisters',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              PackagingChecklistScreen(storage: storage),
+                        ),
+                      );
+                    },
+                  ),
+                  Divider(height: 1, color: tokens.borderSubtle),
+                  _buildTile(
+                    context,
+                    icon: Icons.compare_outlined,
+                    title: 'Packaging Photo Comparison',
+                    subtitle: 'Dual side-by-side zoom & pan comparison for authentic vs suspect samples',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              PhotoComparisonScreen(storage: storage),
+                        ),
+                      );
+                    },
+                  ),
+                  Divider(height: 1, color: tokens.borderSubtle),
+                  _buildTile(
+                    context,
+                    icon: Icons.photo_camera_back_outlined,
+                    title: 'Packaging & Capture Guide',
+                    subtitle: 'Optimal tablet, blister-pack and packaging photography',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PackagingGuideScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // Section 2: System, Diagnostics & Settings
+            const PharmaSectionHeader(
+              title: 'System & Diagnostics',
+              subtitle:
+                  'AI verification status, model lab, and system configuration',
+            ),
+            PharmaCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  _buildTile(
+                    context,
+                    icon: Icons.science_outlined,
+                    title: 'AI Diagnostics & Model Lab',
+                    subtitle: 'Inspect classifier registry and Qwen service availability',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ModelLabScreen(
+                            storage: storage,
+                            apiService: apiService,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  Divider(height: 1, color: tokens.borderSubtle),
+                  _buildTile(
+                    context,
+                    icon: Icons.tune_outlined,
+                    title: 'Settings & Cloud Sync',
+                    subtitle:
+                        'Operating mode, backend URLs, themes & sync tokens',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SettingsScreen(
+                            storage: storage,
+                            apiService: apiService,
+                            onThemeChanged: onThemeChanged,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  Divider(height: 1, color: tokens.borderSubtle),
+                  _buildTile(
+                    context,
+                    icon: Icons.info_outline,
+                    title: 'About PharmaAssist',
+                    subtitle:
+                        'Architecture, safety boundaries & versioning details',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const AboutScreen()),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            Center(
+              child: Text(
+                'PharmaAssist v${AppConstants.appVersion} | Preliminary Screening',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: tokens.textMuted,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }

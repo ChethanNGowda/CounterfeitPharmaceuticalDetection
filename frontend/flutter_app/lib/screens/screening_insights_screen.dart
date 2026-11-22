@@ -62,303 +62,306 @@ class _ScreeningInsightsScreenState extends State<ScreeningInsightsScreen> {
           ),
         ],
       ),
-      body: total == 0
-          ? _buildEmptyState(tokens)
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Prominent Regulatory & Prevalence Notice
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: tokens.surfaceSubtle,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: tokens.borderSubtle),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        size: 18,
-                        color: tokens.tealAccent,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Data Notice: These metrics reflect inspection scans recorded on this local device. '
-                          'They describe user screening history only, and do NOT represent actual counterfeit pharmaceutical market prevalence.',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: tokens.textMuted,
-                            fontSize: 11,
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Top Metric Cards Grid
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildMetricTile(
-                        'Total Screenings',
-                        '$total',
-                        'Recorded Scans',
-                        tokens.deepBlue,
-                        tokens.surfaceSubtle,
-                        tokens,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _buildMetricTile(
-                        'Authentic',
-                        '$authenticCount',
-                        total > 0
-                            ? '${(authenticCount / total * 100).toStringAsFixed(1)}%'
-                            : '0%',
-                        tokens.authenticGreen,
-                        tokens.authenticGreenBg,
-                        tokens,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildMetricTile(
-                        'Counterfeit',
-                        '$counterfeitCount',
-                        total > 0
-                            ? '${(counterfeitCount / total * 100).toStringAsFixed(1)}%'
-                            : '0%',
-                        tokens.counterfeitRed,
-                        tokens.counterfeitRedBg,
-                        tokens,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _buildMetricTile(
-                        'Manual Review',
-                        '$reviewCount',
-                        total > 0
-                            ? '${(reviewCount / total * 100).toStringAsFixed(1)}%'
-                            : '0%',
-                        tokens.suspiciousAmber,
-                        tokens.suspiciousAmberBg,
-                        tokens,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // Outcome Breakdown Bar
-                PharmaCard(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Screening Outcome Distribution',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: SizedBox(
-                          height: 14,
-                          child: Row(
-                            children: [
-                              if (authenticCount > 0)
-                                Expanded(
-                                  flex: authenticCount,
-                                  child: Container(
-                                    color: tokens.authenticGreen,
-                                  ),
-                                ),
-                              if (counterfeitCount > 0)
-                                Expanded(
-                                  flex: counterfeitCount,
-                                  child: Container(
-                                    color: tokens.counterfeitRed,
-                                  ),
-                                ),
-                              if (reviewCount > 0)
-                                Expanded(
-                                  flex: reviewCount,
-                                  child: Container(
-                                    color: tokens.suspiciousAmber,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _legendItem(
-                            'Authentic ($authenticCount)',
-                            tokens.authenticGreen,
-                          ),
-                          _legendItem(
-                            'Counterfeit ($counterfeitCount)',
-                            tokens.counterfeitRed,
-                          ),
-                          _legendItem(
-                            'Review ($reviewCount)',
-                            tokens.suspiciousAmber,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Image Quality Gate Analysis
-                PharmaCard(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Image Quality Validation',
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Icon(
-                            Icons.camera_enhance_outlined,
-                            size: 18,
-                            color: tokens.tealAccent,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'The OpenCV image quality gate verifies illumination, blur, and focus before inference runs.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: tokens.textMuted,
-                          fontSize: 11,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _miniStat(
-                              'Accepted',
-                              '$qualityPassCount',
-                              total > 0
-                                  ? '${(qualityPassCount / total * 100).toInt()}%'
-                                  : '0%',
-                              tokens.authenticGreen,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _miniStat(
-                              'Retakes Advised',
-                              '$qualityFailCount',
-                              total > 0
-                                  ? '${(qualityFailCount / total * 100).toInt()}%'
-                                  : '0%',
-                              tokens.suspiciousAmber,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Recent Screening Activity
-                Text(
-                  'Recent Screening Activity',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ..._history.take(5).map((item) {
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
+      body: PharmaContentFrame(
+        maxWidth: 1120,
+        child: total == 0
+            ? _buildEmptyState(tokens)
+            : ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  // Prominent Regulatory & Prevalence Notice
+                  Container(
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppTheme.elevatedCard,
+                      color: tokens.surfaceSubtle,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: tokens.borderSubtle),
                     ),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: item.isLikelyAuthentic
-                                ? tokens.authenticGreen
-                                : item.isLikelyCounterfeit
-                                ? tokens.counterfeitRed
-                                : tokens.suspiciousAmber,
-                          ),
+                        Icon(
+                          Icons.info_outline,
+                          size: 18,
+                          color: tokens.tealAccent,
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item.medicineName ?? item.sampleId,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12.5,
-                                ),
-                              ),
-                              Text(
-                                '${DateFormat('MMM d, HH:mm').format(item.timestamp)} • ${item.verdictDisplay}',
-                                style: TextStyle(
-                                  color: tokens.textMuted,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Text(
-                          '${(item.confidence * 100).toStringAsFixed(0)}%',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12,
-                            color: tokens.deepBlue,
+                          child: Text(
+                            'Data Notice: These metrics reflect inspection scans recorded on this local device. '
+                            'They describe user screening history only, and do NOT represent actual counterfeit pharmaceutical market prevalence.',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: tokens.textMuted,
+                              fontSize: 11,
+                              height: 1.4,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  );
-                }),
-                const SizedBox(height: 20),
-              ],
-            ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Top Metric Cards Grid
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildMetricTile(
+                          'Total Screenings',
+                          '$total',
+                          'Recorded Scans',
+                          tokens.deepBlue,
+                          tokens.surfaceSubtle,
+                          tokens,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildMetricTile(
+                          'Authentic',
+                          '$authenticCount',
+                          total > 0
+                              ? '${(authenticCount / total * 100).toStringAsFixed(1)}%'
+                              : '0%',
+                          tokens.authenticGreen,
+                          tokens.authenticGreenBg,
+                          tokens,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildMetricTile(
+                          'Counterfeit',
+                          '$counterfeitCount',
+                          total > 0
+                              ? '${(counterfeitCount / total * 100).toStringAsFixed(1)}%'
+                              : '0%',
+                          tokens.counterfeitRed,
+                          tokens.counterfeitRedBg,
+                          tokens,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildMetricTile(
+                          'Manual Review',
+                          '$reviewCount',
+                          total > 0
+                              ? '${(reviewCount / total * 100).toStringAsFixed(1)}%'
+                              : '0%',
+                          tokens.suspiciousAmber,
+                          tokens.suspiciousAmberBg,
+                          tokens,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Outcome Breakdown Bar
+                  PharmaCard(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Screening Outcome Distribution',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: SizedBox(
+                            height: 14,
+                            child: Row(
+                              children: [
+                                if (authenticCount > 0)
+                                  Expanded(
+                                    flex: authenticCount,
+                                    child: Container(
+                                      color: tokens.authenticGreen,
+                                    ),
+                                  ),
+                                if (counterfeitCount > 0)
+                                  Expanded(
+                                    flex: counterfeitCount,
+                                    child: Container(
+                                      color: tokens.counterfeitRed,
+                                    ),
+                                  ),
+                                if (reviewCount > 0)
+                                  Expanded(
+                                    flex: reviewCount,
+                                    child: Container(
+                                      color: tokens.suspiciousAmber,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _legendItem(
+                              'Authentic ($authenticCount)',
+                              tokens.authenticGreen,
+                            ),
+                            _legendItem(
+                              'Counterfeit ($counterfeitCount)',
+                              tokens.counterfeitRed,
+                            ),
+                            _legendItem(
+                              'Review ($reviewCount)',
+                              tokens.suspiciousAmber,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Image Quality Gate Analysis
+                  PharmaCard(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Image Quality Validation',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Icon(
+                              Icons.camera_enhance_outlined,
+                              size: 18,
+                              color: tokens.tealAccent,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'The OpenCV image quality gate verifies illumination, blur, and focus before inference runs.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: tokens.textMuted,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _miniStat(
+                                'Accepted',
+                                '$qualityPassCount',
+                                total > 0
+                                    ? '${(qualityPassCount / total * 100).toInt()}%'
+                                    : '0%',
+                                tokens.authenticGreen,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _miniStat(
+                                'Retakes Advised',
+                                '$qualityFailCount',
+                                total > 0
+                                    ? '${(qualityFailCount / total * 100).toInt()}%'
+                                    : '0%',
+                                tokens.suspiciousAmber,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Recent Screening Activity
+                  Text(
+                    'Recent Screening Activity',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ..._history.take(5).map((item) {
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.elevatedCard,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: tokens.borderSubtle),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: item.isLikelyAuthentic
+                                  ? tokens.authenticGreen
+                                  : item.isLikelyCounterfeit
+                                  ? tokens.counterfeitRed
+                                  : tokens.suspiciousAmber,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.medicineName ?? item.sampleId,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12.5,
+                                  ),
+                                ),
+                                Text(
+                                  '${DateFormat('MMM d, HH:mm').format(item.timestamp)} • ${item.verdictDisplay}',
+                                  style: TextStyle(
+                                    color: tokens.textMuted,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            '${(item.confidence * 100).toStringAsFixed(0)}%',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                              color: tokens.deepBlue,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 20),
+                ],
+              ),
+      ),
     );
   }
 

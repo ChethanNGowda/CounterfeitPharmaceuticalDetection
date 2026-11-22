@@ -7,6 +7,7 @@ import 'package:pharma_assist/screens/onboarding_screen.dart';
 import 'package:pharma_assist/screens/medicine_screen.dart';
 import 'package:pharma_assist/screens/more_hub_screen.dart';
 import 'package:pharma_assist/screens/records_screen.dart';
+import 'package:pharma_assist/screens/reports_screen.dart';
 import 'package:pharma_assist/screens/scan_screen.dart';
 import 'package:pharma_assist/screens/settings_screen.dart';
 import 'package:pharma_assist/services/api_service.dart';
@@ -158,7 +159,7 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
         onNavigateToScan: () => _onTabTapped(1),
         onChooseGallery: _chooseGalleryFromHome,
         onNavigateToSettings: () => _onTabTapped(4),
-        onNavigateToReports: () => _onTabTapped(3),
+        onNavigateToReports: _openReports,
       ),
       ScanScreen(
         key: _scanKey,
@@ -250,6 +251,12 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
     });
   }
 
+  void _openReports() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ReportsScreen(storage: widget.storage)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope<Object?>(
@@ -257,10 +264,70 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop && _currentIndex != 0) _onTabTapped(0);
       },
-      child: Scaffold(
-        body: IndexedStack(index: _currentIndex, children: _screens),
-        bottomNavigationBar: _buildBottomNav(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wideLayout = constraints.maxWidth >= 840;
+          return Scaffold(
+            body: Row(
+              children: [
+                if (wideLayout) _buildNavigationRail(),
+                Expanded(
+                  child: IndexedStack(index: _currentIndex, children: _screens),
+                ),
+              ],
+            ),
+            bottomNavigationBar: wideLayout ? null : _buildBottomNav(),
+          );
+        },
       ),
+    );
+  }
+
+  Widget _buildNavigationRail() {
+    return NavigationRail(
+      selectedIndex: _currentIndex,
+      onDestinationSelected: _onTabTapped,
+      labelType: NavigationRailLabelType.all,
+      minWidth: 80,
+      groupAlignment: -0.85,
+      leading: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Tooltip(
+          message: AppConstants.appName,
+          child: Icon(
+            Icons.biotech_outlined,
+            color: Theme.of(context).colorScheme.primary,
+            size: 28,
+          ),
+        ),
+      ),
+      destinations: const [
+        NavigationRailDestination(
+          icon: Icon(Icons.dashboard_outlined),
+          selectedIcon: Icon(Icons.dashboard),
+          label: Text('Home'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.document_scanner_outlined),
+          selectedIcon: Icon(Icons.document_scanner),
+          label: Text('Scan'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.medication_outlined),
+          selectedIcon: Icon(Icons.medication),
+          label: Text('Medicine'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.folder_outlined),
+          selectedIcon: Icon(Icons.folder),
+          label: Text('Records'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.grid_view_outlined),
+          selectedIcon: Icon(Icons.grid_view_rounded),
+          label: Text('More'),
+        ),
+      ],
     );
   }
 
@@ -269,7 +336,7 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
       selectedIndex: _currentIndex,
       onDestinationSelected: _onTabTapped,
       height: 72,
-      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+      labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
       indicatorColor: Theme.of(context).colorScheme.primary
           .withValues(alpha: 0.14),
       destinations: const [

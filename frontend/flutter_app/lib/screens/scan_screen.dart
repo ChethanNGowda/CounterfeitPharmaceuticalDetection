@@ -14,6 +14,7 @@ import 'package:pharma_assist/services/storage_service.dart';
 import 'package:pharma_assist/services/sync_service.dart';
 import 'package:pharma_assist/widgets/disclaimer_banner.dart';
 import 'package:pharma_assist/widgets/medicine_photo_guide.dart';
+import 'package:pharma_assist/widgets/pharma_components.dart';
 
 class ScanScreen extends StatefulWidget {
   final StorageService storage;
@@ -313,19 +314,28 @@ class ScanScreenState extends State<ScanScreen> {
               ),
             ),
             const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Scan Medicine', style: AppTheme.headingSmall()),
-                Text(
-                  'One guided screening process',
-                  style: AppTheme.bodyText(
-                    color: AppTheme.textMuted,
-                    fontSize: 10,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Scan medicine',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.headingSmall(),
                   ),
-                ),
-              ],
+                  Text(
+                    'One guided screening process',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.bodyText(
+                      color: AppTheme.textMuted,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -335,78 +345,81 @@ class ScanScreenState extends State<ScanScreen> {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Section 1: Image Acquisition
-              _buildSectionHeader(
-                '1. CHOOSE A PHOTO',
-                Icons.camera_alt_outlined,
-              ),
-              const SizedBox(height: 8),
-              const MedicinePhotoGuide(),
-              const SizedBox(height: 10),
-              _buildImageAcquisitionCard(),
-              const SizedBox(height: 8),
-              Text(
-                'Camera and photo picker open only when selected. Images stay on this device unless you submit them to your configured screening server.',
-                style: AppTheme.bodyText(
-                  color: AppTheme.textMuted,
-                  fontSize: 11,
+        child: PharmaContentFrame(
+          maxWidth: 960,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Section 1: Image Acquisition
+                _buildSectionHeader(
+                  '1. CHOOSE A PHOTO',
+                  Icons.camera_alt_outlined,
                 ),
-              ),
+                const SizedBox(height: 8),
+                const MedicinePhotoGuide(),
+                const SizedBox(height: 10),
+                _buildImageAcquisitionCard(),
+                const SizedBox(height: 8),
+                Text(
+                  'Camera and photo picker open only when selected. Images stay on this device unless you submit them to your configured screening server.',
+                  style: AppTheme.bodyText(
+                    color: AppTheme.textMuted,
+                    fontSize: 11,
+                  ),
+                ),
 
-              const SizedBox(height: 18),
+                const SizedBox(height: 18),
 
-              // Section 2: Image Quality Assessment
-              _buildSectionHeader(
-                '2. CHECK THE PHOTO',
-                Icons.high_quality_outlined,
-              ),
-              const SizedBox(height: 8),
-              _buildQualityAssessmentCard(),
+                // Section 2: Image Quality Assessment
+                _buildSectionHeader(
+                  '2. CHECK THE PHOTO',
+                  Icons.high_quality_outlined,
+                ),
+                const SizedBox(height: 8),
+                _buildQualityAssessmentCard(),
 
-              const SizedBox(height: 18),
+                const SizedBox(height: 18),
 
-              // Section 3: Sample Specification & Identification
-              _buildSectionHeader(
-                '3. OPTIONAL DETAILS',
-                Icons.assignment_outlined,
-              ),
-              const SizedBox(height: 8),
-              _buildSampleMetadataCard(),
+                // Section 3: Sample Specification & Identification
+                _buildSectionHeader(
+                  '3. OPTIONAL DETAILS',
+                  Icons.assignment_outlined,
+                ),
+                const SizedBox(height: 8),
+                _buildSampleMetadataCard(),
 
-              const SizedBox(height: 18),
+                const SizedBox(height: 18),
 
-              // Section 4: One combined screening pipeline
-              _buildSectionHeader(
-                '4. HOW SCREENING WORKS',
-                Icons.tune_outlined,
-              ),
-              const SizedBox(height: 8),
-              _buildScreeningOptionsCard(),
+                // Section 4: One combined screening pipeline
+                _buildSectionHeader(
+                  '4. HOW SCREENING WORKS',
+                  Icons.tune_outlined,
+                ),
+                const SizedBox(height: 8),
+                _buildScreeningOptionsCard(),
 
-              const SizedBox(height: 22),
+                const SizedBox(height: 22),
 
-              // Error banner if any
-              if (_errorMessage != null) ...[
-                _buildErrorBanner(_errorMessage!),
-                const SizedBox(height: 16),
+                // Error banner if any
+                if (_errorMessage != null) ...[
+                  _buildErrorBanner(_errorMessage!),
+                  const SizedBox(height: 16),
+                ],
+
+                // Section 5: Run Screening Action
+                _buildExecuteButton(),
+
+                if (_isAnalyzing) ...[
+                  const SizedBox(height: 14),
+                  _buildAnalysisProgressBar(),
+                ],
+
+                const SizedBox(height: 20),
+                const DisclaimerBanner(compact: true),
               ],
-
-              // Section 5: Run Screening Action
-              _buildExecuteButton(),
-
-              if (_isAnalyzing) ...[
-                const SizedBox(height: 14),
-                _buildAnalysisProgressBar(),
-              ],
-
-              const SizedBox(height: 20),
-              const DisclaimerBanner(compact: true),
-            ],
+            ),
           ),
         ),
       ),
@@ -414,22 +427,7 @@ class ScanScreenState extends State<ScanScreen> {
   }
 
   Widget _buildSectionHeader(String title, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: AppTheme.primaryCyan),
-        const SizedBox(width: 6),
-        Text(
-          title,
-          style: TextStyle(
-            fontFamily: 'Space Grotesk',
-            color: AppTheme.textMuted,
-            fontSize: 10.5,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.0,
-          ),
-        ),
-      ],
-    );
+    return PharmaSectionHeader(title: title, icon: icon);
   }
 
   Widget _buildImageAcquisitionCard() {
@@ -677,8 +675,8 @@ class ScanScreenState extends State<ScanScreen> {
   Widget _buildActiveImagePreview() {
     final String sizeStr = _imageFileSize != null
         ? _imageFileSize! >= 1024 * 1024
-            ? '${(_imageFileSize! / (1024 * 1024)).toStringAsFixed(2)} MB'
-            : '${(_imageFileSize! / 1024).toStringAsFixed(1)} KB'
+              ? '${(_imageFileSize! / (1024 * 1024)).toStringAsFixed(2)} MB'
+              : '${(_imageFileSize! / 1024).toStringAsFixed(1)} KB'
         : '';
     final String dimStr = (_imageWidth != null && _imageHeight != null)
         ? '$_imageWidth x $_imageHeight px'
@@ -792,19 +790,23 @@ class ScanScreenState extends State<ScanScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Photo check', style: AppTheme.headingSmall()),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact =
+                  constraints.maxWidth < 380 ||
+                  MediaQuery.textScalerOf(context).scale(1) > 1.2;
+              final status = Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: _selectedImage == null
                       ? AppTheme.secondaryBackground
                       : (_isQualityValid
                             ? AppTheme.authenticBg
                             : AppTheme.counterfeitBg),
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: _selectedImage == null
                         ? AppTheme.border
@@ -813,24 +815,40 @@ class ScanScreenState extends State<ScanScreen> {
                 ),
                 child: Text(
                   _selectedImage == null
-                      ? 'SELECT AN IMAGE'
+                      ? 'Select an image'
                       : (_isQualityValid
-                            ? 'BASIC CHECKS PASSED'
-                            : 'CHECK PHOTO'),
+                            ? 'Basic checks passed'
+                            : 'Check photo'),
                   style: TextStyle(
                     color: _selectedImage == null
                         ? AppTheme.textMuted
                         : (_isQualityValid ? AppTheme.success : AppTheme.error),
-                    fontSize: 9.5,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 0.6,
                   ),
                 ),
-              ),
-            ],
+              );
+              return compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Photo check', style: AppTheme.headingSmall()),
+                        const SizedBox(height: 6),
+                        status,
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Photo check', style: AppTheme.headingSmall()),
+                        status,
+                      ],
+                    );
+            },
           ),
           const SizedBox(height: 10),
           _qualityRequirementRow(
+            context,
             'Image size',
             _imageWidth != null ? '$_imageWidth x $_imageHeight px' : 'Pending',
             _imageWidth != null && _imageWidth! >= 64 && _imageHeight! >= 64,
@@ -838,6 +856,7 @@ class ScanScreenState extends State<ScanScreen> {
           ),
           const SizedBox(height: 6),
           _qualityRequirementRow(
+            context,
             'Upload size',
             _imageFileSize != null
                 ? '${(_imageFileSize! / 1024).toStringAsFixed(0)} KB'
@@ -847,6 +866,7 @@ class ScanScreenState extends State<ScanScreen> {
           ),
           const SizedBox(height: 6),
           _qualityRequirementRow(
+            context,
             'Focus and lighting',
             _selectedImage == null
                 ? 'Checked by the server'
@@ -892,60 +912,73 @@ class ScanScreenState extends State<ScanScreen> {
   }
 
   Widget _qualityRequirementRow(
+    BuildContext context,
     String label,
     String value,
     bool valid, {
     required String requirement,
   }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(
-          child: Row(
+    final compact =
+        MediaQuery.textScalerOf(context).scale(1) > 1.2 ||
+        MediaQuery.sizeOf(context).width < 400;
+    final icon = Icon(
+      _selectedImage == null
+          ? Icons.circle_outlined
+          : (valid ? Icons.check_circle_outline : Icons.cancel_outlined),
+      size: 18,
+      color: _selectedImage == null
+          ? AppTheme.textMuted
+          : (valid ? AppTheme.success : AppTheme.error),
+    );
+    final labelWidget = Text(
+      label,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: AppTheme.bodyText(fontSize: 12),
+    );
+    final valueWidget = Text(
+      value,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: AppTheme.monoNumeric(
+        fontSize: 12,
+        color: _selectedImage == null
+            ? AppTheme.textMuted
+            : AppTheme.textPrimary,
+      ),
+    );
+    final requirementWidget = Text(
+      requirement,
+      style: AppTheme.bodyText(color: AppTheme.textMuted, fontSize: 11),
+    );
+
+    if (compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Icon(
-                _selectedImage == null
-                    ? Icons.circle_outlined
-                    : (valid
-                          ? Icons.check_circle_outline
-                          : Icons.cancel_outlined),
-                size: 14,
-                color: _selectedImage == null
-                    ? AppTheme.textMuted
-                    : (valid ? AppTheme.success : AppTheme.error),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTheme.bodyText(fontSize: 12),
-                ),
-              ),
+              icon,
+              const SizedBox(width: 8),
+              Expanded(child: labelWidget),
+              const SizedBox(width: 8),
+              Flexible(child: valueWidget),
             ],
           ),
-        ),
+          Align(alignment: Alignment.centerRight, child: requirementWidget),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        icon,
+        const SizedBox(width: 8),
+        Expanded(child: labelWidget),
+        const SizedBox(width: 12),
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              value,
-              style: AppTheme.monoNumeric(
-                fontSize: 11.5,
-                color: _selectedImage == null
-                    ? AppTheme.textMuted
-                    : AppTheme.textPrimary,
-              ),
-            ),
-            Text(
-              requirement,
-              style: AppTheme.bodyText(
-                color: AppTheme.textMuted,
-                fontSize: 9.5,
-              ),
-            ),
-          ],
+          children: [valueWidget, requirementWidget],
         ),
       ],
     );
@@ -1189,57 +1222,13 @@ class ScanScreenState extends State<ScanScreen> {
   }
 
   Widget _buildErrorBanner(String message) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.counterfeitBg,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.error.withValues(alpha: 0.6)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.error_outline, color: AppTheme.error, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'SCREENING ERROR',
-                  style: TextStyle(
-                    fontFamily: 'Space Grotesk',
-                    color: AppTheme.error,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  message,
-                  style: const TextStyle(
-                    color: Color(0xFFFCA5A5),
-                    fontSize: 11.5,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: _selectedImage != null && !_isAnalyzing
-                        ? _analyzeMedicine
-                        : null,
-                    icon: const Icon(Icons.refresh, size: 16),
-                    label: const Text('Retry screening'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return PharmaErrorPanel(
+      title: 'Screening could not run',
+      message: message,
+      retryLabel: 'Retry screening',
+      onRetry: _selectedImage != null && !_isAnalyzing
+          ? _analyzeMedicine
+          : null,
     );
   }
 
@@ -1275,13 +1264,17 @@ class ScanScreenState extends State<ScanScreen> {
                     ),
                   ),
                   SizedBox(width: 10),
-                  Text(
-                    'SCREENING IN PROGRESS...',
-                    style: TextStyle(
-                      fontFamily: 'Space Grotesk',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
+                  Flexible(
+                    child: Text(
+                      'SCREENING IN PROGRESS...',
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      style: TextStyle(
+                        fontFamily: 'Space Grotesk',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
                     ),
                   ),
                 ],
@@ -1291,13 +1284,17 @@ class ScanScreenState extends State<ScanScreen> {
                 children: [
                   Icon(Icons.biotech, size: 20),
                   SizedBox(width: 8),
-                  Text(
-                    'RUN PHARMACEUTICAL SCREENING',
-                    style: TextStyle(
-                      fontFamily: 'Space Grotesk',
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
+                  Flexible(
+                    child: Text(
+                      'RUN PHARMACEUTICAL SCREENING',
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      style: TextStyle(
+                        fontFamily: 'Space Grotesk',
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
                     ),
                   ),
                 ],

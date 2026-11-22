@@ -9,6 +9,7 @@ import 'package:pharma_assist/screens/results_screen.dart';
 import 'package:pharma_assist/services/export_service.dart';
 import 'package:pharma_assist/services/storage_service.dart';
 import 'package:pharma_assist/widgets/status_badge.dart';
+import 'package:pharma_assist/widgets/pharma_components.dart';
 
 /// Clean, professional Screening Records Screen consolidating inspection history,
 /// multi-criteria search, filters, and Android-native PDF/TXT/CSV exports.
@@ -365,163 +366,169 @@ class RecordsScreenState extends State<RecordsScreen> {
         ),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            // Top Description & Summary Strip
-            Container(
-              color: AppTheme.secondaryBackground,
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Audit trail of pharmaceutical inspections, classifications, and exports.',
-                    style: TextStyle(fontSize: 12, color: tokens.textMuted),
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Metrics Summary Row
-                  Row(
-                    children: [
-                      _summaryChip(
-                        'Total: ${_allRecords.length}',
-                        tokens.navyBrand,
-                        tokens.surfaceSubtle,
-                      ),
-                      const SizedBox(width: 8),
-                      _summaryChip(
-                        'Authentic: $authenticCount',
-                        tokens.authenticGreen,
-                        tokens.authenticGreenBg,
-                      ),
-                      const SizedBox(width: 8),
-                      _summaryChip(
-                        'Counterfeit: $counterfeitCount',
-                        tokens.counterfeitRed,
-                        tokens.counterfeitRedBg,
-                      ),
-                      const SizedBox(width: 8),
-                      _summaryChip(
-                        'Review: $reviewCount',
-                        tokens.suspiciousAmber,
-                        tokens.suspiciousAmberBg,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Search TextField
-                  TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search sample ID, medicine name, or notes...',
-                      prefixIcon: const Icon(Icons.search, size: 18),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear, size: 16),
-                              onPressed: () {
-                                _searchController.clear();
-                                _applyFilters();
-                              },
-                            )
-                          : null,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      isDense: true,
+        child: PharmaContentFrame(
+          maxWidth: 1200,
+          child: Column(
+            children: [
+              // Top Description & Summary Strip
+              Container(
+                color: AppTheme.secondaryBackground,
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Audit trail of pharmaceutical inspections, classifications, and exports.',
+                      style: TextStyle(fontSize: 12, color: tokens.textMuted),
                     ),
-                  ),
-                  const SizedBox(height: 8),
+                    const SizedBox(height: 10),
 
-                  // Filter Chips Row
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
+                    // Metrics Summary Row
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
-                        _filterChip('ALL', 'All (${_allRecords.length})'),
-                        const SizedBox(width: 6),
-                        _filterChip('AUTHENTIC', 'Authentic ($authenticCount)'),
-                        const SizedBox(width: 6),
-                        _filterChip(
-                          'COUNTERFEIT',
-                          'Counterfeit ($counterfeitCount)',
+                        _summaryChip(
+                          'Total: ${_allRecords.length}',
+                          tokens.navyBrand,
+                          tokens.surfaceSubtle,
                         ),
-                        const SizedBox(width: 6),
-                        _filterChip('REVIEW', 'Review ($reviewCount)'),
-                        const SizedBox(width: 6),
-                        _filterChip(
-                          'FAVORITES',
-                          'Starred (${widget.storage.getFavoriteIds().length})',
+                        _summaryChip(
+                          'Authentic: $authenticCount',
+                          tokens.authenticGreen,
+                          tokens.authenticGreenBg,
+                        ),
+                        _summaryChip(
+                          'Counterfeit: $counterfeitCount',
+                          tokens.counterfeitRed,
+                          tokens.counterfeitRedBg,
+                        ),
+                        _summaryChip(
+                          'Review: $reviewCount',
+                          tokens.suspiciousAmber,
+                          tokens.suspiciousAmberBg,
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-            ),
+                    const SizedBox(height: 10),
 
-            // Active Date Filter Notification
-            if (_selectedDateRange != null)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 6,
-                ),
-                color: tokens.tealAccent.withValues(alpha: 0.12),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.filter_alt_outlined,
-                      size: 14,
-                      color: tokens.tealAccent,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Filtered: ${DateFormat('yyyy-MM-dd').format(_selectedDateRange!.start)} → ${DateFormat('yyyy-MM-dd').format(_selectedDateRange!.end)}',
-                        style: TextStyle(
-                          color: tokens.tealAccent,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
+                    // Search TextField
+                    TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText:
+                            'Search sample ID, medicine name, or notes...',
+                        prefixIcon: const Icon(Icons.search, size: 18),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 16),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  _applyFilters();
+                                },
+                              )
+                            : null,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
                         ),
+                        isDense: true,
                       ),
                     ),
-                    InkWell(
-                      onTap: _clearDateRange,
-                      child: Text(
-                        'Clear',
-                        style: TextStyle(
-                          color: tokens.counterfeitRed,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    const SizedBox(height: 8),
+
+                    // Filter Chips Row
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _filterChip('ALL', 'All (${_allRecords.length})'),
+                          const SizedBox(width: 6),
+                          _filterChip(
+                            'AUTHENTIC',
+                            'Authentic ($authenticCount)',
+                          ),
+                          const SizedBox(width: 6),
+                          _filterChip(
+                            'COUNTERFEIT',
+                            'Counterfeit ($counterfeitCount)',
+                          ),
+                          const SizedBox(width: 6),
+                          _filterChip('REVIEW', 'Review ($reviewCount)'),
+                          const SizedBox(width: 6),
+                          _filterChip(
+                            'FAVORITES',
+                            'Starred (${widget.storage.getFavoriteIds().length})',
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
 
-            // Records List View
-            Expanded(
-              child: _filteredRecords.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                      itemCount: _filteredRecords.length,
-                      separatorBuilder: (_, index) =>
-                          const SizedBox(height: 10),
-                      itemBuilder: (ctx, index) {
-                        return _buildRecordCard(
-                          _filteredRecords[index],
-                          tokens,
-                          theme,
-                        );
-                      },
-                    ),
-            ),
-          ],
+              // Active Date Filter Notification
+              if (_selectedDateRange != null)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 6,
+                  ),
+                  color: tokens.tealAccent.withValues(alpha: 0.12),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.filter_alt_outlined,
+                        size: 14,
+                        color: tokens.tealAccent,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Filtered: ${DateFormat('yyyy-MM-dd').format(_selectedDateRange!.start)} → ${DateFormat('yyyy-MM-dd').format(_selectedDateRange!.end)}',
+                          style: TextStyle(
+                            color: tokens.tealAccent,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      InkWell(
+                        onTap: _clearDateRange,
+                        child: Text(
+                          'Clear',
+                          style: TextStyle(
+                            color: tokens.counterfeitRed,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Records List View
+              Expanded(
+                child: _filteredRecords.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                        itemCount: _filteredRecords.length,
+                        separatorBuilder: (_, index) =>
+                            const SizedBox(height: 10),
+                        itemBuilder: (ctx, index) {
+                          return _buildRecordCard(
+                            _filteredRecords[index],
+                            tokens,
+                            theme,
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -795,13 +802,13 @@ class RecordsScreenState extends State<RecordsScreen> {
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 56,
-              height: 56,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 color: AppTheme.secondaryBackground,
                 shape: BoxShape.circle,
@@ -810,12 +817,16 @@ class RecordsScreenState extends State<RecordsScreen> {
               child: Icon(
                 Icons.inventory_2_outlined,
                 color: tokens.textMuted,
-                size: 28,
+                size: 24,
               ),
             ),
-            const SizedBox(height: 14),
-            Text('No Inspection Records', style: AppTheme.headingSmall()),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
+            Text(
+              'No Inspection Records',
+              style: AppTheme.headingSmall(),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
             Text(
               _allRecords.isEmpty
                   ? 'Perform a sample scan to record your first pharmaceutical inspection.'

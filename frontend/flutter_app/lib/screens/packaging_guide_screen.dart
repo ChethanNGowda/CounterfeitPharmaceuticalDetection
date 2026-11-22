@@ -17,64 +17,69 @@ class PackagingGuideScreen extends StatelessWidget {
         title: const Text('Packaging & Capture Guide'),
         centerTitle: false,
       ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        children: [
-          PharmaCard(
-            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.08),
-            borderColor: theme.colorScheme.primary.withValues(alpha: 0.25),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.camera_enhance_outlined,
-                  color: theme.colorScheme.primary,
-                  size: 28,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Optimal photographic conditions ensure reliable visual preflight checks and accurate AI screening.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
+      body: PharmaContentFrame(
+        maxWidth: 960,
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          children: [
+            PharmaCard(
+              backgroundColor: theme.colorScheme.primary.withValues(
+                alpha: 0.08,
+              ),
+              borderColor: theme.colorScheme.primary.withValues(alpha: 0.25),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.camera_enhance_outlined,
+                    color: theme.colorScheme.primary,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Optimal photographic conditions ensure reliable visual preflight checks and accurate AI screening.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          const MedicinePhotoGuide(),
-          const SizedBox(height: 16),
-          const PharmaSectionHeader(
-            title: 'Supported Formats',
-            subtitle: 'Recommended capture methods for tablets and packaging',
-          ),
-          PharmaCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildBullet(
-                  context,
-                  title: 'Loose Tablets & Capsules',
-                  description: 'Place a single tablet centered on a matte, non-reflective background. Ensure debossed imprints or markings face directly upward toward the camera.',
-                ),
-                Divider(height: 20, color: tokens.borderSubtle),
-                _buildBullet(
-                  context,
-                  title: 'Blister Packs & Foil Strips',
-                  description: 'Flatten the blister foil. Avoid extreme ceiling light reflections. Align the printed lot numbers and expiry text clearly in view.',
-                ),
-                Divider(height: 20, color: tokens.borderSubtle),
-                _buildBullet(
-                  context,
-                  title: 'Cartons & Outer Packaging',
-                  description: 'Capture the principal display panel showing the commercial drug name, batch number, and manufacturing details squarely.',
-                ),
-              ],
+            const SizedBox(height: 16),
+            const MedicinePhotoGuide(),
+            const SizedBox(height: 16),
+            const PharmaSectionHeader(
+              title: 'Supported Formats',
+              subtitle: 'Recommended capture methods for tablets and packaging',
             ),
-          ),
-          const SizedBox(height: 24),
-        ],
+            PharmaCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildBullet(
+                    context,
+                    title: 'Loose Tablets & Capsules',
+                    description: 'Place a single tablet centered on a matte, non-reflective background. Ensure debossed imprints or markings face directly upward toward the camera.',
+                  ),
+                  Divider(height: 20, color: tokens.borderSubtle),
+                  _buildBullet(
+                    context,
+                    title: 'Blister Packs & Foil Strips',
+                    description: 'Flatten the blister foil. Avoid extreme ceiling light reflections. Align the printed lot numbers and expiry text clearly in view.',
+                  ),
+                  Divider(height: 20, color: tokens.borderSubtle),
+                  _buildBullet(
+                    context,
+                    title: 'Cartons & Outer Packaging',
+                    description: 'Capture the principal display panel showing the commercial drug name, batch number, and manufacturing details squarely.',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
     );
   }

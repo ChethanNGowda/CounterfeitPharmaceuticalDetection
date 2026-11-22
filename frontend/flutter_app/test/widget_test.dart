@@ -951,7 +951,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Inspection Records'), findsOneWidget);
+        expect(find.text('History & comparison'), findsOneWidget);
         expect(find.text('No Inspection Records'), findsOneWidget);
         expect(find.byIcon(Icons.inventory_2_outlined), findsOneWidget);
       },
@@ -1024,7 +1024,7 @@ void main() {
           findsOneWidget,
         );
         expect(find.text('Scan medicine'), findsOneWidget);
-        expect(find.text('RECENT SCREENINGS'), findsOneWidget);
+        expect(find.text('Recent screenings'), findsOneWidget);
         expect(find.text('Preliminary Screening Advisory'), findsOneWidget);
       },
     );
@@ -1044,7 +1044,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Scan Medicine'), findsOneWidget);
+      expect(find.text('Scan medicine'), findsOneWidget);
       expect(find.text('1. CHOOSE A PHOTO'), findsOneWidget);
       expect(find.text('2. CHECK THE PHOTO'), findsOneWidget);
       expect(find.text('Photo check'), findsOneWidget);
@@ -1397,10 +1397,10 @@ void main() {
           ),
         );
 
-        expect(find.text('Total Screenings'), findsOneWidget);
-        expect(find.text('Likely Authentic'), findsOneWidget);
-        expect(find.text('Likely Counterfeit'), findsOneWidget);
-        expect(find.text('Needs Review'), findsOneWidget);
+        expect(find.text('Saved screenings'), findsOneWidget);
+        expect(find.text('Authentic indicated'), findsOneWidget);
+        expect(find.text('Potential counterfeit'), findsOneWidget);
+        expect(find.text('Inconclusive / review'), findsOneWidget);
       },
     );
 

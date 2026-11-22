@@ -9,6 +9,7 @@ import 'package:pharma_assist/services/credential_service.dart';
 import 'package:pharma_assist/services/storage_service.dart';
 import 'package:pharma_assist/services/sync_service.dart';
 import 'package:pharma_assist/widgets/app_update_card.dart';
+import 'package:pharma_assist/widgets/pharma_components.dart';
 
 class SettingsScreen extends StatefulWidget {
   final StorageService storage;
@@ -411,19 +412,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Settings & Diagnostics', style: AppTheme.headingSmall()),
-                Text(
-                  'Instrument configuration & safety',
-                  style: AppTheme.bodyText(
-                    color: AppTheme.textMuted,
-                    fontSize: 10,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Settings & Diagnostics',
+                    style: AppTheme.headingSmall(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
+                  Text(
+                    'Instrument configuration & safety',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.bodyText(
+                      color: AppTheme.textMuted,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -446,86 +456,89 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-          children: [
-            // 1. Appearance Section
-            _buildSectionLabel('APPEARANCE & THEME'),
-            const SizedBox(height: 8),
-            _buildAppearanceSection(),
+        child: PharmaContentFrame(
+          maxWidth: 960,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+            children: [
+              // 1. Appearance Section
+              _buildSectionLabel('APPEARANCE & THEME'),
+              const SizedBox(height: 8),
+              _buildAppearanceSection(),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            _buildSectionLabel('OPERATING MODE'),
-            const SizedBox(height: 8),
-            _buildOperatingModeSection(),
+              _buildSectionLabel('OPERATING MODE'),
+              const SizedBox(height: 8),
+              _buildOperatingModeSection(),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // 3. Connectivity and Diagnostics
-            _buildSectionLabel('BACKEND COMMUNICATION ENDPOINT'),
-            const SizedBox(height: 8),
-            _buildBackendSection(),
+              // 3. Connectivity and Diagnostics
+              _buildSectionLabel('BACKEND COMMUNICATION ENDPOINT'),
+              const SizedBox(height: 8),
+              _buildBackendSection(),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            _buildSectionLabel('HYBRID SYNCHRONIZATION'),
-            const SizedBox(height: 8),
-            _buildSyncSection(),
+              _buildSectionLabel('HYBRID SYNCHRONIZATION'),
+              const SizedBox(height: 8),
+              _buildSyncSection(),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // 4. Scanning Preferences
-            _buildSectionLabel('DETECTION MODEL PARAMETERS'),
-            const SizedBox(height: 8),
-            _buildClassifierSection(),
+              // 4. Scanning Preferences
+              _buildSectionLabel('DETECTION MODEL PARAMETERS'),
+              const SizedBox(height: 8),
+              _buildClassifierSection(),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // 5. Secondary AI Vision-Language
-            _buildSectionLabel('SECONDARY VISION-LANGUAGE VERIFIER'),
-            const SizedBox(height: 8),
-            _buildQwenSection(),
+              // 5. Secondary AI Vision-Language
+              _buildSectionLabel('SECONDARY VISION-LANGUAGE VERIFIER'),
+              const SizedBox(height: 8),
+              _buildQwenSection(),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // 6. Local Storage & Privacy
-            _buildSectionLabel('LOCAL STORAGE & PRIVACY'),
-            const SizedBox(height: 8),
-            _buildStorageSection(historyCount),
+              // 6. Local Storage & Privacy
+              _buildSectionLabel('LOCAL STORAGE & PRIVACY'),
+              const SizedBox(height: 8),
+              _buildStorageSection(historyCount),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // 7. About Link & Model Lab (nested under settings)
-            _buildSectionLabel('APP UPDATES'),
-            const SizedBox(height: 8),
-            const AppUpdateCard(),
+              // 7. About Link & Model Lab (nested under settings)
+              _buildSectionLabel('APP UPDATES'),
+              const SizedBox(height: 8),
+              const AppUpdateCard(),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            _buildSectionLabel('INSTRUMENT SPECIFICATIONS'),
-            const SizedBox(height: 8),
-            _buildAboutCard(),
-            const SizedBox(height: 10),
-            _buildModelLabCard(),
+              _buildSectionLabel('INSTRUMENT SPECIFICATIONS'),
+              const SizedBox(height: 8),
+              _buildAboutCard(),
+              const SizedBox(height: 10),
+              _buildModelLabCard(),
 
-            const SizedBox(height: 24),
-            SizedBox(
-              height: 48,
-              child: ElevatedButton(
-                onPressed: _saveSettings,
-                child: const Text(
-                  'APPLY & SAVE SETTINGS',
-                  style: TextStyle(
-                    fontFamily: 'Space Grotesk',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.6,
+              const SizedBox(height: 24),
+              SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _saveSettings,
+                  child: const Text(
+                    'APPLY & SAVE SETTINGS',
+                    style: TextStyle(
+                      fontFamily: 'Space Grotesk',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.6,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

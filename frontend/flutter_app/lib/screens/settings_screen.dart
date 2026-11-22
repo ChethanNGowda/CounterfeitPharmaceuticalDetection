@@ -61,7 +61,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _visionMode = widget.storage.getVisionMode();
     _enableQwen = widget.storage.getEnableQwen();
     _operatingMode = widget.storage.getOperatingMode();
-    _themeMode = ['dark', 'light', 'system'].contains(widget.storage.getThemeMode())
+    _themeMode =
+        ['dark', 'light', 'system'].contains(widget.storage.getThemeMode())
         ? widget.storage.getThemeMode()
         : 'dark';
     _syncConsent = widget.storage.getSyncConsent();

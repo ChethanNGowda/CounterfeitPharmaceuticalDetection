@@ -24,9 +24,13 @@ relevant tests are checked.
   light preferences. Existing `system` values are no longer rewritten to dark
   when Settings opens, and the shared palette follows the device brightness
   when System is selected.
-- Relevant regression test updated; post-change validation is pending.
-- Post-change validation: `flutter analyze` passed; `flutter test` passed (83
-  tests); `git diff --check` passed.
+- Added a four-page first-run introduction covering visual screening, camera
+  guidance, saved reports, offline record keeping, backend requirements, and a
+  clear screening disclaimer. Completion is persisted locally and skip is
+  available.
+- Regression coverage added for theme preservation and onboarding navigation,
+  disclaimer, and skip behavior. `flutter analyze` passed; `flutter test`
+  passed (85 tests); `git diff --check` passed.
 
 ## Later phases
 

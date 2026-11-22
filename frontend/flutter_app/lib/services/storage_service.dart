@@ -331,6 +331,12 @@ class StorageService {
     return await _prefs?.setString(AppConstants.keyThemeMode, mode) ?? false;
   }
 
+  bool isOnboardingComplete() =>
+      _prefs?.getBool(AppConstants.keyOnboardingComplete) ?? false;
+
+  Future<bool> setOnboardingComplete() async =>
+      await _prefs?.setBool(AppConstants.keyOnboardingComplete, true) ?? false;
+
   // ── Bookmarked / Pinned Favorites ─────────────────────────────────────────
   Set<String> getFavoriteIds() {
     final List<String>? list = _prefs?.getStringList(

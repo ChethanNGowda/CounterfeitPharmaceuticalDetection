@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:pharma_assist/core/constants.dart';
 import 'package:pharma_assist/core/theme.dart';
 import 'package:pharma_assist/screens/home_screen.dart';
+import 'package:pharma_assist/screens/onboarding_screen.dart';
 import 'package:pharma_assist/screens/medicine_screen.dart';
 import 'package:pharma_assist/screens/more_hub_screen.dart';
 import 'package:pharma_assist/screens/records_screen.dart';
@@ -45,7 +46,8 @@ class _PharmaAssistAppState extends State<PharmaAssistApp> {
   }
 
   void _updatePalette() {
-    final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    final brightness =
+        WidgetsBinding.instance.platformDispatcher.platformBrightness;
     AppTheme.setPalette(
       _themeMode == ThemeMode.light ||
           (_themeMode == ThemeMode.system && brightness == Brightness.light),
@@ -80,11 +82,19 @@ class _PharmaAssistAppState extends State<PharmaAssistApp> {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: _themeMode,
-      home: MainNavigationScaffold(
-        storage: widget.storage,
-        apiService: widget.apiService,
-        onThemeChanged: _onThemeChanged,
-      ),
+      home: widget.storage.isOnboardingComplete()
+          ? MainNavigationScaffold(
+              storage: widget.storage,
+              apiService: widget.apiService,
+              onThemeChanged: _onThemeChanged,
+            )
+          : OnboardingScreen(
+              onComplete: () async {
+                await widget.storage.setOnboardingComplete();
+                if (!mounted) return;
+                setState(() {});
+              },
+            ),
     );
   }
 }

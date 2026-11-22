@@ -41,13 +41,23 @@ class _PharmaAssistAppState extends State<PharmaAssistApp> {
   void initState() {
     super.initState();
     _themeMode = _parseThemeMode(widget.storage.getThemeMode());
-    AppTheme.setPalette(_themeMode == ThemeMode.light);
+    _updatePalette();
+  }
+
+  void _updatePalette() {
+    final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    AppTheme.setPalette(
+      _themeMode == ThemeMode.light ||
+          (_themeMode == ThemeMode.system && brightness == Brightness.light),
+    );
   }
 
   ThemeMode _parseThemeMode(String mode) {
     switch (mode) {
       case 'light':
         return ThemeMode.light;
+      case 'system':
+        return ThemeMode.system;
       case 'dark':
       default:
         return ThemeMode.dark;
@@ -56,9 +66,9 @@ class _PharmaAssistAppState extends State<PharmaAssistApp> {
 
   void _onThemeChanged(String mode) {
     final nextMode = _parseThemeMode(mode);
-    AppTheme.setPalette(nextMode == ThemeMode.light);
     setState(() {
       _themeMode = nextMode;
+      _updatePalette();
     });
   }
 

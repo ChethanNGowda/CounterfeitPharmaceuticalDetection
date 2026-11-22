@@ -1085,7 +1085,7 @@ void main() {
         expect(find.text('APPEARANCE & THEME'), findsOneWidget);
         expect(find.text('DARK'), findsOneWidget);
         expect(find.text('LIGHT'), findsOneWidget);
-        expect(find.text('SYSTEM'), findsNothing);
+        expect(find.text('SYSTEM'), findsOneWidget);
         await tester.scrollUntilVisible(
           find.text('BACKEND COMMUNICATION ENDPOINT'),
           200.0,
@@ -1098,7 +1098,7 @@ void main() {
           scrollable: find.byType(Scrollable).first,
         );
         expect(find.text('DETECTION MODEL PARAMETERS'), findsOneWidget);
-        expect(storage.getThemeMode(), 'dark');
+        expect(storage.getThemeMode(), 'system');
         final visionModeLabel = find.text(AppConstants.visionModeAutoLabel);
         await tester.scrollUntilVisible(
           visionModeLabel,

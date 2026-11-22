@@ -47,7 +47,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _modelRegistryLoaded = false;
 
   final List<String> _visionModes = ['auto', 'always', 'never'];
-  final List<String> _themeModes = ['dark', 'light'];
+  final List<String> _themeModes = ['dark', 'light', 'system'];
 
   @override
   void initState() {
@@ -61,7 +61,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _visionMode = widget.storage.getVisionMode();
     _enableQwen = widget.storage.getEnableQwen();
     _operatingMode = widget.storage.getOperatingMode();
-    _themeMode = widget.storage.getThemeMode() == 'light' ? 'light' : 'dark';
+    _themeMode = ['dark', 'light', 'system'].contains(widget.storage.getThemeMode())
+        ? widget.storage.getThemeMode()
+        : 'dark';
     _syncConsent = widget.storage.getSyncConsent();
     _loadSyncCredential();
     if (widget.storage.getThemeMode() != _themeMode) {
@@ -568,9 +570,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Column(
                         children: [
                           Icon(
-                            mode == 'dark'
-                                ? Icons.dark_mode_outlined
-                                : Icons.light_mode_outlined,
+                            switch (mode) {
+                              'dark' => Icons.dark_mode_outlined,
+                              'light' => Icons.light_mode_outlined,
+                              _ => Icons.brightness_auto_outlined,
+                            },
                             size: 18,
                             color: isSel
                                 ? AppTheme.primaryCyan

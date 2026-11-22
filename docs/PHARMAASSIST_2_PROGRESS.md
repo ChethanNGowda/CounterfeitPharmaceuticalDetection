@@ -24,6 +24,8 @@ relevant tests are checked.
   light preferences. Existing `system` values are no longer rewritten to dark
   when Settings opens, and the shared palette follows the device brightness
   when System is selected.
+- The System palette now updates when the operating system changes brightness
+  while the app is open.
 - Added a four-page first-run introduction covering visual screening, camera
   guidance, saved reports, offline record keeping, backend requirements, and a
   clear screening disclaimer. Completion is persisted locally and skip is

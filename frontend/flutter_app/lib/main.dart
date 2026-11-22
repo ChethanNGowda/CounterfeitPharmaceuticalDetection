@@ -35,14 +35,29 @@ class PharmaAssistApp extends StatefulWidget {
   State<PharmaAssistApp> createState() => _PharmaAssistAppState();
 }
 
-class _PharmaAssistAppState extends State<PharmaAssistApp> {
+class _PharmaAssistAppState extends State<PharmaAssistApp>
+    with WidgetsBindingObserver {
   late ThemeMode _themeMode;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _themeMode = _parseThemeMode(widget.storage.getThemeMode());
     _updatePalette();
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    if (_themeMode == ThemeMode.system) {
+      setState(_updatePalette);
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   void _updatePalette() {

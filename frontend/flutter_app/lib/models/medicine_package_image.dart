@@ -67,6 +67,11 @@ abstract final class MedicineOcrField {
   static const manufacturer = 'manufacturer';
   static const strength = 'strength';
   static const dosageForm = 'dosage_form';
+  static const genericName = 'generic_name';
+  static const composition = 'composition';
+  static const marketer = 'marketer';
+  static const manufacturingLicenceNumber = 'manufacturing_licence_number';
+  static const packSize = 'pack_size';
   static const batchNumber = 'batch_number';
   static const manufacturingDate = 'manufacturing_date';
   static const expiryDate = 'expiry_date';
@@ -77,6 +82,11 @@ abstract final class MedicineOcrField {
     manufacturer: 'Manufacturer',
     strength: 'Strength',
     dosageForm: 'Dosage form',
+    genericName: 'Generic name',
+    composition: 'Composition (as printed)',
+    marketer: 'Marketed by',
+    manufacturingLicenceNumber: 'Manufacturing licence number',
+    packSize: 'Pack size',
     batchNumber: 'Batch number',
     manufacturingDate: 'Manufacturing date',
     expiryDate: 'Expiry date',

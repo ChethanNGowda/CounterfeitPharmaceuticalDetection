@@ -1,4 +1,6 @@
 import 'medicine_package_image.dart';
+import 'medicine_record_metadata.dart';
+import 'product_identifier.dart';
 import 'medicine_verification_record.dart';
 
 enum MedicineExpiryStatus { expired, expiringSoon, valid, unknown }
@@ -10,6 +12,11 @@ class MedicineProfile {
   final String manufacturer;
   final String strength;
   final String dosageForm;
+  final String genericName;
+  final String composition;
+  final String marketer;
+  final String manufacturingLicenceNumber;
+  final String packSize;
   final String batchNumber;
   final String manufacturingDate;
   final String expiryDate;
@@ -22,6 +29,9 @@ class MedicineProfile {
   final String productIdentifier;
   final String productIdentifierFormat;
   final DateTime? productIdentifierScannedAt;
+  final List<ProductIdentifier> productIdentifiers;
+  final List<MedicineBatchRecord> batches;
+  final List<MedicineFieldAuditEntry> auditHistory;
   final List<MedicineVerificationRecord> verificationHistory;
   final String? notes;
   final DateTime createdAt;
@@ -32,6 +42,11 @@ class MedicineProfile {
     this.manufacturer = '',
     this.strength = '',
     this.dosageForm = '',
+    this.genericName = '',
+    this.composition = '',
+    this.marketer = '',
+    this.manufacturingLicenceNumber = '',
+    this.packSize = '',
     this.batchNumber = '',
     this.manufacturingDate = '',
     this.expiryDate = '',
@@ -44,6 +59,9 @@ class MedicineProfile {
     this.productIdentifier = '',
     this.productIdentifierFormat = '',
     this.productIdentifierScannedAt,
+    this.productIdentifiers = const [],
+    this.batches = const [],
+    this.auditHistory = const [],
     this.verificationHistory = const [],
     this.notes,
     required this.createdAt,
@@ -175,6 +193,45 @@ class MedicineProfile {
     ];
   }
 
+  /// Includes legacy single-code profiles while allowing multiple scans on
+  /// new records. The legacy fields continue to be serialized for old builds.
+  List<ProductIdentifier> get allProductIdentifiers {
+    if (productIdentifiers.isNotEmpty) return productIdentifiers;
+    if (productIdentifier.isEmpty) return const [];
+    return [
+      ProductIdentifier(
+        value: productIdentifier,
+        format: productIdentifierFormat.isEmpty
+            ? 'unknown'
+            : productIdentifierFormat,
+        capturedAt: productIdentifierScannedAt ?? createdAt,
+      ),
+    ];
+  }
+
+  /// Includes a synthesized legacy batch for profiles saved before the
+  /// structured batch list was introduced.
+  List<MedicineBatchRecord> get allBatches {
+    if (batches.isNotEmpty) return batches;
+    if (batchNumber.trim().isEmpty &&
+        manufacturingDate.trim().isEmpty &&
+        expiryDate.trim().isEmpty &&
+        mrp.trim().isEmpty) {
+      return const [];
+    }
+    return [
+      MedicineBatchRecord(
+        id: 'legacy-batch-$id',
+        batchNumber: batchNumber,
+        manufacturingDate: manufacturingDate,
+        expiryDate: expiryDate,
+        mrp: mrp,
+        recordedAt: createdAt,
+        sourceType: 'legacy',
+      ),
+    ];
+  }
+
   MedicineExpiryStatus expiryStatus({
     DateTime? referenceDate,
     int daysThreshold = 60,
@@ -216,6 +273,11 @@ class MedicineProfile {
     String? manufacturer,
     String? strength,
     String? dosageForm,
+    String? genericName,
+    String? composition,
+    String? marketer,
+    String? manufacturingLicenceNumber,
+    String? packSize,
     String? batchNumber,
     String? manufacturingDate,
     String? expiryDate,
@@ -229,6 +291,9 @@ class MedicineProfile {
     String? productIdentifier,
     String? productIdentifierFormat,
     DateTime? productIdentifierScannedAt,
+    List<ProductIdentifier>? productIdentifiers,
+    List<MedicineBatchRecord>? batches,
+    List<MedicineFieldAuditEntry>? auditHistory,
     bool clearProductIdentifierScannedAt = false,
     List<MedicineVerificationRecord>? verificationHistory,
     String? notes,
@@ -240,6 +305,12 @@ class MedicineProfile {
       manufacturer: manufacturer ?? this.manufacturer,
       strength: strength ?? this.strength,
       dosageForm: dosageForm ?? this.dosageForm,
+      genericName: genericName ?? this.genericName,
+      composition: composition ?? this.composition,
+      marketer: marketer ?? this.marketer,
+      manufacturingLicenceNumber:
+          manufacturingLicenceNumber ?? this.manufacturingLicenceNumber,
+      packSize: packSize ?? this.packSize,
       batchNumber: batchNumber ?? this.batchNumber,
       manufacturingDate: manufacturingDate ?? this.manufacturingDate,
       expiryDate: expiryDate ?? this.expiryDate,
@@ -257,6 +328,9 @@ class MedicineProfile {
       productIdentifierScannedAt: clearProductIdentifierScannedAt
           ? null
           : productIdentifierScannedAt ?? this.productIdentifierScannedAt,
+      productIdentifiers: productIdentifiers ?? this.productIdentifiers,
+      batches: batches ?? this.batches,
+      auditHistory: auditHistory ?? this.auditHistory,
       verificationHistory: verificationHistory ?? this.verificationHistory,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
@@ -270,6 +344,11 @@ class MedicineProfile {
       'manufacturer': manufacturer,
       'strength': strength,
       'dosage_form': dosageForm,
+      'generic_name': genericName,
+      'composition': composition,
+      'marketer': marketer,
+      'manufacturing_licence_number': manufacturingLicenceNumber,
+      'pack_size': packSize,
       'batch_number': batchNumber,
       'manufacturing_date': manufacturingDate,
       'expiry_date': expiryDate,
@@ -285,6 +364,11 @@ class MedicineProfile {
       'product_identifier_format': productIdentifierFormat,
       'product_identifier_scanned_at': productIdentifierScannedAt
           ?.toIso8601String(),
+      'product_identifiers': productIdentifiers
+          .map((identifier) => identifier.toJson())
+          .toList(),
+      'batches': batches.map((batch) => batch.toJson()).toList(),
+      'audit_history': auditHistory.map((entry) => entry.toJson()).toList(),
       'verification_history': verificationHistory
           .map((record) => record.toJson())
           .toList(),
@@ -302,6 +386,12 @@ class MedicineProfile {
       manufacturer: json['manufacturer'] as String? ?? '',
       strength: json['strength'] as String? ?? '',
       dosageForm: json['dosage_form'] as String? ?? '',
+      genericName: json['generic_name'] as String? ?? '',
+      composition: json['composition'] as String? ?? '',
+      marketer: json['marketer'] as String? ?? '',
+      manufacturingLicenceNumber:
+          json['manufacturing_licence_number'] as String? ?? '',
+      packSize: json['pack_size'] as String? ?? '',
       batchNumber: json['batch_number'] as String? ?? '',
       manufacturingDate: json['manufacturing_date'] as String? ?? '',
       expiryDate: json['expiry_date'] as String? ?? '',
@@ -317,6 +407,9 @@ class MedicineProfile {
       productIdentifierScannedAt: DateTime.tryParse(
         json['product_identifier_scanned_at'] as String? ?? '',
       ),
+      productIdentifiers: _readProductIdentifiers(json['product_identifiers']),
+      batches: _readBatches(json['batches']),
+      auditHistory: _readAuditHistory(json['audit_history']),
       verificationHistory: _readVerificationHistory(
         json['verification_history'],
       ),
@@ -351,6 +444,55 @@ class MedicineProfile {
             item.map((key, value) => MapEntry(key.toString(), value)),
           ),
         )
+        .toList(growable: false);
+  }
+
+  static List<ProductIdentifier> _readProductIdentifiers(dynamic value) {
+    if (value is! List) return const [];
+    final seen = <String>{};
+    return value
+        .whereType<Map>()
+        .map(
+          (item) => ProductIdentifier.fromJson(
+            item.map((key, value) => MapEntry(key.toString(), value)),
+          ),
+        )
+        .where(
+          (identifier) =>
+              identifier.value.isNotEmpty && seen.add(identifier.value),
+        )
+        .toList(growable: false);
+  }
+
+  static List<MedicineBatchRecord> _readBatches(dynamic value) {
+    if (value is! List) return const [];
+    final seen = <String>{};
+    return value
+        .whereType<Map>()
+        .map(
+          (item) => MedicineBatchRecord.fromJson(
+            item.map((key, value) => MapEntry(key.toString(), value)),
+          ),
+        )
+        .where((batch) {
+          final key = batch.id.isNotEmpty
+              ? batch.id
+              : '${batch.batchNumber}|${batch.manufacturingDate}|${batch.expiryDate}';
+          return seen.add(key);
+        })
+        .toList(growable: false);
+  }
+
+  static List<MedicineFieldAuditEntry> _readAuditHistory(dynamic value) {
+    if (value is! List) return const [];
+    return value
+        .whereType<Map>()
+        .map(
+          (item) => MedicineFieldAuditEntry.fromJson(
+            item.map((key, value) => MapEntry(key.toString(), value)),
+          ),
+        )
+        .where((entry) => entry.fieldKey.isNotEmpty)
         .toList(growable: false);
   }
 }

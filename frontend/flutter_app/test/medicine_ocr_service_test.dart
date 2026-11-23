@@ -123,6 +123,33 @@ EXP: 08/2028
       expect(result.expiryDate, '11/27');
     });
 
+    test(
+      'extracts labelled generic, composition, marketer, licence and pack size',
+      () {
+        final result = MedicineOcrService.parsePackagingText('''
+Brand Name: ClearMed
+Generic Name: Cetirizine Hydrochloride
+Composition: Each tablet contains Cetirizine Hydrochloride 10 mg
+Manufactured by: Example Pharma Ltd.
+Marketed by: North Distribution Ltd.
+Mfg. Lic. No.: KA/12/345
+Pack Size: 10 tablets
+''');
+
+        expect(result.medicineName, 'ClearMed');
+        expect(result.genericName, 'Cetirizine Hydrochloride');
+        expect(
+          result.composition,
+          'Each tablet contains Cetirizine Hydrochloride 10 mg',
+        );
+        expect(result.manufacturer, 'Example Pharma Ltd.');
+        expect(result.marketer, 'North Distribution Ltd.');
+        expect(result.manufacturingLicenceNumber, 'KA/12/345');
+        expect(result.packSize, '10 tablets');
+        expect(result.toProfile().genericName, 'Cetirizine Hydrochloride');
+      },
+    );
+
     test('toProfile leaves every unrecognized medicine value empty', () {
       final profile = MedicineOcrService.parsePackagingText(
         'Plain packaging text without a name or details',

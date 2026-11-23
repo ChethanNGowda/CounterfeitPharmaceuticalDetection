@@ -7,11 +7,13 @@ import 'package:pharma_assist/core/theme.dart';
 import 'package:pharma_assist/core/theme_tokens.dart';
 import 'package:pharma_assist/models/medicine_profile.dart';
 import 'package:pharma_assist/models/medicine_package_image.dart';
+import 'package:pharma_assist/models/medicine_record_metadata.dart';
 import 'package:pharma_assist/models/medicine_verification_record.dart';
 import 'package:pharma_assist/models/product_identifier.dart';
 import 'package:pharma_assist/services/medicine_ocr_service.dart';
 import 'package:pharma_assist/services/medicine_image_storage_service.dart';
 import 'package:pharma_assist/services/medicine_verification_service.dart';
+import 'package:pharma_assist/services/export_service.dart';
 import 'package:pharma_assist/services/storage_service.dart';
 import 'package:pharma_assist/screens/product_identifier_scanner_screen.dart';
 import 'package:pharma_assist/widgets/pharma_components.dart';
@@ -30,6 +32,172 @@ const _packageImageLabels = <String>[
   'Close-up',
   'Package photo',
 ];
+
+List<ProductIdentifier> _mergeProductIdentifiers(
+  List<ProductIdentifier> existing,
+  ProductIdentifier? current,
+) {
+  final result = [...existing];
+  if (current != null && !result.any((item) => item.value == current.value)) {
+    result.add(current);
+  }
+  return List.unmodifiable(result);
+}
+
+String _identifierFieldLabel(String key) => switch (key) {
+  'gtin' => 'GTIN / product identifier',
+  'contained_gtin' => 'Contained product GTIN',
+  'batch_number' => 'Batch / lot number',
+  'manufacturing_date' => 'Manufacturing date',
+  'packaging_date' => 'Packaging date',
+  'expiry_date' => 'Expiry date',
+  'best_before_date' => 'Best-before date',
+  'serial_number' => 'Serial number',
+  'sscc' => 'SSCC',
+  'product_variant' => 'Product variant',
+  'count' => 'Count',
+  'additional_product_id' => 'Additional product ID',
+  'customer_part_number' => 'Customer part number',
+  'made_to_order_number' => 'Made-to-order number',
+  'secondary_serial' => 'Secondary serial',
+  'reference_to_source' => 'Reference to source',
+  'customer_purchase_order' => 'Customer purchase order',
+  'ship_to_location' => 'Ship-to location',
+  'physical_location' => 'Physical location',
+  'country_of_origin' => 'Country of origin',
+  _ => key.replaceAll('_', ' '),
+};
+
+List<MedicineBatchRecord> _saveCurrentBatch(
+  List<MedicineBatchRecord> current, {
+  required String batchNumber,
+  required String manufacturingDate,
+  required String expiryDate,
+  required String mrp,
+  String sourceType = 'manual',
+}) {
+  if (batchNumber.trim().isEmpty &&
+      manufacturingDate.trim().isEmpty &&
+      expiryDate.trim().isEmpty &&
+      mrp.trim().isEmpty) {
+    return List.unmodifiable(current);
+  }
+  final index = current.indexWhere(
+    (batch) =>
+        batch.batchNumber.trim().isNotEmpty &&
+        batch.batchNumber.trim().toLowerCase() ==
+            batchNumber.trim().toLowerCase(),
+  );
+  final now = DateTime.now();
+  final record = MedicineBatchRecord(
+    id: index >= 0 ? current[index].id : 'BATCH-${now.microsecondsSinceEpoch}',
+    batchNumber: batchNumber.trim(),
+    manufacturingDate: manufacturingDate.trim(),
+    expiryDate: expiryDate.trim(),
+    mrp: mrp.trim(),
+    recordedAt: index >= 0 ? current[index].recordedAt : now,
+    sourceType: sourceType,
+  );
+  final updated = [...current];
+  if (index >= 0) {
+    updated[index] = record;
+  } else {
+    updated.add(record);
+  }
+  return List.unmodifiable(updated);
+}
+
+List<MedicineFieldAuditEntry> _recordFieldAudit(
+  MedicineProfile previous,
+  Map<String, String> currentValues,
+  List<MedicinePackageImage> images,
+  ProductIdentifier? identifier,
+) {
+  final oldValues = <String, String>{
+    MedicineOcrField.medicineName: previous.medicineName,
+    MedicineOcrField.manufacturer: previous.manufacturer,
+    MedicineOcrField.strength: previous.strength,
+    MedicineOcrField.dosageForm: previous.dosageForm,
+    MedicineOcrField.genericName: previous.genericName,
+    MedicineOcrField.composition: previous.composition,
+    MedicineOcrField.batchNumber: previous.batchNumber,
+    MedicineOcrField.manufacturingDate: previous.manufacturingDate,
+    MedicineOcrField.expiryDate: previous.expiryDate,
+    MedicineOcrField.mrp: previous.mrp,
+    MedicineOcrField.marketer: previous.marketer,
+    MedicineOcrField.manufacturingLicenceNumber:
+        previous.manufacturingLicenceNumber,
+    MedicineOcrField.packSize: previous.packSize,
+  };
+  final entries = [...previous.auditHistory];
+  final knownIds = entries.map((entry) => entry.id).toSet();
+  final now = DateTime.now();
+  for (final image in images) {
+    for (final observation in image.extractedFields.entries) {
+      final saved = currentValues[observation.key] ?? '';
+      final id = 'ocr:${image.id}:${observation.key}:$saved';
+      if (!knownIds.add(id)) continue;
+      entries.add(
+        MedicineFieldAuditEntry(
+          id: id,
+          fieldKey: observation.key,
+          originalValue: observation.value,
+          savedValue: saved,
+          previousValue: oldValues[observation.key],
+          sourceType: 'ocr',
+          sourceId: image.id,
+          confidence: null,
+          userCorrected: observation.value.trim() != saved.trim(),
+          userReviewed: true,
+          changedAt: now,
+        ),
+      );
+    }
+  }
+  for (final entry in currentValues.entries) {
+    final before = oldValues[entry.key] ?? '';
+    if (before.trim() == entry.value.trim()) continue;
+    final id = 'manual:${entry.key}:${entry.value.trim()}:$before';
+    if (!knownIds.add(id)) continue;
+    entries.add(
+      MedicineFieldAuditEntry(
+        id: id,
+        fieldKey: entry.key,
+        originalValue: before,
+        savedValue: entry.value.trim(),
+        previousValue: before,
+        sourceType: 'manual',
+        userCorrected: true,
+        userReviewed: true,
+        changedAt: now,
+      ),
+    );
+  }
+  if (identifier != null) {
+    final sourceId =
+        '${identifier.format}:${identifier.capturedAt.toIso8601String()}';
+    for (final entry in identifier.parsedFields.entries) {
+      if (entry.key.endsWith('_check_digit_valid')) continue;
+      final id = 'code:$sourceId:${entry.key}:${entry.value}';
+      if (!knownIds.add(id)) continue;
+      entries.add(
+        MedicineFieldAuditEntry(
+          id: id,
+          fieldKey: entry.key,
+          originalValue: entry.value,
+          savedValue: entry.value,
+          sourceType: 'qr_barcode',
+          sourceId: sourceId,
+          confidence: null,
+          userCorrected: identifier.correctedFields.contains(entry.key),
+          userReviewed: true,
+          changedAt: now,
+        ),
+      );
+    }
+  }
+  return List.unmodifiable(entries);
+}
 
 /// Medicine Information, OCR Packaging Scanner & Expiry Management Destination
 class MedicineScreen extends StatefulWidget {
@@ -185,16 +353,39 @@ class MedicineScreenState extends State<MedicineScreen> {
     final mfgCtrl = TextEditingController(text: profile.manufacturer);
     final strengthCtrl = TextEditingController(text: profile.strength);
     final dosageCtrl = TextEditingController(text: profile.dosageForm);
+    final genericNameCtrl = TextEditingController(text: profile.genericName);
+    final compositionCtrl = TextEditingController(text: profile.composition);
+    final marketerCtrl = TextEditingController(text: profile.marketer);
+    final licenceCtrl = TextEditingController(
+      text: profile.manufacturingLicenceNumber,
+    );
+    final packSizeCtrl = TextEditingController(text: profile.packSize);
     final mrpCtrl = TextEditingController(text: profile.mrp);
     final batchCtrl = TextEditingController(text: profile.batchNumber);
     final mfgDateCtrl = TextEditingController(text: profile.manufacturingDate);
     final expDateCtrl = TextEditingController(text: profile.expiryDate);
     final notesCtrl = TextEditingController(text: profile.notes ?? '');
+    final existingIdentifiers = profile.allProductIdentifiers.toList();
     final identifierCtrl = TextEditingController(
-      text: profile.productIdentifier,
+      text: profile.productIdentifier.isNotEmpty
+          ? profile.productIdentifier
+          : (existingIdentifiers.isEmpty ? '' : existingIdentifiers.last.value),
     );
-    String identifierFormat = profile.productIdentifierFormat;
-    DateTime? identifierScannedAt = profile.productIdentifierScannedAt;
+    String identifierFormat = profile.productIdentifierFormat.isNotEmpty
+        ? profile.productIdentifierFormat
+        : (existingIdentifiers.isEmpty ? '' : existingIdentifiers.last.format);
+    DateTime? identifierScannedAt =
+        profile.productIdentifierScannedAt ??
+        (existingIdentifiers.isEmpty
+            ? null
+            : existingIdentifiers.last.capturedAt);
+    Map<String, String> identifierFields = existingIdentifiers.isEmpty
+        ? {}
+        : Map<String, String>.from(existingIdentifiers.last.parsedFields);
+    String? scannedIdentifierValue = existingIdentifiers.isEmpty
+        ? null
+        : existingIdentifiers.last.value;
+    final batchRecords = profile.allBatches.toList();
     bool isVerified = profile.isVerifiedByUser;
     final packageImages = profile.packageImageRecords.toList();
     final managedPhotoPaths = packageImages.map((image) => image.path).toSet();
@@ -261,10 +452,15 @@ class MedicineScreenState extends State<MedicineScreen> {
               MedicineOcrField.manufacturer: mfgCtrl,
               MedicineOcrField.strength: strengthCtrl,
               MedicineOcrField.dosageForm: dosageCtrl,
+              MedicineOcrField.genericName: genericNameCtrl,
+              MedicineOcrField.composition: compositionCtrl,
               MedicineOcrField.batchNumber: batchCtrl,
               MedicineOcrField.manufacturingDate: mfgDateCtrl,
               MedicineOcrField.expiryDate: expDateCtrl,
               MedicineOcrField.mrp: mrpCtrl,
+              MedicineOcrField.marketer: marketerCtrl,
+              MedicineOcrField.manufacturingLicenceNumber: licenceCtrl,
+              MedicineOcrField.packSize: packSizeCtrl,
             };
 
             void applyOnlyMissingOcrFields(MedicinePackageImage image) {
@@ -373,10 +569,20 @@ class MedicineScreenState extends State<MedicineScreen> {
                     ),
                   );
               if (result == null || !modalContext.mounted) return;
+              if (existingIdentifiers.any(
+                (item) => item.value == result.value,
+              )) {
+                showImageMessage(
+                  'This code is already saved in the medicine record.',
+                );
+                return;
+              }
               setModalState(() {
                 identifierCtrl.text = result.value;
                 identifierFormat = result.format;
                 identifierScannedAt = result.capturedAt;
+                identifierFields = result.parsedFields;
+                scannedIdentifierValue = result.value;
               });
             }
 
@@ -633,6 +839,27 @@ class MedicineScreenState extends State<MedicineScreen> {
                     ],
                     const SizedBox(height: 10),
 
+                    if (profile.auditHistory.isNotEmpty)
+                      ExpansionTile(
+                        key: const ValueKey('medicine-field-audit-history'),
+                        tilePadding: EdgeInsets.zero,
+                        title: Text(
+                          'Field review history (${profile.auditHistory.length})',
+                        ),
+                        children: [
+                          for (final entry in profile.auditHistory.reversed)
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                '${MedicineOcrField.labels[entry.fieldKey] ?? entry.fieldKey}: ${entry.savedValue.isEmpty ? 'Cleared' : entry.savedValue}',
+                              ),
+                              subtitle: Text(
+                                '${entry.sourceType.toUpperCase()} · ${DateFormat.yMMMd().add_jm().format(entry.changedAt.toLocal())}${entry.sourceId == null ? '' : ' · image ${entry.sourceId}'}${entry.confidence == null ? '' : ' · source confidence ${entry.confidence}'}',
+                              ),
+                            ),
+                        ],
+                      ),
+
                     // OCR Confidence Notice
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -751,6 +978,49 @@ class MedicineScreenState extends State<MedicineScreen> {
                         prefixIcon: Icon(Icons.qr_code_outlined),
                       ),
                     ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: () {
+                          final manufacturing = mfgDateCtrl.text.trim();
+                          final expiry = expDateCtrl.text.trim();
+                          if ((manufacturing.isNotEmpty &&
+                                  MedicineProfile.parseDateValue(
+                                        manufacturing,
+                                      ) ==
+                                      null) ||
+                              (expiry.isNotEmpty &&
+                                  MedicineProfile.parseDateValue(
+                                        expiry,
+                                        expiryDate: true,
+                                      ) ==
+                                      null)) {
+                            showImageMessage(
+                              'Review the current batch dates before adding another batch.',
+                            );
+                            return;
+                          }
+                          final savedBatches = _saveCurrentBatch(
+                            batchRecords,
+                            batchNumber: batchCtrl.text,
+                            manufacturingDate: mfgDateCtrl.text,
+                            expiryDate: expDateCtrl.text,
+                            mrp: mrpCtrl.text,
+                          );
+                          setModalState(() {
+                            batchRecords
+                              ..clear()
+                              ..addAll(savedBatches);
+                            batchCtrl.clear();
+                            mfgDateCtrl.clear();
+                            expDateCtrl.clear();
+                            mrpCtrl.clear();
+                          });
+                        },
+                        icon: const Icon(Icons.add_circle_outline),
+                        label: const Text('Add another batch'),
+                      ),
+                    ),
                     const SizedBox(height: 10),
                     TextField(
                       key: const ValueKey('medicine-identifier-field'),
@@ -776,6 +1046,22 @@ class MedicineScreenState extends State<MedicineScreen> {
                             color: tokens.textMuted,
                           ),
                         ),
+                      ),
+                    if (existingIdentifiers.isNotEmpty)
+                      ExpansionTile(
+                        key: const ValueKey('medicine-identifier-history'),
+                        tilePadding: EdgeInsets.zero,
+                        title: Text(
+                          'Saved QR / barcode scans (${existingIdentifiers.length})',
+                        ),
+                        children: [
+                          for (final code in existingIdentifiers)
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(code.format),
+                              subtitle: SelectableText(code.value),
+                            ),
+                        ],
                       ),
                     if (profile.verificationHistory.isNotEmpty)
                       ExpansionTile(
@@ -859,6 +1145,70 @@ class MedicineScreenState extends State<MedicineScreen> {
                         color: tokens.textMuted,
                       ),
                     ),
+                    if (batchRecords.isNotEmpty)
+                      ExpansionTile(
+                        key: const ValueKey('medicine-batch-history'),
+                        tilePadding: EdgeInsets.zero,
+                        title: Text('Saved batches (${batchRecords.length})'),
+                        subtitle: const Text(
+                          'Batch and expiry details remain separate for this medicine.',
+                        ),
+                        children: [
+                          for (final batch in batchRecords)
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                batch.batchNumber.isEmpty
+                                    ? 'Batch number not recorded'
+                                    : 'Batch ${batch.batchNumber}',
+                              ),
+                              subtitle: Text(
+                                'Mfg: ${batch.manufacturingDate.isEmpty ? 'Unknown' : batch.manufacturingDate} · Exp: ${batch.expiryDate.isEmpty ? 'Unknown' : batch.expiryDate} · MRP: ${batch.mrp.isEmpty ? 'Unknown' : batch.mrp}',
+                              ),
+                            ),
+                        ],
+                      ),
+                    if (identifierFields.isNotEmpty)
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Recognized code details',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                              const SizedBox(height: 4),
+                              for (final entry in identifierFields.entries)
+                                if (!entry.key.endsWith('_check_digit_valid'))
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 2,
+                                    ),
+                                    child: Text(
+                                      '${_identifierFieldLabel(entry.key)}: ${entry.value}',
+                                    ),
+                                  ),
+                              if (identifierFields['gtin_check_digit_valid'] ==
+                                  'false')
+                                Text(
+                                  'GTIN check digit mismatch; review the decoded value.',
+                                  style: TextStyle(
+                                    color: tokens.suspiciousAmber,
+                                  ),
+                                ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Extracted data is not verified product information.',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: tokens.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 10),
 
                     TextField(
@@ -872,6 +1222,57 @@ class MedicineScreenState extends State<MedicineScreen> {
                         hintText: 'Enter the value printed on the package',
                         prefixIcon: Icon(Icons.currency_rupee),
                       ),
+                    ),
+                    ExpansionTile(
+                      key: const ValueKey('medicine-additional-fields'),
+                      tilePadding: EdgeInsets.zero,
+                      title: const Text('More printed package details'),
+                      subtitle: const Text(
+                        'Optional fields; review each value against the label.',
+                      ),
+                      children: [
+                        TextField(
+                          key: const ValueKey('medicine-generic-name-field'),
+                          controller: genericNameCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Generic name',
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          key: const ValueKey('medicine-composition-field'),
+                          controller: compositionCtrl,
+                          minLines: 1,
+                          maxLines: 3,
+                          decoration: const InputDecoration(
+                            labelText: 'Composition as printed',
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          key: const ValueKey('medicine-marketer-field'),
+                          controller: marketerCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Marketed by',
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          key: const ValueKey('medicine-licence-field'),
+                          controller: licenceCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Manufacturing licence number',
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          key: const ValueKey('medicine-pack-size-field'),
+                          controller: packSizeCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Pack size',
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 10),
 
@@ -965,14 +1366,21 @@ class MedicineScreenState extends State<MedicineScreen> {
                           return;
                         }
                         final identifierText = identifierCtrl.text.trim();
+                        final isSameScannedPayload =
+                            scannedIdentifierValue == identifierText;
                         final productIdentifier = identifierText.isEmpty
                             ? null
                             : ProductIdentifier.tryCreate(
                                 identifierText,
-                                format: identifierFormat.isEmpty
+                                format:
+                                    !isSameScannedPayload ||
+                                        identifierFormat.isEmpty
                                     ? 'manual'
                                     : identifierFormat,
                                 capturedAt: identifierScannedAt,
+                                parsedFields: isSameScannedPayload
+                                    ? identifierFields
+                                    : null,
                               );
                         if (identifierText.isNotEmpty &&
                             productIdentifier == null) {
@@ -985,15 +1393,75 @@ class MedicineScreenState extends State<MedicineScreen> {
                           );
                           return;
                         }
+                        final activeBatchNumber = batchCtrl.text.trim();
+                        final savedBatches = _saveCurrentBatch(
+                          batchRecords,
+                          batchNumber: activeBatchNumber,
+                          manufacturingDate: manufacturingDate,
+                          expiryDate: expiryDate,
+                          mrp: mrpCtrl.text,
+                          sourceType:
+                              isSameScannedPayload &&
+                                  identifierFields['batch_number'] ==
+                                      activeBatchNumber
+                              ? 'qr_barcode'
+                              : 'manual',
+                        );
+                        final activeBatch = savedBatches.isEmpty
+                            ? null
+                            : activeBatchNumber.isEmpty
+                            ? savedBatches.last
+                            : savedBatches.firstWhere(
+                                (batch) =>
+                                    batch.batchNumber.toLowerCase() ==
+                                    activeBatchNumber.toLowerCase(),
+                                orElse: () => savedBatches.last,
+                              );
+                        final savedBatchNumber = activeBatchNumber.isEmpty
+                            ? (activeBatch?.batchNumber ?? '')
+                            : activeBatchNumber;
+                        final savedManufacturingDate = manufacturingDate.isEmpty
+                            ? (activeBatch?.manufacturingDate ?? '')
+                            : manufacturingDate;
+                        final savedExpiryDate = expiryDate.isEmpty
+                            ? (activeBatch?.expiryDate ?? '')
+                            : expiryDate;
+                        final savedMrp = mrpCtrl.text.trim().isEmpty
+                            ? (activeBatch?.mrp ?? '')
+                            : mrpCtrl.text.trim();
+                        final fieldValues = <String, String>{
+                          MedicineOcrField.medicineName: nameCtrl.text.trim(),
+                          MedicineOcrField.manufacturer: mfgCtrl.text.trim(),
+                          MedicineOcrField.strength: strengthCtrl.text.trim(),
+                          MedicineOcrField.dosageForm: dosageCtrl.text.trim(),
+                          MedicineOcrField.genericName: genericNameCtrl.text
+                              .trim(),
+                          MedicineOcrField.composition: compositionCtrl.text
+                              .trim(),
+                          MedicineOcrField.batchNumber: savedBatchNumber,
+                          MedicineOcrField.manufacturingDate:
+                              savedManufacturingDate,
+                          MedicineOcrField.expiryDate: savedExpiryDate,
+                          MedicineOcrField.mrp: savedMrp,
+                          MedicineOcrField.marketer: marketerCtrl.text.trim(),
+                          MedicineOcrField.manufacturingLicenceNumber:
+                              licenceCtrl.text.trim(),
+                          MedicineOcrField.packSize: packSizeCtrl.text.trim(),
+                        };
                         final updated = profile.copyWith(
                           medicineName: nameCtrl.text.trim(),
                           manufacturer: mfgCtrl.text.trim(),
                           strength: strengthCtrl.text.trim(),
                           dosageForm: dosageCtrl.text.trim(),
-                          batchNumber: batchCtrl.text.trim(),
-                          manufacturingDate: manufacturingDate,
-                          expiryDate: expiryDate,
-                          mrp: mrpCtrl.text.trim(),
+                          genericName: genericNameCtrl.text.trim(),
+                          composition: compositionCtrl.text.trim(),
+                          marketer: marketerCtrl.text.trim(),
+                          manufacturingLicenceNumber: licenceCtrl.text.trim(),
+                          packSize: packSizeCtrl.text.trim(),
+                          batchNumber: savedBatchNumber,
+                          manufacturingDate: savedManufacturingDate,
+                          expiryDate: savedExpiryDate,
+                          mrp: savedMrp,
                           rawOcrText: packageImages
                               .where((image) => image.rawOcrText.isNotEmpty)
                               .map(
@@ -1015,6 +1483,17 @@ class MedicineScreenState extends State<MedicineScreen> {
                               productIdentifier?.capturedAt,
                           clearProductIdentifierScannedAt:
                               productIdentifier == null,
+                          productIdentifiers: _mergeProductIdentifiers(
+                            existingIdentifiers,
+                            productIdentifier,
+                          ),
+                          batches: savedBatches,
+                          auditHistory: _recordFieldAudit(
+                            profile,
+                            fieldValues,
+                            packageImages,
+                            productIdentifier,
+                          ),
                         );
 
                         final messenger = ScaffoldMessenger.of(context);
@@ -1147,6 +1626,18 @@ class MedicineScreenState extends State<MedicineScreen> {
       await _showVerificationReport(report, historySaved: historySaved);
       if (mounted) setState(() => _verifyingProfileIds.remove(profile.id));
     }
+  }
+
+  Future<void> _exportProfile(MedicineProfile profile) async {
+    final result = await ExportService.exportMedicineProfilePdf(profile);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result.success ? 'Medicine PDF saved: ${result.filePath}' : 'Medicine PDF could not be created. Check available storage and try again.',
+        ),
+      ),
+    );
   }
 
   Future<void> _showVerificationReport(
@@ -1678,6 +2169,8 @@ class MedicineScreenState extends State<MedicineScreen> {
               _showEditProfileModal(context, profile);
             } else if (val == 'official_alerts') {
               _verifySavedProfile(profile);
+            } else if (val == 'export_pdf') {
+              _exportProfile(profile);
             } else if (val == 'delete') {
               _confirmDeleteProfile(profile);
             }
@@ -1700,6 +2193,16 @@ class MedicineScreenState extends State<MedicineScreen> {
                   Icon(Icons.policy_outlined, size: 18),
                   SizedBox(width: 8),
                   Text('Check official alerts'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'export_pdf',
+              child: Row(
+                children: [
+                  Icon(Icons.picture_as_pdf_outlined, size: 18),
+                  SizedBox(width: 8),
+                  Text('Export medicine PDF'),
                 ],
               ),
             ),

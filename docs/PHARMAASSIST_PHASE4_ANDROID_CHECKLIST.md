@@ -60,3 +60,16 @@ No Phase 5 workflow below was physically exercised during the Phase 5 code and d
 | Existing dual-photo comparison/zoom | NOT RUN for Phase 5 regression | Confirm multi-image additions have not changed original comparison behavior. |
 
 Automated validation must be reported separately and is not physical-device evidence.
+
+## Follow-up release install and scanner check (2026-11-23)
+
+The release APK built for the medicine-data enhancement was verified with
+`apksigner`. Its signing-certificate SHA-256 matched the already-installed
+`com.chethan.pharmaassist.pharma_assist` app. `adb install -r` succeeded, so
+the app was updated in place without uninstalling or clearing its local data.
+The app launched and the live camera scanner preview was observed; camera
+permission was granted.
+
+This does not supersede the earlier QA table and is not evidence for barcode
+decoding, OCR on real packaging, saving edited profiles, PDF export, screening,
+or synchronization. Those workflows remain **NOT RUN** on physical hardware.

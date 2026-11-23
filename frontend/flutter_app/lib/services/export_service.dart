@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pharma_assist/models/scan_history_item.dart';
+import 'package:pharma_assist/models/medicine_profile.dart';
 import 'package:pharma_assist/services/history_csv_exporter.dart';
 import 'package:pharma_assist/services/report_service.dart';
 import 'package:pharma_assist/services/simple_pdf_report_generator.dart';
@@ -76,6 +77,43 @@ class ExportService {
         // Sharing might not be supported in headless tests or desktop
       }
 
+      return ExportResult(
+        success: true,
+        filePath: file.path,
+        publicDownloadsPath: targetDir.path.contains('Download')
+            ? file.path
+            : null,
+      );
+    } catch (e) {
+      return ExportResult(
+        success: false,
+        filePath: '',
+        errorMessage: e.toString(),
+      );
+    }
+  }
+
+  /// Exports the actual saved medicine profile without presenting its codes or
+  /// OCR observations as verification. Photos stay in app-private storage.
+  static Future<ExportResult> exportMedicineProfilePdf(
+    MedicineProfile profile,
+  ) async {
+    try {
+      final bytes = SimplePdfReportGenerator.generateMedicineProfilePdf(
+        profile,
+      );
+      final targetDir = await _getAccessibleStorageDir();
+      final safeId = profile.id.replaceAll(RegExp(r'[^\w\-]'), '_');
+      final fileName = 'pharma_medicine_$safeId.pdf';
+      final file = File('${targetDir.path}${Platform.pathSeparator}$fileName');
+      await file.writeAsBytes(bytes, flush: true);
+      try {
+        await Share.shareXFiles(
+          [XFile(file.path, mimeType: 'application/pdf', name: fileName)],
+          text: 'PharmaAssist medicine record',
+          subject: 'PharmaAssist medicine record: ${profile.medicineName}',
+        );
+      } catch (_) {}
       return ExportResult(
         success: true,
         filePath: file.path,

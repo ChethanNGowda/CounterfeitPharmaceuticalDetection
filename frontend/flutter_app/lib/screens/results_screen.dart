@@ -52,36 +52,36 @@ class ResultsScreen extends StatelessWidget {
       ),
       body: SafeArea(
         child: PharmaContentFrame(
-          maxWidth: 960,
+          maxWidth: 760,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 36),
             children: [
               // 1. Primary Verdict Banner (3 distinct outcome states)
               _buildOutcomeBanner(),
 
               // 2. Photographic Evidence & Quality Assessment
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
               _buildPhotographicEvidenceCard(),
 
               // 3. Sample Details Card
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
               _buildSampleInfoCard(effectiveSampleId),
 
               // 3. Human Review Alert if required
               if (result.needsHumanVerification) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 20),
                 _buildHumanReviewAlert(),
               ],
 
               // 4. Warning Box if present
               if (result.warning != null &&
                   result.warning!.trim().isNotEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 20),
                 _buildWarningBox(result.warning!),
               ],
 
               // 5. Primary Confidence Gauge
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               if (!result.imageQualityAccepted)
                 _buildInferenceNotRunCard()
               else ...[
@@ -100,27 +100,27 @@ class ResultsScreen extends StatelessWidget {
               ],
 
               // 6. Pipeline Summary Card
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
               _buildPipelineSummary(),
 
               // 7. Secondary AI Review (Qwen Vision)
-              const SizedBox(height: 6),
+              const SizedBox(height: 16),
               _buildQwenCard(),
 
               // 8. Visual Feature Inspection (OpenCV)
               if (result.visualAnalysis != null) ...[
-                const SizedBox(height: 6),
+                const SizedBox(height: 16),
                 _buildVisualAnalysisCard(),
               ],
 
               // 9. Image Quality Assessment
               if (result.quality != null) ...[
-                const SizedBox(height: 6),
+                const SizedBox(height: 16),
                 _buildQualityCard(),
               ],
 
               // 10. Report Action Buttons
-              const SizedBox(height: 20),
+              const SizedBox(height: 28),
               _buildReportActionButtons(context, effectiveSampleId),
 
               // 11. Mandatory Regulatory Disclaimer

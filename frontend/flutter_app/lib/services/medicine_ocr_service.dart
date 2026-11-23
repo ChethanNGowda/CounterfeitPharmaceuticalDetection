@@ -12,10 +12,15 @@ class OcrExtractionResult {
   final String manufacturer;
   final String strength;
   final String dosageForm;
+  final String genericName;
+  final String composition;
   final String batchNumber;
   final String manufacturingDate;
   final String expiryDate;
   final String mrp;
+  final String marketer;
+  final String manufacturingLicenceNumber;
+  final String packSize;
   final String rawText;
   final String confidence;
   final Map<String, bool> fieldConfidence;
@@ -25,10 +30,15 @@ class OcrExtractionResult {
     MedicineOcrField.manufacturer: manufacturer,
     MedicineOcrField.strength: strength,
     MedicineOcrField.dosageForm: dosageForm,
+    MedicineOcrField.genericName: genericName,
+    MedicineOcrField.composition: composition,
     MedicineOcrField.batchNumber: batchNumber,
     MedicineOcrField.manufacturingDate: manufacturingDate,
     MedicineOcrField.expiryDate: expiryDate,
     MedicineOcrField.mrp: mrp,
+    MedicineOcrField.marketer: marketer,
+    MedicineOcrField.manufacturingLicenceNumber: manufacturingLicenceNumber,
+    MedicineOcrField.packSize: packSize,
   }..removeWhere((_, value) => value.trim().isEmpty);
 
   MedicinePackageImage? toPackageImage({
@@ -54,10 +64,15 @@ class OcrExtractionResult {
     required this.manufacturer,
     required this.strength,
     required this.dosageForm,
+    this.genericName = '',
+    this.composition = '',
     required this.batchNumber,
     required this.manufacturingDate,
     required this.expiryDate,
     required this.mrp,
+    this.marketer = '',
+    this.manufacturingLicenceNumber = '',
+    this.packSize = '',
     required this.rawText,
     required this.confidence,
     required this.fieldConfidence,
@@ -73,10 +88,15 @@ class OcrExtractionResult {
       manufacturer: manufacturer,
       strength: strength,
       dosageForm: dosageForm.trim(),
+      genericName: genericName,
+      composition: composition,
       batchNumber: batchNumber,
       manufacturingDate: manufacturingDate,
       expiryDate: expiryDate,
       mrp: mrp,
+      marketer: marketer,
+      manufacturingLicenceNumber: manufacturingLicenceNumber,
+      packSize: packSize,
       rawOcrText: rawText,
       confidence: confidence,
       isVerifiedByUser: false,
@@ -141,7 +161,7 @@ class MedicineOcrService {
   }
 
   static final RegExp _otherPackagingFieldLabel = RegExp(
-    r'^\s*(?:exp(?:iry)?|use\s*before|best\s*before|valid\s*(?:upto|up\s*to)|mfg|mfd|manufacturing(?:\s*date)?|manufactured\s*by|marketed\s*by|mrp|strength|dosage\s*form|manufacturer)\b(?:\s*(?:date|dt|no|number))?\s*(?:[:#=\-]|$)',
+    r'^\s*(?:exp(?:iry)?|use\s*before|best\s*before|valid\s*(?:upto|up\s*to)|mfg|mfd|mfg\.?\s*lic|manufacturing(?:\s*(?:date|licen[cs]e))?|manufactured\s*by|marketed\s*by|mrp|strength|dosage\s*form|manufacturer|generic(?:\s*name)?|composition|active\s*ingredients?|pack\s*(?:size|of)|net\s*(?:contents?|quantity))\b(?:\s*(?:date|dt|no|number))?\s*(?:[:#=\-]|$)',
     caseSensitive: false,
   );
 
@@ -170,6 +190,11 @@ class MedicineOcrService {
       'mfgDate': false,
       'manufacturer': false,
       'mrp': false,
+      'generic': false,
+      'composition': false,
+      'marketer': false,
+      'licence': false,
+      'packSize': false,
     };
     if (lines.isEmpty) {
       return const OcrExtractionResult(
@@ -177,10 +202,15 @@ class MedicineOcrService {
         manufacturer: '',
         strength: '',
         dosageForm: '',
+        genericName: '',
+        composition: '',
         batchNumber: '',
         manufacturingDate: '',
         expiryDate: '',
         mrp: '',
+        marketer: '',
+        manufacturingLicenceNumber: '',
+        packSize: '',
         rawText: '',
         confidence: 'UNCERTAIN',
         fieldConfidence: emptyFields,
@@ -239,6 +269,38 @@ class MedicineOcrService {
     }
 
     final manufacturer = _extractManufacturer(lines);
+    final marketer = _extractLabelledText(
+      lines,
+      RegExp(r'\bmarketed\s*by\b', caseSensitive: false),
+    );
+    final genericName = _extractLabelledText(
+      lines,
+      RegExp(
+        r'\b(?:generic\s*name|generic)\b\s*[:#=\-]?',
+        caseSensitive: false,
+      ),
+    );
+    final composition = _extractLabelledText(
+      lines,
+      RegExp(
+        r'\b(?:composition|active\s*ingredients?|each\s+(?:tablet|capsule|5\s*ml)\s+contains)\b\s*[:#=\-]?',
+        caseSensitive: false,
+      ),
+    );
+    final licence = _extractLabelledText(
+      lines,
+      RegExp(
+        r'\b(?:mfg\.?\s*lic(?:ence|ense)?\.?|manufacturing\s*licen[cs]e)\s*(?:no\.?|number)?\s*[:#=.\-]*',
+        caseSensitive: false,
+      ),
+    );
+    final packSize = _extractLabelledText(
+      lines,
+      RegExp(
+        r'\b(?:pack\s*(?:size|of)|net\s*(?:contents?|quantity)|contents\s*of\s*pack)\b\s*[:#=\-]?',
+        caseSensitive: false,
+      ),
+    );
     final medicineName = _extractMedicineName(
       lines,
       strength: strength,
@@ -255,6 +317,11 @@ class MedicineOcrService {
       'mfgDate': manufacturing.isNotEmpty,
       'manufacturer': manufacturer.isNotEmpty,
       'mrp': mrp.isNotEmpty,
+      'generic': genericName.isNotEmpty,
+      'composition': composition.isNotEmpty,
+      'marketer': marketer.isNotEmpty,
+      'licence': licence.isNotEmpty,
+      'packSize': packSize.isNotEmpty,
     };
     final matched = fields.values.where((value) => value).length;
     final confidence = matched >= 5
@@ -268,10 +335,15 @@ class MedicineOcrService {
       manufacturer: manufacturer,
       strength: strength,
       dosageForm: dosage,
+      genericName: genericName,
+      composition: composition,
       batchNumber: batch,
       manufacturingDate: manufacturing,
       expiryDate: expiry,
       mrp: mrp,
+      marketer: marketer,
+      manufacturingLicenceNumber: licence,
+      packSize: packSize,
       rawText: normalizedText,
       confidence: confidence,
       fieldConfidence: fields,
@@ -345,7 +417,7 @@ class MedicineOcrService {
 
   static String _extractManufacturer(List<String> lines) {
     final labelled = RegExp(
-      r'\b(?:mfd\.?\s*by|manufactured\s*by|marketed\s*by|manufacturers?\s*[:\-])\s*[:\-]?\s*(.+)',
+      r'\b(?:mfd\.?\s*by|manufactured\s*by|manufacturers?\s*[:\-])\s*[:\-]?\s*(.+)',
       caseSensitive: false,
     );
     for (final line in lines) {
@@ -360,6 +432,32 @@ class MedicineOcrService {
     );
     for (final line in lines) {
       if (companyLine.hasMatch(line) && line.length <= 90) return line;
+    }
+    return '';
+  }
+
+  static String _extractLabelledText(List<String> lines, RegExp label) {
+    for (var index = 0; index < lines.length; index++) {
+      final match = label.firstMatch(lines[index]);
+      if (match == null) continue;
+      final remainder = lines[index]
+          .substring(match.end)
+          .replaceFirst(
+            RegExp(
+              r'^\s*(?:(?:no|number)\.?\s*)?[:#=.\-]*\s*',
+              caseSensitive: false,
+            ),
+            '',
+          )
+          .trim();
+      if (remainder.isNotEmpty &&
+          !_otherPackagingFieldLabel.hasMatch(remainder)) {
+        return remainder.replaceAll(RegExp(r'[;,]+$'), '').trim();
+      }
+      if (index + 1 < lines.length &&
+          !_otherPackagingFieldLabel.hasMatch(lines[index + 1])) {
+        return lines[index + 1].trim();
+      }
     }
     return '';
   }

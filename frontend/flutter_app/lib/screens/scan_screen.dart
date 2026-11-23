@@ -346,9 +346,9 @@ class ScanScreenState extends State<ScanScreen> {
       ),
       body: SafeArea(
         child: PharmaContentFrame(
-          maxWidth: 960,
+          maxWidth: 760,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 36),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -357,50 +357,50 @@ class ScanScreenState extends State<ScanScreen> {
                   '1. CHOOSE A PHOTO',
                   Icons.camera_alt_outlined,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 const MedicinePhotoGuide(),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 _buildImageAcquisitionCard(),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Text(
                   'Camera and photo picker open only when selected. Images stay on this device unless you submit them to your configured screening server.',
                   style: AppTheme.bodyText(
                     color: AppTheme.textMuted,
-                    fontSize: 11,
+                    fontSize: 13,
                   ),
                 ),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 24),
 
                 // Section 2: Image Quality Assessment
                 _buildSectionHeader(
                   '2. CHECK THE PHOTO',
                   Icons.high_quality_outlined,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 _buildQualityAssessmentCard(),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 24),
 
                 // Section 3: Sample Specification & Identification
                 _buildSectionHeader(
                   '3. OPTIONAL DETAILS',
                   Icons.assignment_outlined,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 _buildSampleMetadataCard(),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 24),
 
                 // Section 4: One combined screening pipeline
                 _buildSectionHeader(
                   '4. HOW SCREENING WORKS',
                   Icons.tune_outlined,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 _buildScreeningOptionsCard(),
 
-                const SizedBox(height: 22),
+                const SizedBox(height: 28),
 
                 // Error banner if any
                 if (_errorMessage != null) ...[
@@ -434,7 +434,7 @@ class ScanScreenState extends State<ScanScreen> {
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.elevatedCard,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppTheme.border),
       ),
       clipBehavior: Clip.antiAlias,
@@ -447,43 +447,80 @@ class ScanScreenState extends State<ScanScreen> {
             _buildEmptyCaptureArea(),
           Container(height: 1, color: AppTheme.border),
           Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _isAnalyzing
-                        ? null
-                        : () => _pickImage(ImageSource.camera),
-                    icon: const Icon(Icons.camera_alt, size: 16),
-                    label: Text(
-                      _selectedImage != null ? 'Retake' : 'Camera Capture',
-                      style: const TextStyle(fontSize: 12.5),
+            padding: const EdgeInsets.all(16),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 440;
+                final cameraButton = OutlinedButton.icon(
+                  onPressed: _isAnalyzing
+                      ? null
+                      : () => _pickImage(ImageSource.camera),
+                  icon: const Icon(Icons.camera_alt, size: 19),
+                  label: Text(
+                    _selectedImage != null ? 'Retake photo' : 'Take a photo',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _isAnalyzing
-                        ? null
-                        : () => _pickImage(ImageSource.gallery),
-                    icon: const Icon(Icons.photo_library_outlined, size: 16),
-                    label: Text(
-                      _selectedImage != null ? 'Replace' : 'Import Photo',
-                      style: const TextStyle(fontSize: 12.5),
+                );
+                final galleryButton = OutlinedButton.icon(
+                  onPressed: _isAnalyzing
+                      ? null
+                      : () => _pickImage(ImageSource.gallery),
+                  icon: const Icon(Icons.photo_library_outlined, size: 19),
+                  label: Text(
+                    _selectedImage != null
+                        ? 'Choose another'
+                        : 'Choose a photo',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-                if (_selectedImage != null) ...[
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: _isAnalyzing ? null : _clearImage,
-                    icon: Icon(Icons.close, color: AppTheme.error, size: 18),
-                    tooltip: 'Remove Image',
-                  ),
-                ],
-              ],
+                );
+                final clearButton = _selectedImage == null
+                    ? const SizedBox.shrink()
+                    : IconButton(
+                        onPressed: _isAnalyzing ? null : _clearImage,
+                        icon: Icon(
+                          Icons.close,
+                          color: AppTheme.error,
+                          size: 20,
+                        ),
+                        tooltip: 'Remove selected photo',
+                        constraints: const BoxConstraints.tightFor(
+                          width: 48,
+                          height: 48,
+                        ),
+                      );
+                if (compact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      cameraButton,
+                      const SizedBox(height: 10),
+                      galleryButton,
+                      if (_selectedImage != null)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: clearButton,
+                        ),
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: cameraButton),
+                    const SizedBox(width: 12),
+                    Expanded(child: galleryButton),
+                    if (_selectedImage != null) ...[
+                      const SizedBox(width: 8),
+                      clearButton,
+                    ],
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -492,10 +529,14 @@ class ScanScreenState extends State<ScanScreen> {
   }
 
   Widget _buildEmptyCaptureArea() {
+    final captureAreaHeight = MediaQuery.textScalerOf(context)
+        .scale(200)
+        .clamp(200, 280)
+        .toDouble();
     return InkWell(
       onTap: () => _pickImage(ImageSource.camera),
       child: Container(
-        height: 200,
+        height: captureAreaHeight,
         color: AppTheme.secondaryBackground,
         child: Stack(
           alignment: Alignment.center,
@@ -588,11 +629,13 @@ class ScanScreenState extends State<ScanScreen> {
                 const SizedBox(height: 10),
                 Text(
                   'Tap to Capture Medicine Photo',
+                  textAlign: TextAlign.center,
                   style: AppTheme.headingSmall(),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   'Center tablet or blister pack on a plain, matte surface',
+                  textAlign: TextAlign.center,
                   style: AppTheme.bodyText(
                     color: AppTheme.textMuted,
                     fontSize: 11,

@@ -235,3 +235,53 @@ only the EfficientNet-B0 checkpoint is verified for the supported backend
 path; registered architectures do not imply available checkpoints; and
 image-based screening cannot establish authenticity, composition, dosage, or
 safety.
+
+## Follow-up: QR/barcode, OCR and structured medicine records (2026-11-23)
+
+- Extended the existing scanner to retain the raw decoded value and symbology,
+  conservatively parse a documented subset of GS1 element strings (including
+  FNC1 separators and parenthesized AIs), preserve unknown data, and let users
+  review/edit recognized fields before saving. GS1 GTIN check digits are
+  checked and flagged; a code or URL is never opened or treated as proof of
+  authenticity. Camera support uses the existing `mobile_scanner` formats,
+  including QR, Data Matrix, EAN, UPC and Code 128. This is not a claim of full
+  GS1 specification coverage.
+- Expanded OCR suggestions for generic name, composition, marketer,
+  manufacturing licence and pack size. Suggestions remain editable and
+  missing values stay blank. Extraction source, photo, timestamps, corrections
+  and review state are retained in an audit trail; engine confidence is left
+  null because ML Kit does not provide a calibrated per-field confidence here.
+- Added optional structured profile fields, multiple scanned identifiers and
+  batch history, with migration-compatible reads/writes for existing local
+  JSON medicine records and legacy single identifier/batch fields. Existing
+  package-photo storage and screening/sync record formats remain intact.
+- Added a medicine-record PDF export containing saved medicine fields, batch
+  history, raw and parsed identifiers, OCR evidence, audit history, and any
+  saved CDSCO evidence. It reports that private package images are not embedded
+  and retains the screening limitations. Existing screening PDF, CSV and TXT
+  export paths remain available.
+- Automated validation for this follow-up: `flutter analyze` passed with no
+  issues; `flutter test` passed (144 tests); `pytest -q` passed (232 tests, 9
+  dependency deprecation warnings); `git diff --check` passed (only Git line
+  ending conversion notices). No performance optimization was claimed or
+  measured for this follow-up.
+- Release APK rebuilt at
+  `frontend/flutter_app/build/app/outputs/flutter-apk/app-release.apk`:
+  109,050,330 bytes; SHA-256
+  `F6996447ACE8C103EAC0217381E3214200D1D59E38B100E4EE7038063AE75865`.
+  `apksigner` verified its signature. Its SHA-256 certificate digest matched
+  the installed package, and `adb install -r` updated the existing app without
+  uninstalling it; the app then launched successfully. Existing app data was
+  preserved by using an in-place update.
+- Physical device validation on realme RMX5171 / Android 16 (API 36) confirmed
+  install/update, launch, granted camera permission, and live scanner camera
+  preview. No physical QR/barcode decode, OCR extraction/save/edit, medicine
+  record PDF export, or backend workflow was exercised. See the checklist for
+  the separate historic Phase 4/5 QA results and outstanding physical checks.
+- Remaining limits: GS1 AI parsing is a supported subset, OCR is an editable
+  suggestion and may be incomplete, and there is no configured trusted product
+  lookup that authenticates a package. Image screening remains preliminary;
+  it cannot prove authenticity, composition, dosage or safety. No offline
+  Flutter AI inference is available.
+- No commit, push, publish, merge, branch or remote change was made for this
+  follow-up. Existing uncommitted UI and Phase 2/3/4/5 changes were preserved.

@@ -21,6 +21,7 @@ class _ProductIdentifierScannerScreenState
     formats: const [BarcodeFormat.all],
   );
   bool _completed = false;
+  final Set<String> _seenPayloads = {};
 
   @override
   void dispose() {
@@ -28,7 +29,7 @@ class _ProductIdentifierScannerScreenState
     super.dispose();
   }
 
-  void _onDetect(BarcodeCapture capture) {
+  Future<void> _onDetect(BarcodeCapture capture) async {
     if (_completed) return;
     for (final barcode in capture.barcodes) {
       final identifier = ProductIdentifier.tryCreate(
@@ -36,12 +37,141 @@ class _ProductIdentifierScannerScreenState
         format: barcode.format.name,
       );
       if (identifier != null) {
-        _completed = true;
-        Navigator.of(context).pop(identifier);
+        if (!_seenPayloads.add(identifier.value)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('This code was already scanned.')),
+          );
+          return;
+        }
+        await _confirmAndReturn(identifier);
         return;
       }
     }
   }
+
+  Future<void> _confirmAndReturn(ProductIdentifier identifier) async {
+    final controllers = <String, TextEditingController>{
+      for (final entry in identifier.parsedFields.entries)
+        if (!entry.key.endsWith('_check_digit_valid'))
+          entry.key: TextEditingController(text: entry.value),
+    };
+    final confirmed = await showDialog<ProductIdentifier>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Review scanned code'),
+        content: SizedBox(
+          width: 520,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Format: ${identifier.format}'),
+                const SizedBox(height: 12),
+                if (controllers.isEmpty)
+                  const Text(
+                    'No supported structured fields were recognized. The full code will still be kept for review.',
+                  )
+                else ...[
+                  const Text('Recognized fields (editable; not verified)'),
+                  const SizedBox(height: 8),
+                  for (final entry in controllers.entries) ...[
+                    TextField(
+                      controller: entry.value,
+                      decoration: InputDecoration(
+                        labelText: _fieldLabel(entry.key),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ],
+                if (identifier.parsedFields['gtin_check_digit_valid'] ==
+                    'false')
+                  const Text(
+                    'The GTIN check digit does not match. Review the code carefully.',
+                    style: TextStyle(color: Colors.orange),
+                  ),
+                if (identifier.unparsedData.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  const Text('Unparsed content (retained)'),
+                  SelectableText(identifier.unparsedData),
+                ],
+                const SizedBox(height: 12),
+                const Text('Original decoded value (retained unchanged)'),
+                SelectableText(identifier.value),
+                const SizedBox(height: 8),
+                const Text(
+                  'A decoded code identifies data only. It does not authenticate the physical medicine.',
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Scan again'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final fields = <String, String>{
+                for (final entry in controllers.entries)
+                  entry.key: entry.value.text.trim(),
+              };
+              final correctedFields = <String>{
+                ...identifier.correctedFields,
+                for (final entry in fields.entries)
+                  if (entry.value != identifier.parsedFields[entry.key])
+                    entry.key,
+              };
+              if (identifier.parsedFields.containsKey(
+                'gtin_check_digit_valid',
+              )) {
+                fields['gtin_check_digit_valid'] =
+                    identifier.parsedFields['gtin_check_digit_valid']!;
+              }
+              Navigator.pop(
+                dialogContext,
+                identifier.copyWith(
+                  parsedFields: fields,
+                  correctedFields: correctedFields,
+                ),
+              );
+            },
+            child: const Text('Use these details'),
+          ),
+        ],
+      ),
+    );
+    for (final controller in controllers.values) {
+      controller.dispose();
+    }
+    if (!mounted) return;
+    if (confirmed == null) {
+      _seenPayloads.remove(identifier.value);
+      return;
+    }
+    _completed = true;
+    Navigator.of(context).pop(confirmed);
+  }
+
+  static String _fieldLabel(String key) => switch (key) {
+    'gtin' => 'GTIN / product identifier',
+    'contained_gtin' => 'Contained product GTIN',
+    'batch_number' => 'Batch / lot number',
+    'manufacturing_date' => 'Manufacturing date',
+    'packaging_date' => 'Packaging date',
+    'expiry_date' => 'Expiry date',
+    'best_before_date' => 'Best-before date',
+    'serial_number' => 'Serial number',
+    'sscc' => 'Serial shipping container code',
+    'product_variant' => 'Product variant',
+    'count' => 'Count',
+    'additional_product_id' => 'Additional product identifier',
+    'customer_part_number' => 'Customer part number',
+    'country_of_origin' => 'Country of origin',
+    _ => key.replaceAll('_', ' ').toUpperCase(),
+  };
 
   Future<void> _enterManually() async {
     final result = await showDialog<ProductIdentifier>(
@@ -94,8 +224,7 @@ class _ProductIdentifierScannerScreenState
       },
     );
     if (!mounted || result == null) return;
-    _completed = true;
-    Navigator.of(context).pop(result);
+    await _confirmAndReturn(result);
   }
 
   @override

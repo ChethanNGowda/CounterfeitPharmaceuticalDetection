@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharma_assist/models/packaging_checklist.dart';
+import 'package:pharma_assist/models/medicine_profile.dart';
 import 'package:pharma_assist/screens/medicine_screen.dart';
 import 'package:pharma_assist/screens/packaging_checklist_screen.dart';
 import 'package:pharma_assist/services/storage_service.dart';
@@ -95,6 +96,18 @@ void main() {
         find.byKey(const ValueKey('medicine-identifier-field')),
         '8901234567890',
       );
+      final additionalDetails = find.text('More printed package details');
+      await tester.ensureVisible(additionalDetails);
+      await tester.tap(additionalDetails);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('medicine-generic-name-field')),
+        'Reviewed generic name',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('medicine-composition-field')),
+        'As printed: 250 mg',
+      );
       tester.testTextInput.hide();
       await tester.pumpAndSettle();
       await tester.ensureVisible(save);
@@ -112,9 +125,66 @@ void main() {
       expect(saved.mrp, '25.50');
       expect(saved.productIdentifier, '8901234567890');
       expect(saved.productIdentifierFormat, 'manual');
+      expect(saved.genericName, 'Reviewed generic name');
+      expect(saved.composition, 'As printed: 250 mg');
+      expect(saved.auditHistory, isNotEmpty);
       expect(saved.isVerifiedByUser, isFalse);
     },
   );
+
+  testWidgets('medicine profile keeps separate batch expiry records', (
+    tester,
+  ) async {
+    final storage = await createStorage();
+    final now = DateTime.now();
+    await storage.saveMedicineProfile(
+      MedicineProfile(
+        id: 'batch-profile',
+        medicineName: 'Batch Medicine',
+        batchNumber: 'LOT-OLD',
+        expiryDate: '04/2028',
+        createdAt: now,
+      ),
+    );
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(900, 1200);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(home: MedicineScreen(storage: storage)),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Batch Medicine').first);
+    await tester.pumpAndSettle();
+
+    final addBatch = find.text('Add another batch');
+    await tester.ensureVisible(addBatch);
+    await tester.tap(addBatch);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('medicine-batch-field')),
+      'LOT-NEW',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('medicine-expiry-date-field')),
+      '08/2029',
+    );
+    tester.testTextInput.hide();
+    await tester.pumpAndSettle();
+    final save = find.text('Update Profile');
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+
+    final saved = storage.getMedicineProfiles().single;
+    expect(saved.batches, hasLength(2));
+    expect(saved.batches.map((batch) => batch.batchNumber), [
+      'LOT-OLD',
+      'LOT-NEW',
+    ]);
+    expect(saved.batchNumber, 'LOT-NEW');
+    expect(saved.expiryDate, '08/2029');
+  });
 
   testWidgets(
     'checklist saves user observations and keeps AI result separate',

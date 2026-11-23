@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharma_assist/models/medicine_package_image.dart';
 import 'package:pharma_assist/models/medicine_profile.dart';
 import 'package:pharma_assist/models/medicine_verification_record.dart';
+import 'package:pharma_assist/models/medicine_record_metadata.dart';
+import 'package:pharma_assist/models/product_identifier.dart';
 import 'package:pharma_assist/services/medicine_ocr_service.dart';
 
 void main() {
@@ -165,5 +167,102 @@ void main() {
       'https://www.cdsco.gov.in/opencms/alert.pdf',
     );
     expect(restored.verificationHistory.single.checkedAt, checkedAt);
+  });
+
+  test(
+    'multiple product codes persist and legacy single-code data migrates',
+    () {
+      final capturedAt = DateTime.utc(2026, 11, 23);
+      final legacy = MedicineProfile.fromJson({
+        'id': 'legacy-code',
+        'medicine_name': 'SampleDrug',
+        'product_identifier': '8901234567890',
+        'product_identifier_format': 'ean13',
+        'created_at': capturedAt.toIso8601String(),
+      });
+      expect(legacy.allProductIdentifiers.single.value, '8901234567890');
+
+      final profile = legacy.copyWith(
+        productIdentifiers: [
+          ...legacy.allProductIdentifiers,
+          ProductIdentifier.tryCreate(
+            '(01)09506000134352(10)LOT-2',
+            format: 'qrCode',
+            capturedAt: capturedAt,
+          )!,
+        ],
+      );
+      final restored = MedicineProfile.fromJson(profile.toJson());
+      expect(restored.allProductIdentifiers, hasLength(2));
+      expect(
+        restored.allProductIdentifiers.last.parsedFields['batch_number'],
+        'LOT-2',
+      );
+      expect(restored.productIdentifier, '8901234567890');
+    },
+  );
+
+  test('profile safely adds structured batch and field audit history', () {
+    final at = DateTime.utc(2026, 11, 23, 9);
+    final legacy = MedicineProfile.fromJson({
+      'id': 'legacy-batch',
+      'medicine_name': 'SampleDrug',
+      'batch_number': 'OLD-1',
+      'expiry_date': '04/2027',
+      'created_at': at.toIso8601String(),
+    });
+    expect(legacy.allBatches.single.batchNumber, 'OLD-1');
+
+    final saved = legacy.copyWith(
+      genericName: 'Sample ingredient',
+      batches: [
+        ...legacy.allBatches,
+        MedicineBatchRecord(
+          id: 'batch-new',
+          batchNumber: 'NEW-2',
+          expiryDate: '08/2028',
+          recordedAt: at,
+          sourceType: 'qr_barcode',
+        ),
+      ],
+      auditHistory: [
+        MedicineFieldAuditEntry(
+          id: 'field-generic',
+          fieldKey: MedicineOcrField.genericName,
+          originalValue: 'Sample ingredient',
+          savedValue: 'Sample ingredient',
+          sourceType: 'ocr',
+          sourceId: 'back-view',
+          confidence: null,
+          userCorrected: false,
+          userReviewed: true,
+          changedAt: at,
+        ),
+      ],
+    );
+    final restored = MedicineProfile.fromJson(saved.toJson());
+
+    expect(restored.genericName, 'Sample ingredient');
+    expect(restored.allBatches.map((batch) => batch.batchNumber), [
+      'OLD-1',
+      'NEW-2',
+    ]);
+    expect(restored.auditHistory.single.sourceType, 'ocr');
+    expect(restored.auditHistory.single.sourceId, 'back-view');
+    expect(restored.auditHistory.single.confidence, isNull);
+  });
+
+  test('duplicate code values in imported profile data are deduplicated', () {
+    final profile = MedicineProfile.fromJson({
+      'id': 'duplicate-codes',
+      'medicine_name': 'Example',
+      'product_identifiers': [
+        {'value': '8901234567890', 'format': 'ean13'},
+        {'value': '8901234567890', 'format': 'ean13'},
+      ],
+      'created_at': '2026-11-23T10:00:00.000Z',
+    });
+    expect(profile.allProductIdentifiers, hasLength(1));
+    expect(profile.allProductIdentifiers.single.value, '8901234567890');
   });
 }

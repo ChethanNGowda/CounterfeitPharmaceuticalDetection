@@ -1050,6 +1050,8 @@ void main() {
       expect(find.text('Photo check'), findsOneWidget);
       expect(find.text('How to take a clear photo'), findsOneWidget);
       expect(find.textContaining('Hold the camera above it'), findsOneWidget);
+      expect(find.text('Take a photo'), findsOneWidget);
+      expect(find.text('Choose a photo'), findsOneWidget);
       expect(find.text('3. OPTIONAL DETAILS'), findsOneWidget);
       expect(find.text('4. HOW SCREENING WORKS'), findsOneWidget);
       expect(find.text('RUN PHARMACEUTICAL SCREENING'), findsOneWidget);
@@ -1062,6 +1064,32 @@ void main() {
       await tester.tap(pipelineParameters);
       await tester.pumpAndSettle();
       expect(find.text(AppConstants.visionModeAutoLabel), findsOneWidget);
+    });
+
+    testWidgets('Scan photo actions fit a narrow enlarged-text layout', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 1.4;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      SharedPreferences.setMockInitialValues({});
+      StorageService.resetForTesting();
+      final storage = await StorageService.getInstance();
+      final apiService = ApiService(storage);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ScanScreen(storage: storage, apiService: apiService),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Take a photo'), findsOneWidget);
+      expect(find.text('Choose a photo'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets(

@@ -20,27 +20,50 @@ abstract class BaseOcrEngine {
 class MlKitOcrEngine implements BaseOcrEngine {
   @override
   Future<OcrTextBlock> extractText(File imageFile) async {
+    final recognizedTexts = <String>[];
     try {
       final inputImage = InputImage.fromFile(imageFile);
       final textRecognizer = TextRecognizer(
         script: TextRecognitionScript.latin,
       );
-      final RecognizedText recognizedText = await textRecognizer.processImage(
-        inputImage,
-      );
-      await textRecognizer.close();
+      try {
+        final recognizedText = await textRecognizer.processImage(inputImage);
+        if (recognizedText.text.trim().isNotEmpty) {
+          recognizedTexts.add(recognizedText.text.trim());
+        }
+      } finally {
+        await textRecognizer.close();
+      }
 
-      final lines = <String>[];
-      for (final block in recognizedText.blocks) {
-        for (final line in block.lines) {
-          final trimmed = line.text.trim();
-          if (trimmed.isNotEmpty) {
-            lines.add(trimmed);
+      if (Platform.isAndroid) {
+        final devanagariRecognizer = TextRecognizer(
+          script: TextRecognitionScript.devanagiri,
+        );
+        try {
+          final recognizedText = await devanagariRecognizer.processImage(
+            inputImage,
+          );
+          final text = recognizedText.text.trim();
+          if (text.isNotEmpty &&
+              !recognizedTexts.any(
+                (existing) => existing.toLowerCase() == text.toLowerCase(),
+              )) {
+            recognizedTexts.add(text);
           }
+        } on Exception {
+          // The optional Devanagari model may be unavailable on this device.
+        } finally {
+          await devanagariRecognizer.close();
         }
       }
 
-      return OcrTextBlock(text: recognizedText.text, lines: lines);
+      final text = recognizedTexts.join('\n');
+      final lines = text
+          .split('\n')
+          .map((line) => line.trim())
+          .where((line) => line.isNotEmpty)
+          .toList();
+      return OcrTextBlock(text: text, lines: lines);
     } catch (e) {
       debugPrint('MlKitOcrEngine error: $e');
       // Return empty block on engine error

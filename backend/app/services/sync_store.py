@@ -11,9 +11,10 @@ import secrets
 import sqlite3
 import threading
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 
 TOKEN_PREFIX = "pa1"
@@ -62,14 +63,23 @@ class SyncStore:
         self.image_dir.mkdir(parents=True, exist_ok=True)
         self._initialize()
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
         connection = sqlite3.connect(
             self.db_path, timeout=10, isolation_level=None, check_same_thread=False
         )
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA foreign_keys = ON")
-        connection.execute("PRAGMA journal_mode = WAL")
-        return connection
+        try:
+            connection.row_factory = sqlite3.Row
+            connection.execute("PRAGMA foreign_keys = ON")
+            connection.execute("PRAGMA journal_mode = WAL")
+            yield connection
+        except BaseException:
+            connection.rollback()
+            raise
+        else:
+            connection.commit()
+        finally:
+            connection.close()
 
     def _initialize(self) -> None:
         with self._connect() as connection:
@@ -100,8 +110,14 @@ class SyncStore:
 
     def provision_device(self, device_id: str) -> str:
         device_id = device_id.strip()
-        if not device_id or len(device_id) > 128:
-            raise ValueError("device_id must be 1-128 characters")
+        if (
+            not device_id
+            or len(device_id) > 128
+            or any(char in device_id for char in (".", "/", "\\", "\x00"))
+        ):
+            raise ValueError(
+                "device_id must be 1-128 characters without token delimiters"
+            )
         secret = secrets.token_urlsafe(32)
         salt = secrets.token_bytes(16)
         token = f"{TOKEN_PREFIX}.{device_id}.{secret}"
@@ -152,31 +168,54 @@ class SyncStore:
         payload_json = json.dumps(
             idempotency_payload, sort_keys=True, separators=(",", ":")
         )
-        payload_hash = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+        image_digest = (
+            hashlib.sha256(image_bytes).hexdigest() if image_bytes is not None else None
+        )
+        hash_input = payload_json
+        if image_digest is not None:
+            hash_input = f"{payload_json}\0{image_digest}"
+        payload_hash = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
         synced_at = utc_now()
-        with self._lock, self._connect() as connection:
-            connection.execute("BEGIN IMMEDIATE")
-            existing = connection.execute(
-                """
-                SELECT server_record_id, payload_hash, synced_at
-                FROM sync_records
-                WHERE device_id = ? AND client_record_id = ?
-                """,
-                (device_id, client_record_id),
-            ).fetchone()
-            if existing is not None:
-                if not hmac.compare_digest(existing["payload_hash"], payload_hash):
-                    raise ValueError("idempotency_conflict")
-                return existing["server_record_id"], True, datetime.fromisoformat(
-                    existing["synced_at"]
-                )
+        image_path: Path | None = None
+        try:
+            with self._lock, self._connect() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                existing = connection.execute(
+                    """
+                    SELECT server_record_id, payload_hash, payload_json,
+                           image_path, synced_at
+                    FROM sync_records
+                    WHERE device_id = ? AND client_record_id = ?
+                    """,
+                    (device_id, client_record_id),
+                ).fetchone()
+                if existing is not None:
+                    same_payload = hmac.compare_digest(
+                        existing["payload_hash"], payload_hash
+                    )
+                    if not same_payload and hmac.compare_digest(
+                        existing["payload_json"], payload_json
+                    ):
+                        # Also recognize records created before image bytes
+                        # were incorporated into the idempotency hash.
+                        old_image_path = existing["image_path"]
+                        if old_image_path is None and image_bytes is None:
+                            same_payload = True
+                        elif old_image_path is not None and image_bytes is not None:
+                            old_image = Path(old_image_path).read_bytes()
+                            same_payload = hmac.compare_digest(
+                                hashlib.sha256(old_image).hexdigest(), image_digest
+                            )
+                    if not same_payload:
+                        raise ValueError("idempotency_conflict")
+                    return existing["server_record_id"], True, datetime.fromisoformat(
+                        existing["synced_at"]
+                    )
 
-            server_id = str(uuid.uuid4())
-            image_path = None
-            if image_bytes is not None and image_extension is not None:
-                image_path = str(self.image_dir / f"{server_id}.{image_extension}")
-                Path(image_path).write_bytes(image_bytes)
-            try:
+                server_id = str(uuid.uuid4())
+                if image_bytes is not None and image_extension is not None:
+                    image_path = self.image_dir / f"{server_id}.{image_extension}"
+                    image_path.write_bytes(image_bytes)
                 connection.execute(
                     """
                     INSERT INTO sync_records(
@@ -190,13 +229,13 @@ class SyncStore:
                         client_record_id,
                         payload_hash,
                         payload_json,
-                        image_path,
+                        str(image_path) if image_path is not None else None,
                         payload["client_created_at"],
                         synced_at.isoformat(),
                     ),
                 )
-            except Exception:
-                if image_path:
-                    Path(image_path).unlink(missing_ok=True)
-                raise
             return server_id, False, synced_at
+        except Exception:
+            if image_path is not None:
+                image_path.unlink(missing_ok=True)
+            raise

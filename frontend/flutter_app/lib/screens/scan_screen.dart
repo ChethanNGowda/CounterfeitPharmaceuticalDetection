@@ -479,11 +479,7 @@ class ScanScreenState extends State<ScanScreen> {
                   const SizedBox(width: 8),
                   IconButton(
                     onPressed: _isAnalyzing ? null : _clearImage,
-                    icon: const Icon(
-                      Icons.close,
-                      color: AppTheme.error,
-                      size: 18,
-                    ),
+                    icon: Icon(Icons.close, color: AppTheme.error, size: 18),
                     tooltip: 'Remove Image',
                   ),
                 ],
@@ -887,11 +883,7 @@ class ScanScreenState extends State<ScanScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.info_outline,
-                    color: AppTheme.error,
-                    size: 16,
-                  ),
+                  Icon(Icons.info_outline, color: AppTheme.error, size: 16),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -1243,14 +1235,14 @@ class ScanScreenState extends State<ScanScreen> {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.primaryCyan,
           disabledBackgroundColor: AppTheme.elevatedCard,
-          foregroundColor: const Color(0xFF0B1020),
+          foregroundColor: AppTheme.onPrimary,
           disabledForegroundColor: AppTheme.textMuted,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
         ),
         child: _isAnalyzing
-            ? const Row(
+            ? Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   SizedBox(
@@ -1259,12 +1251,12 @@ class ScanScreenState extends State<ScanScreen> {
                     child: CircularProgressIndicator(
                       strokeWidth: 2.2,
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        Color(0xFF0B1020),
+                        AppTheme.onPrimary,
                       ),
                     ),
                   ),
-                  SizedBox(width: 10),
-                  Flexible(
+                  const SizedBox(width: 10),
+                  const Flexible(
                     child: Text(
                       'SCREENING IN PROGRESS...',
                       textAlign: TextAlign.center,

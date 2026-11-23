@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharma_assist/core/constants.dart';
 import 'package:pharma_assist/core/theme.dart';
+import 'package:pharma_assist/core/theme_tokens.dart';
 import 'package:pharma_assist/models/health_response.dart';
 import 'package:pharma_assist/screens/about_screen.dart';
 import 'package:pharma_assist/screens/model_lab_screen.dart';
@@ -111,7 +112,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text('Configuration saved successfully'),
         backgroundColor: AppTheme.success,
         duration: Duration(seconds: 2),
@@ -377,7 +378,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (mounted) {
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('All inspection records cleared'),
             backgroundColor: AppTheme.success,
             duration: Duration(seconds: 2),
@@ -722,8 +723,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _testResult!,
                 style: TextStyle(
                   color: _testSuccess
-                      ? const Color(0xFFD1FAE5)
-                      : const Color(0xFFFCA5A5),
+                      ? context.pharmaTokens.authenticGreen
+                      : context.pharmaTokens.counterfeitRed,
                   fontSize: 11,
                   fontFamily: 'JetBrains Mono',
                   height: 1.4,
@@ -1037,9 +1038,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     horizontal: 10,
                     vertical: 6,
                   ),
-                  side: const BorderSide(color: AppTheme.error),
+                  side: BorderSide(color: AppTheme.error),
                 ),
-                child: const Text(
+                child: Text(
                   'Clear Storage',
                   style: TextStyle(color: AppTheme.error, fontSize: 11),
                 ),

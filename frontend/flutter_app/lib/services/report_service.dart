@@ -360,7 +360,7 @@ class ReportService {
                 await Clipboard.setData(ClipboardData(text: reportText));
                 if (ctx.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
+                    SnackBar(
                       content: Text('Inspection report copied to clipboard'),
                       backgroundColor: AppTheme.authenticGreen,
                       duration: Duration(seconds: 2),

@@ -97,11 +97,23 @@ troubleshooting, and responsible-use limitations.
 
 ## On-device medicine OCR
 
-The Medicine destination uses Google ML Kit Text Recognition on the selected
-image. Latin recognition is included, with the optional Devanagari model
-bundled for Android. It extracts suggested packaging fields and keeps the raw
-recognized text visible for manual review. Missing values are left blank; OCR
-does not verify medicine identity, authenticity, composition or safety.
+The Medicine destination uses the shared Google ML Kit Text Recognition
+integration on selected package views. Latin recognition is included, with
+the optional Devanagari model bundled for Android. Multiple labelled views,
+their capture times, raw recognized text and field suggestions are stored with
+the local profile. Conflicting suggestions remain visible for manual review;
+missing values are left blank. OCR does not verify medicine identity,
+authenticity, composition or safety. See
+[`docs/OCR_AND_MEDICINE_RECORDS.md`](../../docs/OCR_AND_MEDICINE_RECORDS.md).
+
+### Product identifiers and official alert checks
+
+The camera can decode supported QR codes and barcodes, and manual identifier
+entry is available. Values are stored as data; arbitrary QR URLs are not
+opened. With an explicit confirmation, reviewed medicine fields can be sent
+to the configured backend's fixed CDSCO official-alert lookup. Medicine
+photos are not sent by that feature. No alert match is reported as unable to
+verify, and this integration does not provide manufacturer authentication.
 
 ## App updates
 

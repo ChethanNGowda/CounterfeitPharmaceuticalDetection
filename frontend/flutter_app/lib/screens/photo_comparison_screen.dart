@@ -331,7 +331,7 @@ class _PhotoComparisonScreenState extends State<PhotoComparisonScreen> {
                 await Clipboard.setData(ClipboardData(text: summary));
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
+                    SnackBar(
                       content: Text('Comparison summary copied to clipboard.'),
                       backgroundColor: AppTheme.success,
                     ),

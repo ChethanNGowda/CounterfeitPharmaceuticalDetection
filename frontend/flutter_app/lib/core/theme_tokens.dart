@@ -1,5 +1,24 @@
 import 'package:flutter/material.dart';
 
+/// Shared layout rhythm used by screens and component themes.
+abstract final class PharmaSpacing {
+  static const double xxs = 4;
+  static const double xs = 8;
+  static const double sm = 12;
+  static const double md = 16;
+  static const double lg = 24;
+  static const double xl = 32;
+  static const double xxl = 48;
+}
+
+/// Shared corner radii for controls, cards, and modal surfaces.
+abstract final class PharmaRadii {
+  static const double small = 8;
+  static const double control = 12;
+  static const double card = 16;
+  static const double sheet = 24;
+}
+
 /// PharmaAssist Healthcare Design Tokens Extension
 /// Providing semantic healthcare colors, borders, and brand accents via Theme.of(context).
 @immutable
@@ -54,7 +73,7 @@ class PharmaThemeTokens extends ThemeExtension<PharmaThemeTokens> {
     authenticGreenBg: Color(0xFFDDF4EF),
     counterfeitRed: Color(0xFFC74747),
     counterfeitRedBg: Color(0xFFFDE8E8),
-    suspiciousAmber: Color(0xFFC47A18),
+    suspiciousAmber: Color(0xFF805000),
     suspiciousAmberBg: Color(0xFFFFF3D9),
     textMuted: Color(0xFF647B8C),
     cardElevated: Color(0xFFFFFFFF),
@@ -70,11 +89,11 @@ class PharmaThemeTokens extends ThemeExtension<PharmaThemeTokens> {
     powderBlue: Color(0xFF1D4659),
     surfaceSubtle: Color(0xFF193B53),
     borderSubtle: Color(0xFF35586C),
-    authenticGreen: Color(0xFF16845B),
+    authenticGreen: Color(0xFF6ED6AE),
     authenticGreenBg: Color(0xFF244F50),
-    counterfeitRed: Color(0xFFEF4444),
+    counterfeitRed: Color(0xFFFF8585),
     counterfeitRedBg: Color(0xFF381418),
-    suspiciousAmber: Color(0xFFF59E0B),
+    suspiciousAmber: Color(0xFFFFC45C),
     suspiciousAmberBg: Color(0xFF382A0E),
     textMuted: Color(0xFFB9CCD9),
     cardElevated: Color(0xFF24485A),

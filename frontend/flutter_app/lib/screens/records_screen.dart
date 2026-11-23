@@ -212,7 +212,7 @@ class RecordsScreenState extends State<RecordsScreen> {
   Future<void> _exportAllCsv() async {
     if (_filteredRecords.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('No records matching the filter to export.'),
           backgroundColor: AppTheme.warning,
         ),

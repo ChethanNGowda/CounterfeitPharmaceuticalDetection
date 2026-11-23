@@ -4,6 +4,8 @@ import base64
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from io import BytesIO
+import random
+import sqlite3
 
 import pytest
 from fastapi.testclient import TestClient
@@ -50,11 +52,27 @@ def test_missing_invalid_and_revoked_authentication(sync_client):
     client, token = sync_client
     request = payload()
     assert client.post("/sync/records", json=request).status_code == 401
-    assert client.post(
-        "/sync/records", json=request, headers=auth("pa1.device-a.invalid")
-    ).status_code == 401
+    invalid_token = "pa1.device-a.invalid"
+    invalid = client.post(
+        "/sync/records", json=request, headers=auth(invalid_token)
+    )
+    assert invalid.status_code == 401
+    assert invalid_token not in invalid.text
+    with sqlite3.connect(sync_route.store.db_path) as connection:
+        stored_hash = connection.execute(
+            "SELECT token_hash FROM devices WHERE device_id = ?", ("device-a",)
+        ).fetchone()[0]
+    assert token not in stored_hash
+    assert token.split(".")[-1] not in stored_hash
     assert sync_route.store.revoke_device("device-a")
     assert client.post("/sync/records", json=request, headers=auth(token)).status_code == 401
+
+
+def test_device_ids_with_token_delimiters_are_rejected(sync_client):
+    _, _ = sync_client
+    for device_id in ("device.name", "device/name", "device\\name", "device\x00name"):
+        with pytest.raises(ValueError):
+            sync_route.store.provision_device(device_id)
 
 
 def test_first_creation_and_identical_duplicate_are_idempotent(sync_client):
@@ -107,10 +125,13 @@ def test_image_requires_consent_and_is_stored_safely(sync_client):
     assert client.post("/sync/records", json=no_consent, headers=auth(token)).status_code == 400
 
     image = BytesIO()
-    Image.new("RGB", (64, 64), color=(255, 255, 255)).save(image, format="PNG")
+    noisy_pixels = random.Random(42).randbytes(512 * 512 * 3)
+    Image.frombytes("RGB", (512, 512), noisy_pixels).save(image, format="PNG")
+    encoded_image = base64.b64encode(image.getvalue()).decode()
+    assert len(encoded_image) > 256 * 1024
     accepted = payload(
         record_id="image-1",
-        image_base64=base64.b64encode(image.getvalue()).decode(),
+        image_base64=encoded_image,
         image_media_type="image/png",
         client_file_name="../../ignored.png",
         image_upload_consent=True,
@@ -118,7 +139,50 @@ def test_image_requires_consent_and_is_stored_safely(sync_client):
     stored = client.post("/sync/records", json=accepted, headers=auth(token))
     assert stored.status_code == 201
     assert stored.json()["image_stored"] is True
+    duplicate = client.post("/sync/records", json=accepted, headers=auth(token))
+    assert duplicate.status_code == 201
+    assert duplicate.json()["duplicate"] is True
+
+    other_image = BytesIO()
+    other_pixels = random.Random(43).randbytes(512 * 512 * 3)
+    Image.frombytes("RGB", (512, 512), other_pixels).save(other_image, format="PNG")
+    changed = {**accepted, "image_base64": base64.b64encode(other_image.getvalue()).decode()}
+    conflict = client.post("/sync/records", json=changed, headers=auth(token))
+    assert conflict.status_code == 409
     assert len(list(sync_route.store.image_dir.iterdir())) == 1
+
+
+def test_image_payload_errors_are_rejected_before_storage(sync_client):
+    client, token = sync_client
+    invalid_base64 = payload(
+        record_id="invalid-base64",
+        image_base64="%%%not-base64%%%",
+        image_media_type="image/png",
+        image_upload_consent=True,
+    )
+    assert client.post(
+        "/sync/records", json=invalid_base64, headers=auth(token)
+    ).status_code == 400
+
+    unsupported_type = payload(
+        record_id="unsupported-image",
+        image_base64="aGVsbG8=",
+        image_media_type="image/tiff",
+        image_upload_consent=True,
+    )
+    assert client.post(
+        "/sync/records", json=unsupported_type, headers=auth(token)
+    ).status_code == 415
+
+    too_large = payload(
+        record_id="oversized-image",
+        image_base64="A" * ((((15 * 1024 * 1024 + 2) // 3) * 4 + 4)),
+        image_media_type="image/png",
+        image_upload_consent=True,
+    )
+    response = client.post("/sync/records", json=too_large, headers=auth(token))
+    assert response.status_code == 413
+    assert not list(sync_route.store.image_dir.iterdir())
 
 
 def test_cross_device_records_are_not_reused(sync_client):
@@ -133,13 +197,72 @@ def test_cross_device_records_are_not_reused(sync_client):
 
 def test_malformed_request_and_oversized_record_are_rejected(sync_client):
     client, token = sync_client
-    assert client.post(
+    malformed = client.post(
         "/sync/records",
-        json={"client_record_id": "../bad"},
+        json={**payload(), "client_record_id": "../bad", "notes": {"sensitive": "must-not-echo"}},
         headers=auth(token),
-    ).status_code == 422
+    )
+    assert malformed.status_code == 422
+    assert "must-not-echo" not in malformed.text
     huge = payload(screening_metadata={"large": "x" * (256 * 1024)})
     assert client.post("/sync/records", json=huge, headers=auth(token)).status_code == 413
+
+
+def test_sync_database_failure_returns_sanitized_error(
+    sync_client, monkeypatch, caplog
+):
+    client, token = sync_client
+
+    def fail_save(*args, **kwargs):
+        raise sqlite3.OperationalError("database locked: private-note")
+
+    monkeypatch.setattr(sync_route.store, "save_record", fail_save)
+    response = client.post(
+        "/sync/records",
+        json=payload(notes="private-note"),
+        headers=auth(token),
+    )
+    assert response.status_code == 500
+    assert response.json() == {"detail": "Synchronization could not be durably stored."}
+    assert "private-note" not in response.text
+    assert "private-note" not in caplog.text
+
+
+def test_database_insert_failure_removes_unreferenced_image(sync_client):
+    client, token = sync_client
+    with sqlite3.connect(sync_route.store.db_path) as connection:
+        connection.execute(
+            """
+            CREATE TRIGGER fail_sync_insert BEFORE INSERT ON sync_records
+            BEGIN SELECT RAISE(ABORT, 'forced database failure'); END;
+            """
+        )
+    image = BytesIO()
+    Image.new("RGB", (64, 64), color=(24, 180, 150)).save(image, format="PNG")
+    request = payload(
+        record_id="db-failure-image",
+        image_base64=base64.b64encode(image.getvalue()).decode(),
+        image_media_type="image/png",
+        image_upload_consent=True,
+    )
+    response = client.post("/sync/records", json=request, headers=auth(token))
+    assert response.status_code == 500
+    assert response.json() == {"detail": "Synchronization could not be durably stored."}
+    assert list(sync_route.store.image_dir.iterdir()) == []
+
+
+def test_sync_endpoint_does_not_invoke_screening_service(sync_client, monkeypatch):
+    client, token = sync_client
+
+    def screening_must_not_run():
+        raise AssertionError("sync invoked prediction service")
+
+    monkeypatch.setattr(
+        "backend.app.routes.predict.ClassifierService.get_instance",
+        screening_must_not_run,
+    )
+    response = client.post("/sync/records", json=payload(), headers=auth(token))
+    assert response.status_code == 201
 
 
 def test_persistence_survives_store_reload(sync_client, tmp_path):

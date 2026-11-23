@@ -621,7 +621,8 @@ Release APK output:
 frontend/flutter_app/build/app/outputs/flutter-apk/app-release.apk
 ```
 
-The verified release APK size is approximately 53.9 MB.
+Release APK size depends on the current dependency set and signing/build
+configuration. Use the current build output rather than this historical value.
 
 ### Application Navigation
 
@@ -650,6 +651,12 @@ PharmaAssist uses a five-destination bottom navigation architecture with Materia
 - Manufacturing and expiry dates.
 - Strength and dosage form.
 - Manufacturer information.
+- Multiple labelled package photographs with OCR provenance and conflict review.
+- QR/barcode identifier capture with manual entry (identifier readability is
+  not authentication).
+- Consent-gated checks against the configured official CDSCO spurious-drug
+  alerts source; absent matches remain unable to verify.
+- Local verification history tied to the medicine profile.
 - Interactive edit/save modal.
 - Expiry Tracker with countdowns and visual alerts.
 
@@ -850,15 +857,25 @@ flutter test
 | Component | Result |
 |---|---|
 | Flutter analysis | 0 issues |
-| Flutter tests | 71 passed |
-| Flutter failures | 0 |
-| Python tests | 213 passed |
-| Python failures | 0 |
-| Release APK | 53.9 MB |
+| Flutter tests | See latest verified results in [`docs/PHARMAASSIST_2_PROGRESS.md`](docs/PHARMAASSIST_2_PROGRESS.md) |
+| Python tests | See latest verified results in [`docs/PHARMAASSIST_2_PROGRESS.md`](docs/PHARMAASSIST_2_PROGRESS.md) |
+| Release APK | Build output varies; see latest verified progress entry |
 
 Python tests cover backend routes, schemas, ML model registry, decision engine, quality validation and synchronization administration.
 
 These are automated software validation results, not evidence of pharmaceutical authentication accuracy.
+
+## Phase 5 documentation
+
+- [Architecture and data flow](docs/ARCHITECTURE.md)
+- [API reference](docs/API_REFERENCE.md)
+- [OCR and medicine records](docs/OCR_AND_MEDICINE_RECORDS.md)
+- [Model and dataset limitations](docs/MODEL_AND_DATASET.md)
+- [Security and privacy](docs/SECURITY_AND_PRIVACY.md)
+- [Technical project report](reports/PHARMAASSIST_2_FINAL_REPORT.md)
+- [Phase progress and validation](docs/PHARMAASSIST_2_PROGRESS.md)
+- [Physical Android checklist](docs/PHARMAASSIST_PHASE4_ANDROID_CHECKLIST.md)
+- [Protected baseline recovery guide](docs/RECOVERY_GUIDE.md)
 
 ---
 

@@ -1,83 +1,92 @@
 import 'package:flutter/material.dart';
 import 'package:pharma_assist/core/theme_tokens.dart';
 
-/// Centralized scientific design system and color tokens for PharmaAssist.
-/// Brand specifications:
-/// - Light Theme: #F4F8FB bg, #FFFFFF surface, #25658A primary blue, #0F8B83 accent teal, #DDF4EF soft mint
-/// - Dark Theme: #102A43 bg, #193B53 surface, #24485A elevated, #48C5B3 accent teal, #244F50 soft mint
+/// PharmaAssist Material 3 design system.
+///
+/// ThemeData is the source for components. The static color getters below are
+/// retained for older feature widgets and resolve from the active system
+/// palette selected by [PharmaAssistApp].
 class AppTheme {
-  // Flag for backward compatibility with existing tests
   static bool _useLightPalette = false;
 
   static void setPalette(bool light) => _useLightPalette = light;
 
-  // ── Surface and Background Tokens ───────────────────────────────────────────
-  static Color get background =>
-      _useLightPalette ? const Color(0xFFF4F8FB) : const Color(0xFF102A43);
-  static Color get secondaryBackground =>
-      _useLightPalette ? const Color(0xFFEAF4FA) : const Color(0xFF193B53);
-  static Color get elevatedCard =>
-      _useLightPalette ? const Color(0xFFFFFFFF) : const Color(0xFF24485A);
+  static const _light = _Palette(
+    background: Color(0xFFF4F8FB),
+    surface: Color(0xFFFFFFFF),
+    surfaceSubtle: Color(0xFFEAF4FA),
+    elevated: Color(0xFFFFFFFF),
+    border: Color(0xFFDCE6ED),
+    primary: Color(0xFF25658A),
+    accent: Color(0xFF0F8B83),
+    deep: Color(0xFF174A6E),
+    text: Color(0xFF183247),
+    textMuted: Color(0xFF526B7C),
+    onPrimary: Color(0xFFFFFFFF),
+    success: Color(0xFF16845B),
+    successContainer: Color(0xFFDDF4EF),
+    error: Color(0xFFC74747),
+    errorContainer: Color(0xFFFDE8E8),
+    warning: Color(0xFF805000),
+    warningContainer: Color(0xFFFFF3D9),
+  );
 
-  // Backward compatibility aliases
+  static const _dark = _Palette(
+    background: Color(0xFF102A43),
+    surface: Color(0xFF193B53),
+    surfaceSubtle: Color(0xFF1D4659),
+    elevated: Color(0xFF24485A),
+    border: Color(0xFF49697B),
+    primary: Color(0xFF48C5B3),
+    accent: Color(0xFF48C5B3),
+    deep: Color(0xFF102A43),
+    text: Color(0xFFF0F6FA),
+    textMuted: Color(0xFFB9CCD9),
+    onPrimary: Color(0xFF092B31),
+    success: Color(0xFF6ED6AE),
+    successContainer: Color(0xFF244F50),
+    error: Color(0xFFFF8585),
+    errorContainer: Color(0xFF381418),
+    warning: Color(0xFFFFC45C),
+    warningContainer: Color(0xFF382A0E),
+  );
+
+  static _Palette get _active => _useLightPalette ? _light : _dark;
+
+  // Compatibility tokens used by existing feature screens.
+  static Color get background => _active.background;
+  static Color get secondaryBackground => _active.surface;
+  static Color get elevatedCard => _active.elevated;
   static Color get surface => secondaryBackground;
   static Color get cardColor => elevatedCard;
-  static Color get surfaceHighlight =>
-      _useLightPalette ? const Color(0xFFDDF4EF) : const Color(0xFF1D4659);
-
-  // ── Brand & Accent Colors ───────────────────────────────────────────────────
-  static Color get primaryBlue =>
-      _useLightPalette ? const Color(0xFF25658A) : const Color(0xFF24485A);
-  static Color get deepBlue =>
-      _useLightPalette ? const Color(0xFF174A6E) : const Color(0xFF102A43);
-  static Color get primaryCyan =>
-      _useLightPalette ? const Color(0xFF25658A) : const Color(0xFF48C5B3);
-  static Color get secondaryTeal =>
-      _useLightPalette ? const Color(0xFF0F8B83) : const Color(0xFF48C5B3);
-  static Color get softMint =>
-      _useLightPalette ? const Color(0xFFDDF4EF) : const Color(0xFF244F50);
-  static Color get powderBlue =>
-      _useLightPalette ? const Color(0xFFDCE8F8) : const Color(0xFF1D4659);
+  static Color get surfaceHighlight => _active.surfaceSubtle;
+  static Color get primaryBlue => _active.primary;
+  static Color get deepBlue => _active.deep;
+  static Color get onPrimary => _active.onPrimary;
+  static Color get primaryCyan => _active.primary;
+  static Color get secondaryTeal => _active.accent;
+  static Color get softMint => _active.successContainer;
+  static Color get powderBlue => _active.surfaceSubtle;
   static Color get softViolet => secondaryTeal;
   static Color get violetAccent => secondaryTeal;
-
-  // Backward compatibility aliases
   static Color get primaryTeal => secondaryTeal;
-  static Color get primaryTealDim =>
-      _useLightPalette ? const Color(0xFF0F8B83) : const Color(0xFF35586C);
+  static Color get primaryTealDim => _active.surfaceSubtle;
+  static Color get success => _active.success;
+  static Color get warning => _active.warning;
+  static Color get error => _active.error;
+  static Color get authenticGreen => _active.success;
+  static Color get authenticBg => _active.successContainer;
+  static Color get counterfeitRed => _active.error;
+  static Color get counterfeitBg => _active.errorContainer;
+  static Color get suspiciousAmber => _active.warning;
+  static Color get suspiciousBg => _active.warningContainer;
+  static Color get textPrimary => _active.text;
+  static Color get textSecondary => _active.textMuted;
+  static Color get textMuted => _active.textMuted;
+  static Color get border => _active.border;
+  static Color get borderSubtle => _active.border;
+  static Color get divider => _active.border;
 
-  // ── Semantic Feedback Colors ────────────────────────────────────────────────
-  static const Color success = Color(0xFF16845B);
-  static const Color warning = Color(0xFFC47A18);
-  static const Color error = Color(0xFFC74747);
-
-  // Backward compatibility aliases
-  static const Color authenticGreen = Color(0xFF16845B);
-  static Color get authenticBg =>
-      _useLightPalette ? const Color(0xFFDDF4EF) : const Color(0xFF244F50);
-  static const Color counterfeitRed = Color(0xFFC74747);
-  static Color get counterfeitBg =>
-      _useLightPalette ? const Color(0xFFFDE8E8) : const Color(0xFF381418);
-  static const Color suspiciousAmber = Color(0xFFC47A18);
-  static Color get suspiciousBg =>
-      _useLightPalette ? const Color(0xFFFFF3D9) : const Color(0xFF382A0E);
-
-  // ── Text & Typography Colors ────────────────────────────────────────────────
-  static Color get textPrimary =>
-      _useLightPalette ? const Color(0xFF183247) : const Color(0xFFF0F6FA);
-  static Color get textSecondary =>
-      _useLightPalette ? const Color(0xFF647B8C) : const Color(0xFFB9CCD9);
-  static Color get textMuted =>
-      _useLightPalette ? const Color(0xFF647B8C) : const Color(0xFFB9CCD9);
-
-  // ── Borders & Dividers ──────────────────────────────────────────────────────
-  static Color get border =>
-      _useLightPalette ? const Color(0xFFDCE6ED) : const Color(0xFF35586C);
-  static Color get borderSubtle =>
-      _useLightPalette ? const Color(0xFFDCE6ED) : const Color(0xFF35586C);
-  static Color get divider => border;
-
-  // ── Distinct Typography Tokens with Graceful Fallbacks ──────────────────────
   static const List<String> fontHeadingFamilies = [
     'Space Grotesk',
     'Roboto',
@@ -143,292 +152,520 @@ class AppTheme {
     letterSpacing: 0.2,
   );
 
-  // ── Dark Theme (Refined Blue-Slate #102A43 + Teal #48C5B3) ───────────────────
-  static ThemeData get darkTheme {
-    const navyBackground = Color(0xFF102A43);
-    const darkSurface = Color(0xFF193B53);
-    const elevatedCardColor = Color(0xFF24485A);
-    const darkBorder = Color(0xFF35586C);
-    const tealPrimary = Color(0xFF48C5B3);
-    const textLight = Color(0xFFF0F6FA);
-    const textDim = Color(0xFFB9CCD9);
+  static ThemeData get darkTheme => _buildTheme(_dark, Brightness.dark);
+  static ThemeData get lightTheme => _buildTheme(_light, Brightness.light);
+
+  static ThemeData _buildTheme(_Palette colors, Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    final colorScheme = ColorScheme(
+      brightness: brightness,
+      primary: colors.primary,
+      onPrimary: colors.onPrimary,
+      primaryContainer: isDark
+          ? const Color(0xFF1D4659)
+          : const Color(0xFFDCE8F8),
+      onPrimaryContainer: isDark ? colors.text : const Color(0xFF123B56),
+      secondary: colors.accent,
+      onSecondary: isDark ? colors.deep : Colors.white,
+      secondaryContainer: isDark
+          ? const Color(0xFF244F50)
+          : const Color(0xFFDDF4EF),
+      onSecondaryContainer: isDark ? colors.text : const Color(0xFF103D37),
+      tertiary: isDark ? const Color(0xFF8CC8E8) : colors.deep,
+      onTertiary: isDark ? const Color(0xFF102A43) : Colors.white,
+      tertiaryContainer: isDark
+          ? const Color(0xFF24485A)
+          : const Color(0xFFE4EEF6),
+      onTertiaryContainer: colors.text,
+      error: colors.error,
+      onError: isDark ? const Color(0xFF390B0B) : Colors.white,
+      errorContainer: colors.errorContainer,
+      onErrorContainer: colors.text,
+      surface: colors.surface,
+      onSurface: colors.text,
+      onSurfaceVariant: colors.textMuted,
+      outline: colors.border,
+      outlineVariant: isDark ? const Color(0xFF35586C) : colors.border,
+      shadow: Colors.black,
+      scrim: Colors.black,
+      inverseSurface: isDark
+          ? const Color(0xFFE6F0F4)
+          : const Color(0xFF193B53),
+      onInverseSurface: isDark ? const Color(0xFF193B53) : Colors.white,
+      inversePrimary: isDark
+          ? const Color(0xFF25658A)
+          : const Color(0xFF48C5B3),
+      surfaceTint: colors.primary,
+    );
+
+    final textTheme = _textTheme(colors.text, colors.textMuted);
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(PharmaRadii.card),
+    );
+    final buttonShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(PharmaRadii.control),
+    );
+    final inputBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(PharmaRadii.control),
+      borderSide: BorderSide(color: colors.border),
+    );
 
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: navyBackground,
-      dividerColor: darkBorder,
+      brightness: brightness,
+      colorScheme: colorScheme,
+      scaffoldBackgroundColor: colors.background,
+      canvasColor: colors.surface,
+      dividerColor: colors.border,
       fontFamily: 'Inter',
       fontFamilyFallback: fontBodyFamilies,
-      extensions: const [PharmaThemeTokens.dark],
-      colorScheme: const ColorScheme.dark(
-        primary: tealPrimary,
-        secondary: Color(0xFF24485A),
-        tertiary: Color(0xFF1D4659),
-        surface: darkSurface,
-        error: Color(0xFFEF4444),
-        onPrimary: navyBackground,
-        onSecondary: textLight,
-        onSurface: textLight,
-        outline: darkBorder,
-      ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: navyBackground,
+      textTheme: textTheme,
+      primaryTextTheme: textTheme,
+      extensions: [isDark ? PharmaThemeTokens.dark : PharmaThemeTokens.light],
+      visualDensity: VisualDensity.standard,
+      materialTapTargetSize: MaterialTapTargetSize.padded,
+      appBarTheme: AppBarTheme(
+        backgroundColor: colors.background,
+        foregroundColor: colors.text,
         elevation: 0,
-        scrolledUnderElevation: 0,
+        scrolledUnderElevation: 1,
+        surfaceTintColor: colors.background,
         centerTitle: false,
-        iconTheme: IconThemeData(color: textDim),
-        actionsIconTheme: IconThemeData(color: textDim),
+        iconTheme: IconThemeData(color: colors.textMuted, size: 24),
+        actionsIconTheme: IconThemeData(color: colors.textMuted, size: 24),
         titleTextStyle: TextStyle(
           fontFamily: 'Space Grotesk',
           fontFamilyFallback: fontHeadingFamilies,
-          color: textLight,
-          fontSize: 17,
+          color: colors.text,
+          fontSize: 20,
           fontWeight: FontWeight.w700,
-          letterSpacing: -0.1,
         ),
       ),
       cardTheme: CardThemeData(
-        color: elevatedCardColor,
+        color: colors.elevated,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: darkBorder, width: 1),
-        ),
-        margin: const EdgeInsets.symmetric(vertical: 6),
+        shape: shape.copyWith(side: BorderSide(color: colors.border)),
+        margin: const EdgeInsets.symmetric(vertical: PharmaSpacing.xs),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: tealPrimary,
-          foregroundColor: navyBackground,
+          backgroundColor: colors.primary,
+          foregroundColor: colors.onPrimary,
+          disabledBackgroundColor: colors.surfaceSubtle,
+          disabledForegroundColor: colors.textMuted,
           elevation: 0,
+          minimumSize: const Size(48, 48),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          textStyle: const TextStyle(
-            fontFamily: 'Space Grotesk',
-            fontFamilyFallback: fontHeadingFamilies,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.2,
-          ),
+          shape: buttonShape,
+          textStyle: _buttonTextStyle,
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          shape: buttonShape,
+          textStyle: _buttonTextStyle,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: tealPrimary,
-          side: const BorderSide(color: darkBorder, width: 1.2),
+          foregroundColor: colors.primary,
+          minimumSize: const Size(48, 48),
+          side: BorderSide(color: colors.border, width: 1.2),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          textStyle: const TextStyle(
-            fontFamily: 'Inter',
-            fontFamilyFallback: fontBodyFamilies,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
+          shape: buttonShape,
+          textStyle: _buttonTextStyle,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: colors.primary,
+          minimumSize: const Size(48, 48),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          shape: buttonShape,
+          textStyle: _buttonTextStyle,
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          foregroundColor: colors.textMuted,
+          minimumSize: const Size(48, 48),
+          shape: buttonShape,
+        ),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: colors.primary,
+        foregroundColor: colors.onPrimary,
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(PharmaRadii.card),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: darkSurface,
+        fillColor: colors.surface,
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 12,
+          horizontal: PharmaSpacing.md,
+          vertical: PharmaSpacing.sm,
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: darkBorder),
+        border: inputBorder,
+        enabledBorder: inputBorder,
+        focusedBorder: inputBorder.copyWith(
+          borderSide: BorderSide(color: colors.primary, width: 1.7),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: darkBorder),
+        errorBorder: inputBorder.copyWith(
+          borderSide: BorderSide(color: colors.error),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: tealPrimary, width: 1.5),
+        focusedErrorBorder: inputBorder.copyWith(
+          borderSide: BorderSide(color: colors.error, width: 1.7),
         ),
-        labelStyle: const TextStyle(color: textDim, fontSize: 13),
-        hintStyle: TextStyle(
-          color: textDim.withValues(alpha: 0.6),
-          fontSize: 13,
-        ),
-        prefixIconColor: textDim,
+        labelStyle: TextStyle(color: colors.textMuted, fontSize: 14),
+        hintStyle: TextStyle(color: colors.textMuted, fontSize: 14),
+        helperStyle: TextStyle(color: colors.textMuted, fontSize: 12),
+        errorStyle: TextStyle(color: colors.error, fontSize: 12),
+        prefixIconColor: colors.textMuted,
+        suffixIconColor: colors.textMuted,
       ),
-      sliderTheme: const SliderThemeData(
-        activeTrackColor: tealPrimary,
-        inactiveTrackColor: darkBorder,
-        thumbColor: tealPrimary,
-        overlayColor: Color(0x2248C5B3),
-        valueIndicatorColor: elevatedCardColor,
-        valueIndicatorTextStyle: TextStyle(color: textLight, fontSize: 12),
+      dropdownMenuTheme: DropdownMenuThemeData(
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: colors.surface,
+          border: inputBorder,
+          enabledBorder: inputBorder,
+          focusedBorder: inputBorder.copyWith(
+            borderSide: BorderSide(color: colors.primary, width: 1.7),
+          ),
+        ),
+        menuStyle: MenuStyle(
+          backgroundColor: WidgetStatePropertyAll(colors.elevated),
+          surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+          shape: WidgetStatePropertyAll(shape),
+        ),
       ),
-      dividerTheme: const DividerThemeData(
-        color: darkBorder,
+      dialogTheme: DialogThemeData(
+        backgroundColor: colors.elevated,
+        surfaceTintColor: Colors.transparent,
+        elevation: 4,
+        shape: shape,
+        titleTextStyle: textTheme.headlineSmall,
+        contentTextStyle: textTheme.bodyMedium,
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: colors.surface,
+        modalBackgroundColor: colors.surface,
+        surfaceTintColor: Colors.transparent,
+        showDragHandle: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(PharmaRadii.sheet),
+          ),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: colors.surfaceSubtle,
+        selectedColor: colors.primary.withValues(alpha: 0.15),
+        disabledColor: colors.surfaceSubtle,
+        secondarySelectedColor: colors.primary.withValues(alpha: 0.18),
+        padding: const EdgeInsets.symmetric(horizontal: PharmaSpacing.xs),
+        labelStyle: textTheme.labelLarge!,
+        secondaryLabelStyle: textTheme.labelLarge!,
+        shape: StadiumBorder(side: BorderSide(color: colors.border)),
+        side: BorderSide(color: colors.border),
+        showCheckmark: true,
+      ),
+      tabBarTheme: TabBarThemeData(
+        labelColor: colors.primary,
+        unselectedLabelColor: colors.textMuted,
+        indicatorColor: colors.primary,
+        dividerColor: colors.border,
+        labelStyle: textTheme.titleSmall,
+        unselectedLabelStyle: textTheme.titleSmall,
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: colors.primary,
+        linearTrackColor: colors.surfaceSubtle,
+        circularTrackColor: colors.surfaceSubtle,
+        refreshBackgroundColor: colors.elevated,
+      ),
+      dividerTheme: DividerThemeData(
+        color: colors.border,
         thickness: 1,
         space: 1,
       ),
-      navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: darkSurface,
-        indicatorColor: const Color(0x3048C5B3),
-        labelTextStyle: WidgetStateProperty.resolveWith((states) {
-          final bool selected = states.contains(WidgetState.selected);
-          return TextStyle(
-            inherit: false,
-            fontFamily: 'Inter',
-            fontFamilyFallback: fontBodyFamilies,
-            fontSize: 11,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            color: selected ? const Color(0xFF48C5B3) : const Color(0xFFB9CCD9),
-            letterSpacing: 0.2,
-          );
-        }),
-        iconTheme: WidgetStateProperty.resolveWith((states) {
-          final bool selected = states.contains(WidgetState.selected);
-          return IconThemeData(
-            color: selected ? const Color(0xFF48C5B3) : const Color(0xFFB9CCD9),
-          );
-        }),
-      ),
-    );
-  }
-
-  // ── Light Theme Architecture (Refined Blue/Teal/Mint Palette) ────────────────
-  static ThemeData get lightTheme {
-    const lightBg = Color(0xFFF4F8FB);
-    const lightSurface = Color(0xFFFFFFFF);
-    const lightCard = Color(0xFFFFFFFF);
-    const lightBorder = Color(0xFFDCE6ED);
-    const lightTextPrimary = Color(0xFF183247);
-    const lightTextSecondary = Color(0xFF647B8C);
-    const primaryBlue = Color(0xFF25658A);
-    const accentTeal = Color(0xFF0F8B83);
-
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.light,
-      scaffoldBackgroundColor: lightBg,
-      dividerColor: lightBorder,
-      fontFamily: 'Inter',
-      fontFamilyFallback: fontBodyFamilies,
-      extensions: const [PharmaThemeTokens.light],
-      colorScheme: const ColorScheme.light(
-        primary: primaryBlue,
-        secondary: accentTeal,
-        tertiary: Color(0xFF174A6E),
-        surface: lightSurface,
-        error: Color(0xFFC74747),
-        onPrimary: Colors.white,
-        onSecondary: Colors.white,
-        onSurface: lightTextPrimary,
-        outline: lightBorder,
-      ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: lightSurface,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: false,
-        iconTheme: IconThemeData(color: lightTextSecondary),
-        actionsIconTheme: IconThemeData(color: lightTextSecondary),
-        titleTextStyle: TextStyle(
-          fontFamily: 'Space Grotesk',
-          fontFamilyFallback: fontHeadingFamilies,
-          color: lightTextPrimary,
-          fontSize: 17,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.1,
-        ),
-      ),
-      cardTheme: CardThemeData(
-        color: lightCard,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: lightBorder, width: 1),
-        ),
-        margin: const EdgeInsets.symmetric(vertical: 6),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primaryBlue,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          textStyle: const TextStyle(
-            fontFamily: 'Space Grotesk',
-            fontFamilyFallback: fontHeadingFamilies,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.2,
-          ),
-        ),
-      ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: primaryBlue,
-          side: const BorderSide(color: lightBorder, width: 1.2),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          textStyle: const TextStyle(
-            fontFamily: 'Inter',
-            fontFamilyFallback: fontBodyFamilies,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: lightSurface,
+      listTileTheme: ListTileThemeData(
+        iconColor: colors.textMuted,
+        textColor: colors.text,
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 12,
+          horizontal: PharmaSpacing.md,
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: lightBorder),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: lightBorder),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: primaryBlue, width: 1.5),
-        ),
-        labelStyle: const TextStyle(color: lightTextSecondary, fontSize: 13),
-        hintStyle: const TextStyle(color: lightTextSecondary, fontSize: 13),
-        prefixIconColor: lightTextSecondary,
+        minLeadingWidth: 40,
+        minVerticalPadding: PharmaSpacing.xs,
+        shape: buttonShape,
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: lightSurface,
-        indicatorColor: const Color(0x2025658A),
+        backgroundColor: colors.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        height: 76,
+        indicatorColor: colors.primary.withValues(alpha: isDark ? 0.2 : 0.12),
+        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
-          final bool selected = states.contains(WidgetState.selected);
+          final selected = states.contains(WidgetState.selected);
           return TextStyle(
-            inherit: false,
             fontFamily: 'Inter',
-            fontFamilyFallback: fontBodyFamilies,
             fontSize: 11,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            color: selected ? const Color(0xFF25658A) : const Color(0xFF647B8C),
+            color: selected ? colors.primary : colors.textMuted,
             letterSpacing: 0.2,
           );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
-          final bool selected = states.contains(WidgetState.selected);
+          final selected = states.contains(WidgetState.selected);
           return IconThemeData(
-            color: selected ? const Color(0xFF25658A) : const Color(0xFF647B8C),
+            color: selected ? colors.primary : colors.textMuted,
+            size: 24,
           );
         }),
       ),
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: colors.surface,
+        indicatorColor: colors.primary.withValues(alpha: isDark ? 0.2 : 0.12),
+        selectedIconTheme: IconThemeData(color: colors.primary),
+        unselectedIconTheme: IconThemeData(color: colors.textMuted),
+        selectedLabelTextStyle: TextStyle(
+          color: colors.primary,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelTextStyle: TextStyle(
+          color: colors.textMuted,
+          fontSize: 12,
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: isDark
+            ? const Color(0xFFE6F0F4)
+            : const Color(0xFF193B53),
+        contentTextStyle: TextStyle(
+          color: isDark ? const Color(0xFF193B53) : Colors.white,
+          fontSize: 14,
+        ),
+        actionTextColor: isDark
+            ? const Color(0xFF174A6E)
+            : const Color(0xFF48C5B3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(PharmaRadii.control),
+        ),
+      ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFFE6F0F4) : const Color(0xFF193B53),
+          borderRadius: BorderRadius.circular(PharmaRadii.small),
+        ),
+        textStyle: TextStyle(
+          color: isDark ? const Color(0xFF193B53) : Colors.white,
+          fontSize: 12,
+        ),
+        waitDuration: const Duration(milliseconds: 500),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return colors.primary;
+          return null;
+        }),
+        checkColor: WidgetStatePropertyAll(colors.onPrimary),
+        side: BorderSide(color: colors.border, width: 1.5),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(PharmaRadii.small),
+        ),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? colors.onPrimary
+              : colors.textMuted,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? colors.primary
+              : colors.surfaceSubtle,
+        ),
+        trackOutlineColor: WidgetStatePropertyAll(colors.border),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? colors.primary
+              : colors.textMuted,
+        ),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected)
+                ? colors.onPrimary
+                : colors.text,
+          ),
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected)
+                ? colors.primary
+                : colors.surface,
+          ),
+          side: WidgetStatePropertyAll(BorderSide(color: colors.border)),
+          shape: WidgetStatePropertyAll(buttonShape),
+        ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: colors.elevated,
+        surfaceTintColor: Colors.transparent,
+        shape: shape,
+        textStyle: textTheme.bodyMedium,
+      ),
     );
   }
+
+  static const _buttonTextStyle = TextStyle(
+    fontFamily: 'Inter',
+    fontFamilyFallback: fontBodyFamilies,
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+  );
+
+  static TextTheme _textTheme(Color foreground, Color muted) {
+    final base = Typography.material2021().black;
+    return base.copyWith(
+      displayLarge: base.displayLarge?.copyWith(
+        fontFamily: 'Space Grotesk',
+        fontFamilyFallback: fontHeadingFamilies,
+        color: foreground,
+        fontWeight: FontWeight.w700,
+      ),
+      displayMedium: base.displayMedium?.copyWith(
+        fontFamily: 'Space Grotesk',
+        fontFamilyFallback: fontHeadingFamilies,
+        color: foreground,
+        fontWeight: FontWeight.w700,
+      ),
+      displaySmall: base.displaySmall?.copyWith(
+        fontFamily: 'Space Grotesk',
+        fontFamilyFallback: fontHeadingFamilies,
+        color: foreground,
+        fontWeight: FontWeight.w700,
+      ),
+      headlineLarge: base.headlineLarge?.copyWith(
+        fontFamily: 'Space Grotesk',
+        fontFamilyFallback: fontHeadingFamilies,
+        color: foreground,
+        fontWeight: FontWeight.w700,
+      ),
+      headlineMedium: base.headlineMedium?.copyWith(
+        fontFamily: 'Space Grotesk',
+        fontFamilyFallback: fontHeadingFamilies,
+        color: foreground,
+        fontWeight: FontWeight.w700,
+      ),
+      headlineSmall: base.headlineSmall?.copyWith(
+        fontFamily: 'Space Grotesk',
+        fontFamilyFallback: fontHeadingFamilies,
+        color: foreground,
+        fontWeight: FontWeight.w700,
+      ),
+      titleLarge: base.titleLarge?.copyWith(
+        fontFamily: 'Space Grotesk',
+        fontFamilyFallback: fontHeadingFamilies,
+        color: foreground,
+        fontWeight: FontWeight.w600,
+      ),
+      titleMedium: base.titleMedium?.copyWith(
+        fontFamily: 'Inter',
+        fontFamilyFallback: fontBodyFamilies,
+        color: foreground,
+        fontWeight: FontWeight.w600,
+      ),
+      titleSmall: base.titleSmall?.copyWith(
+        fontFamily: 'Inter',
+        fontFamilyFallback: fontBodyFamilies,
+        color: foreground,
+        fontWeight: FontWeight.w600,
+      ),
+      bodyLarge: base.bodyLarge?.copyWith(
+        fontFamily: 'Inter',
+        fontFamilyFallback: fontBodyFamilies,
+        color: foreground,
+        height: 1.45,
+      ),
+      bodyMedium: base.bodyMedium?.copyWith(
+        fontFamily: 'Inter',
+        fontFamilyFallback: fontBodyFamilies,
+        color: foreground,
+        height: 1.45,
+      ),
+      bodySmall: base.bodySmall?.copyWith(
+        fontFamily: 'Inter',
+        fontFamilyFallback: fontBodyFamilies,
+        color: muted,
+        height: 1.4,
+      ),
+      labelLarge: base.labelLarge?.copyWith(
+        fontFamily: 'Inter',
+        fontFamilyFallback: fontBodyFamilies,
+        color: foreground,
+        fontWeight: FontWeight.w600,
+      ),
+      labelMedium: base.labelMedium?.copyWith(
+        fontFamily: 'Inter',
+        fontFamilyFallback: fontBodyFamilies,
+        color: muted,
+      ),
+      labelSmall: base.labelSmall?.copyWith(
+        fontFamily: 'Inter',
+        fontFamilyFallback: fontBodyFamilies,
+        color: muted,
+      ),
+    );
+  }
+}
+
+class _Palette {
+  final Color background;
+  final Color surface;
+  final Color surfaceSubtle;
+  final Color elevated;
+  final Color border;
+  final Color primary;
+  final Color accent;
+  final Color deep;
+  final Color text;
+  final Color textMuted;
+  final Color onPrimary;
+  final Color success;
+  final Color successContainer;
+  final Color error;
+  final Color errorContainer;
+  final Color warning;
+  final Color warningContainer;
+
+  const _Palette({
+    required this.background,
+    required this.surface,
+    required this.surfaceSubtle,
+    required this.elevated,
+    required this.border,
+    required this.primary,
+    required this.accent,
+    required this.deep,
+    required this.text,
+    required this.textMuted,
+    required this.onPrimary,
+    required this.success,
+    required this.successContainer,
+    required this.error,
+    required this.errorContainer,
+    required this.warning,
+    required this.warningContainer,
+  });
 }

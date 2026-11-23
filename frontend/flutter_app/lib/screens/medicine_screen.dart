@@ -6,9 +6,30 @@ import 'package:intl/intl.dart';
 import 'package:pharma_assist/core/theme.dart';
 import 'package:pharma_assist/core/theme_tokens.dart';
 import 'package:pharma_assist/models/medicine_profile.dart';
+import 'package:pharma_assist/models/medicine_package_image.dart';
+import 'package:pharma_assist/models/medicine_verification_record.dart';
+import 'package:pharma_assist/models/product_identifier.dart';
 import 'package:pharma_assist/services/medicine_ocr_service.dart';
+import 'package:pharma_assist/services/medicine_image_storage_service.dart';
+import 'package:pharma_assist/services/medicine_verification_service.dart';
 import 'package:pharma_assist/services/storage_service.dart';
+import 'package:pharma_assist/screens/product_identifier_scanner_screen.dart';
 import 'package:pharma_assist/widgets/pharma_components.dart';
+
+const _packageImageLabels = <String>[
+  'Front of package',
+  'Back of package',
+  'Left side',
+  'Right side',
+  'Top',
+  'Bottom',
+  'Blister strip front',
+  'Blister strip back',
+  'Bottle label',
+  'Bottle cap',
+  'Close-up',
+  'Package photo',
+];
 
 /// Medicine Information, OCR Packaging Scanner & Expiry Management Destination
 class MedicineScreen extends StatefulWidget {
@@ -28,6 +49,7 @@ class MedicineScreenState extends State<MedicineScreen> {
   List<MedicineProfile> _filteredProfiles = [];
   String _selectedFilter = 'ALL'; // 'ALL', 'NEAR_EXPIRY', 'EXPIRED', 'VERIFIED'
   bool _isProcessingOcr = false;
+  final Set<String> _verifyingProfileIds = {};
 
   @override
   void initState() {
@@ -62,6 +84,8 @@ class MedicineScreenState extends State<MedicineScreen> {
       list = list.where((p) => p.isExpired).toList();
     } else if (_selectedFilter == 'VERIFIED') {
       list = list.where((p) => p.isVerifiedByUser).toList();
+    } else if (_selectedFilter == 'VERIFICATION_HISTORY') {
+      list = list.where((p) => p.verificationHistory.isNotEmpty).toList();
     }
 
     if (query.isNotEmpty) {
@@ -69,6 +93,7 @@ class MedicineScreenState extends State<MedicineScreen> {
         return p.medicineName.toLowerCase().contains(query) ||
             p.manufacturer.toLowerCase().contains(query) ||
             p.batchNumber.toLowerCase().contains(query) ||
+            p.productIdentifier.toLowerCase().contains(query) ||
             p.strength.toLowerCase().contains(query);
       }).toList();
     }
@@ -78,66 +103,119 @@ class MedicineScreenState extends State<MedicineScreen> {
     });
   }
 
-  Future<void> _captureOrPickPackaging(ImageSource source) async {
+  Future<({MedicinePackageImage image, OcrExtractionResult extraction})?>
+  _pickPackageImage(ImageSource source, String label) async {
+    final selected = await _picker.pickImage(source: source);
+    if (selected == null) return null;
+
+    String? preservedPath;
     try {
-      final XFile? file = await _picker.pickImage(
-        source: source,
-        maxWidth: 2400,
-        maxHeight: 2400,
-        imageQuality: 95,
+      preservedPath = await MedicineImageStorageService.preserveOriginal(
+        selected.path,
       );
-
-      if (file == null) return;
-
-      setState(() => _isProcessingOcr = true);
-
-      // Read the actual medicine packaging photograph on-device.
-      final ocrResult = await MedicineOcrService.recognizeImage(file.path);
-      if (ocrResult.rawText.trim().isEmpty) {
-        throw StateError(
-          'No readable text was found. Retake the photo with better lighting, '
-          'less glare, steady focus, and the medicine label filling the frame.',
-        );
+      final extraction = await MedicineOcrService.recognizeImage(preservedPath);
+      final image = extraction.toPackageImage(
+        path: preservedPath,
+        label: label,
+      );
+      if (image == null) throw StateError('The selected image is invalid.');
+      return (image: image, extraction: extraction);
+    } catch (_) {
+      if (preservedPath != null) {
+        await MedicineImageStorageService.deleteIfAppOwned(preservedPath);
       }
-      final profile = ocrResult.toProfile(
-        imagePath: file.path,
-        notes:
-            'Captured via ${source == ImageSource.camera ? 'Camera' : 'Gallery'} for packaging inspection.',
-      );
+      rethrow;
+    }
+  }
+
+  Future<void> _captureOrPickPackaging(ImageSource source) async {
+    if (_isProcessingOcr) return;
+    setState(() => _isProcessingOcr = true);
+    try {
+      final label = source == ImageSource.camera
+          ? 'Front of package'
+          : 'Package photo';
+      final picked = await _pickPackageImage(source, label);
+      if (picked == null) return;
+
+      final ocrResult = picked.extraction;
+      final profile = ocrResult
+          .toProfile(
+            imagePath: picked.image.path,
+            notes:
+                'Captured via ${source == ImageSource.camera ? 'Camera' : 'Gallery'} for packaging inspection.',
+          )
+          .copyWith(packagingImages: [picked.image]);
 
       if (mounted) {
         setState(() => _isProcessingOcr = false);
-        _showEditProfileModal(context, profile, isNew: true);
+        if (ocrResult.rawText.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'No text was readable in this photo. The original image is kept so you can enter details manually or add another package view.',
+              ),
+            ),
+          );
+        }
+        await _showEditProfileModal(context, profile, isNew: true);
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isProcessingOcr = false);
+        final message = e is StateError
+            ? e.message.toString()
+            : 'The packaging image could not be read. Check camera or photo access, then try another clear image.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to read packaging image: $e'),
-            backgroundColor: AppTheme.error,
-          ),
+          SnackBar(content: Text(message), backgroundColor: AppTheme.error),
         );
+      }
+    } finally {
+      if (mounted && _isProcessingOcr) {
+        setState(() => _isProcessingOcr = false);
       }
     }
   }
 
-  void _showEditProfileModal(
+  Future<void> _showEditProfileModal(
     BuildContext context,
     MedicineProfile profile, {
     bool isNew = false,
-  }) {
+  }) async {
     final nameCtrl = TextEditingController(text: profile.medicineName);
     final mfgCtrl = TextEditingController(text: profile.manufacturer);
     final strengthCtrl = TextEditingController(text: profile.strength);
     final dosageCtrl = TextEditingController(text: profile.dosageForm);
+    final mrpCtrl = TextEditingController(text: profile.mrp);
     final batchCtrl = TextEditingController(text: profile.batchNumber);
     final mfgDateCtrl = TextEditingController(text: profile.manufacturingDate);
     final expDateCtrl = TextEditingController(text: profile.expiryDate);
     final notesCtrl = TextEditingController(text: profile.notes ?? '');
+    final identifierCtrl = TextEditingController(
+      text: profile.productIdentifier,
+    );
+    String identifierFormat = profile.productIdentifierFormat;
+    DateTime? identifierScannedAt = profile.productIdentifierScannedAt;
     bool isVerified = profile.isVerifiedByUser;
+    final packageImages = profile.packageImageRecords.toList();
+    final managedPhotoPaths = packageImages.map((image) => image.path).toSet();
+    bool isAddingPackageImage = false;
 
-    showModalBottomSheet(
+    Future<void> chooseMonth(TextEditingController controller) async {
+      final now = DateTime.now();
+      final current = MedicineProfile.parseDateValue(controller.text);
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: current ?? now,
+        firstDate: DateTime(1900),
+        lastDate: DateTime(2200),
+        helpText: 'Choose a month and year',
+      );
+      if (picked != null) {
+        controller.text = DateFormat('MM/yyyy').format(picked);
+      }
+    }
+
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -150,6 +228,158 @@ class MedicineScreenState extends State<MedicineScreen> {
 
         return StatefulBuilder(
           builder: (modalContext, setModalState) {
+            void showImageMessage(String message) {
+              ScaffoldMessenger.of(modalContext)
+                  .showSnackBar(SnackBar(content: Text(message)));
+            }
+
+            Future<ImageSource?> chooseImageSource() =>
+                showModalBottomSheet<ImageSource>(
+                  context: modalContext,
+                  builder: (sourceContext) => SafeArea(
+                    child: Wrap(
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.camera_alt_outlined),
+                          title: const Text('Take a photo'),
+                          onTap: () =>
+                              Navigator.pop(sourceContext, ImageSource.camera),
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.photo_library_outlined),
+                          title: const Text('Choose from gallery'),
+                          onTap: () =>
+                              Navigator.pop(sourceContext, ImageSource.gallery),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+
+            Map<String, TextEditingController> editableFields() => {
+              MedicineOcrField.medicineName: nameCtrl,
+              MedicineOcrField.manufacturer: mfgCtrl,
+              MedicineOcrField.strength: strengthCtrl,
+              MedicineOcrField.dosageForm: dosageCtrl,
+              MedicineOcrField.batchNumber: batchCtrl,
+              MedicineOcrField.manufacturingDate: mfgDateCtrl,
+              MedicineOcrField.expiryDate: expDateCtrl,
+              MedicineOcrField.mrp: mrpCtrl,
+            };
+
+            void applyOnlyMissingOcrFields(MedicinePackageImage image) {
+              final controllers = editableFields();
+              for (final entry in image.extractedFields.entries) {
+                final controller = controllers[entry.key];
+                if (controller != null && controller.text.trim().isEmpty) {
+                  controller.text = entry.value;
+                }
+              }
+            }
+
+            Future<void> addPackageImage(ImageSource source) async {
+              if (packageImages.length >= 12) {
+                showImageMessage(
+                  'A medicine record can include up to 12 package photos.',
+                );
+                return;
+              }
+              setModalState(() => isAddingPackageImage = true);
+              try {
+                final result = await _pickPackageImage(
+                  source,
+                  'Package view ${packageImages.length + 1}',
+                );
+                if (result == null || !modalContext.mounted) return;
+                managedPhotoPaths.add(result.image.path);
+                setModalState(() => packageImages.add(result.image));
+                applyOnlyMissingOcrFields(result.image);
+                if (result.image.rawOcrText.trim().isEmpty) {
+                  showImageMessage(
+                    'No text was readable in this photo. The original image is retained for manual review.',
+                  );
+                }
+              } catch (_) {
+                if (modalContext.mounted) {
+                  showImageMessage(
+                    'The photo could not be saved or read. Choose a clear image smaller than 15 MB and try again.',
+                  );
+                }
+              } finally {
+                if (modalContext.mounted) {
+                  setModalState(() => isAddingPackageImage = false);
+                }
+              }
+            }
+
+            Future<void> replacePackageImage(
+              int index,
+              ImageSource source,
+            ) async {
+              final oldImage = packageImages[index];
+              setModalState(() => isAddingPackageImage = true);
+              try {
+                final result = await _pickPackageImage(source, oldImage.label);
+                if (result == null || !modalContext.mounted) return;
+                managedPhotoPaths.add(result.image.path);
+                final replacement = result.image.copyWith(id: oldImage.id);
+                setModalState(() => packageImages[index] = replacement);
+                applyOnlyMissingOcrFields(replacement);
+              } catch (_) {
+                if (modalContext.mounted) {
+                  showImageMessage('Could not replace this package photo.');
+                }
+              } finally {
+                if (modalContext.mounted) {
+                  setModalState(() => isAddingPackageImage = false);
+                }
+              }
+            }
+
+            Future<void> removePackageImage(int index) async {
+              final remove = await showDialog<bool>(
+                context: modalContext,
+                builder: (dialogContext) => AlertDialog(
+                  title: const Text('Remove package photo?'),
+                  content: const Text(
+                    'This removes the selected photo from this medicine record after you save your changes.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext, false),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(dialogContext, true),
+                      child: const Text('Remove'),
+                    ),
+                  ],
+                ),
+              );
+              if (remove == true && modalContext.mounted) {
+                setModalState(() => packageImages.removeAt(index));
+              }
+            }
+
+            final conflictingFields = MedicineOcrService.findConflictingFields(
+              packageImages,
+            ).entries.toList();
+
+            Future<void> scanProductIdentifier() async {
+              final result = await Navigator.of(modalContext)
+                  .push<ProductIdentifier>(
+                    MaterialPageRoute(
+                      builder: (_) => const ProductIdentifierScannerScreen(),
+                    ),
+                  );
+              if (result == null || !modalContext.mounted) return;
+              setModalState(() {
+                identifierCtrl.text = result.value;
+                identifierFormat = result.format;
+                identifierScannedAt = result.capturedAt;
+              });
+            }
+
             return Padding(
               padding: EdgeInsets.only(
                 left: 16,
@@ -179,12 +409,14 @@ class MedicineScreenState extends State<MedicineScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          isNew
-                              ? 'New Medicine Profile'
-                              : 'Edit Medicine Details',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
+                        Expanded(
+                          child: Text(
+                            isNew
+                                ? 'New Medicine Profile'
+                                : 'Edit Medicine Details',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                         IconButton(
@@ -195,20 +427,211 @@ class MedicineScreenState extends State<MedicineScreen> {
                     ),
                     const SizedBox(height: 8),
 
-                    // Packaging Thumbnail if available
-                    if (profile.packagingImagePath != null &&
-                        File(profile.packagingImagePath!).existsSync()) ...[
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          File(profile.packagingImagePath!),
-                          height: 120,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Package photos (${packageImages.length}/12)',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        IconButton.filledTonal(
+                          tooltip: 'Add package photo',
+                          onPressed: isAddingPackageImage
+                              ? null
+                              : () async {
+                                  final source = await chooseImageSource();
+                                  if (source != null && modalContext.mounted) {
+                                    await addPackageImage(source);
+                                  }
+                                },
+                          icon: const Icon(Icons.add_a_photo_outlined),
+                        ),
+                      ],
+                    ),
+                    if (packageImages.isEmpty)
+                      Text(
+                        'No package photos attached. Add front, back, label, or close-up views as needed.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: tokens.textMuted,
+                        ),
+                      )
+                    else
+                      SizedBox(
+                        height: 192,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: packageImages.length,
+                          separatorBuilder: (_, _) => const SizedBox(width: 10),
+                          itemBuilder: (context, index) {
+                            final image = packageImages[index];
+                            final file = File(image.path);
+                            final label =
+                                _packageImageLabels.contains(image.label)
+                                ? image.label
+                                : 'Package photo';
+                            return SizedBox(
+                              width: 174,
+                              child: Card(
+                                clipBehavior: Clip.antiAlias,
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    SizedBox(
+                                      height: 86,
+                                      child: file.existsSync()
+                                          ? Image.file(
+                                              file,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, _, _) =>
+                                                  const Icon(
+                                                    Icons.broken_image_outlined,
+                                                  ),
+                                            )
+                                          : const Icon(
+                                              Icons
+                                                  .image_not_supported_outlined,
+                                            ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: DropdownButtonFormField<String>(
+                                              key: ValueKey(
+                                                'package-image-label-${image.id}',
+                                              ),
+                                              initialValue: label,
+                                              isExpanded: true,
+                                              decoration: const InputDecoration(
+                                                isDense: true,
+                                                contentPadding:
+                                                    EdgeInsets.symmetric(
+                                                      vertical: 6,
+                                                    ),
+                                              ),
+                                              items: _packageImageLabels
+                                                  .map(
+                                                    (value) => DropdownMenuItem(
+                                                      value: value,
+                                                      child: Text(
+                                                        value,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                    ),
+                                                  )
+                                                  .toList(),
+                                              onChanged: (value) {
+                                                if (value != null) {
+                                                  setModalState(() {
+                                                    packageImages[index] = image
+                                                        .copyWith(label: value);
+                                                  });
+                                                }
+                                              },
+                                            ),
+                                          ),
+                                          PopupMenuButton<String>(
+                                            tooltip: 'Manage ${image.label}',
+                                            onSelected: (action) async {
+                                              if (action == 'remove') {
+                                                await removePackageImage(index);
+                                              } else if (action == 'replace') {
+                                                final source =
+                                                    await chooseImageSource();
+                                                if (source != null &&
+                                                    modalContext.mounted) {
+                                                  await replacePackageImage(
+                                                    index,
+                                                    source,
+                                                  );
+                                                }
+                                              }
+                                            },
+                                            itemBuilder: (_) => const [
+                                              PopupMenuItem(
+                                                value: 'replace',
+                                                child: Text('Replace photo'),
+                                              ),
+                                              PopupMenuItem(
+                                                value: 'remove',
+                                                child: Text('Remove photo'),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        8,
+                                        0,
+                                        8,
+                                        6,
+                                      ),
+                                      child: Text(
+                                        'Added ${DateFormat.yMMMd().add_jm().format(image.capturedAt.toLocal())}',
+                                        style: theme.textTheme.labelSmall,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
-                      const SizedBox(height: 10),
+                    if (isAddingPackageImage) const LinearProgressIndicator(),
+                    if (conflictingFields.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: tokens.suspiciousAmberBg,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: tokens.suspiciousAmber),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Values differ across package photos',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'OCR observations are not verified. Compare these values with the physical package and review the editable fields before saving.',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                            for (final conflict in conflictingFields) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                MedicineOcrField.labels[conflict.key] ??
+                                    conflict.key,
+                                style: theme.textTheme.labelLarge,
+                              ),
+                              for (final observation in conflict.value)
+                                Text(
+                                  '• ${observation.imageLabel}: ${observation.value}',
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                            ],
+                          ],
+                        ),
+                      ),
                     ],
+                    const SizedBox(height: 10),
 
                     // OCR Confidence Notice
                     Container(
@@ -243,36 +666,38 @@ class MedicineScreenState extends State<MedicineScreen> {
                     ),
                     const SizedBox(height: 14),
 
-                    if (profile.rawOcrText.trim().isNotEmpty) ...[
-                      ExpansionTile(
-                        tilePadding: EdgeInsets.zero,
-                        childrenPadding: const EdgeInsets.only(bottom: 12),
-                        title: const Text('Recognized packaging text'),
-                        subtitle: const Text(
-                          'Review the original text before confirming extracted fields.',
-                        ),
-                        children: [
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: tokens.surfaceSubtle,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: SelectableText(
-                              profile.rawOcrText,
-                              style: theme.textTheme.bodySmall,
-                            ),
+                    for (final image in packageImages)
+                      if (image.rawOcrText.trim().isNotEmpty)
+                        ExpansionTile(
+                          key: ValueKey('ocr-evidence-${image.id}'),
+                          tilePadding: EdgeInsets.zero,
+                          childrenPadding: const EdgeInsets.only(bottom: 12),
+                          title: Text('OCR text · ${image.label}'),
+                          subtitle: const Text(
+                            'Unverified text recognized from this photo.',
                           ),
-                        ],
-                      ),
-                    ],
+                          children: [
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: tokens.surfaceSubtle,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: SelectableText(
+                                image.rawOcrText,
+                                style: theme.textTheme.bodySmall,
+                              ),
+                            ),
+                          ],
+                        ),
 
                     // Form fields
                     TextField(
+                      key: const ValueKey('medicine-name-field'),
                       controller: nameCtrl,
                       decoration: const InputDecoration(
-                        labelText: 'Medicine Name *',
+                        labelText: 'Medicine Name',
                         hintText: 'e.g. Amoxicillin Trihydrate',
                         prefixIcon: Icon(Icons.medication_outlined),
                       ),
@@ -283,8 +708,9 @@ class MedicineScreenState extends State<MedicineScreen> {
                       children: [
                         Expanded(
                           child: TextField(
+                            key: const ValueKey('medicine-strength-field'),
                             controller: strengthCtrl,
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               labelText: 'Strength',
                               hintText: 'e.g. 500 mg',
                             ),
@@ -293,6 +719,7 @@ class MedicineScreenState extends State<MedicineScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: TextField(
+                            key: const ValueKey('medicine-dosage-form-field'),
                             controller: dosageCtrl,
                             decoration: const InputDecoration(
                               labelText: 'Dosage Form',
@@ -305,6 +732,7 @@ class MedicineScreenState extends State<MedicineScreen> {
                     const SizedBox(height: 10),
 
                     TextField(
+                      key: const ValueKey('medicine-manufacturer-field'),
                       controller: mfgCtrl,
                       decoration: const InputDecoration(
                         labelText: 'Manufacturer / Brand',
@@ -315,6 +743,7 @@ class MedicineScreenState extends State<MedicineScreen> {
                     const SizedBox(height: 10),
 
                     TextField(
+                      key: const ValueKey('medicine-batch-field'),
                       controller: batchCtrl,
                       decoration: const InputDecoration(
                         labelText: 'Batch / Lot Number',
@@ -323,21 +752,88 @@ class MedicineScreenState extends State<MedicineScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
+                    TextField(
+                      key: const ValueKey('medicine-identifier-field'),
+                      controller: identifierCtrl,
+                      maxLength: 2048,
+                      decoration: InputDecoration(
+                        labelText: 'QR / barcode value',
+                        helperText: 'Product identification only. No official product verification source is configured.',
+                        prefixIcon: const Icon(Icons.qr_code_2_outlined),
+                        suffixIcon: IconButton(
+                          tooltip: 'Scan QR or barcode',
+                          onPressed: scanProductIdentifier,
+                          icon: const Icon(Icons.document_scanner_outlined),
+                        ),
+                      ),
+                    ),
+                    if (identifierFormat.isNotEmpty)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Captured as $identifierFormat${identifierScannedAt == null ? '' : ' on ${DateFormat.yMMMd().format(identifierScannedAt!)}'}. Review the value before saving.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: tokens.textMuted,
+                          ),
+                        ),
+                      ),
+                    if (profile.verificationHistory.isNotEmpty)
+                      ExpansionTile(
+                        key: const ValueKey('medicine-verification-history'),
+                        tilePadding: EdgeInsets.zero,
+                        title: Text(
+                          'Public-source check history (${profile.verificationHistory.length})',
+                        ),
+                        subtitle: const Text(
+                          'Historical alert-list checks; not proof of authenticity.',
+                        ),
+                        children: [
+                          for (final report in profile.verificationHistory) ...[
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(report.statusLabel),
+                              subtitle: Text(
+                                '${DateFormat.yMMMd().add_jm().format(report.checkedAt.toLocal())}\n${report.warning}',
+                              ),
+                            ),
+                            for (final source in report.sources)
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(source.title),
+                                subtitle: SelectableText(source.url),
+                              ),
+                          ],
+                        ],
+                      ),
+                    const SizedBox(height: 10),
 
                     Row(
                       children: [
                         Expanded(
                           child: TextField(
+                            key: const ValueKey(
+                              'medicine-manufacturing-date-field',
+                            ),
                             controller: mfgDateCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'Mfg Date',
+                            decoration: InputDecoration(
+                              labelText: 'Manufacturing Date',
                               hintText: 'MM/yyyy',
+                              suffixIcon: IconButton(
+                                tooltip: 'Choose manufacturing month',
+                                icon: const Icon(
+                                  Icons.calendar_month,
+                                  size: 18,
+                                ),
+                                onPressed: () => chooseMonth(mfgDateCtrl),
+                              ),
                             ),
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: TextField(
+                            key: const ValueKey('medicine-expiry-date-field'),
                             controller: expDateCtrl,
                             decoration: InputDecoration(
                               labelText: 'Expiry Date',
@@ -348,25 +844,34 @@ class MedicineScreenState extends State<MedicineScreen> {
                                   size: 18,
                                 ),
                                 onPressed: () async {
-                                  final now = DateTime.now();
-                                  final picked = await showDatePicker(
-                                    context: ctx,
-                                    initialDate: now.add(
-                                      const Duration(days: 180),
-                                    ),
-                                    firstDate: DateTime(2020),
-                                    lastDate: DateTime(now.year + 10),
-                                  );
-                                  if (picked != null) {
-                                    expDateCtrl.text = DateFormat('MM/yyyy')
-                                        .format(picked);
-                                  }
+                                  await chooseMonth(expDateCtrl);
                                 },
                               ),
                             ),
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'A month/year expiry is treated as valid through the final day of that month. Unclear dates remain unknown.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: tokens.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    TextField(
+                      key: const ValueKey('medicine-mrp-field'),
+                      controller: mrpCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Printed MRP (optional)',
+                        hintText: 'Enter the value printed on the package',
+                        prefixIcon: Icon(Icons.currency_rupee),
+                      ),
                     ),
                     const SizedBox(height: 10),
 
@@ -424,24 +929,110 @@ class MedicineScreenState extends State<MedicineScreen> {
                           : 'Update Profile',
                       icon: Icons.check,
                       onPressed: () async {
+                        final manufacturingDate = mfgDateCtrl.text.trim();
+                        final expiryDate = expDateCtrl.text.trim();
+                        final manufacturing = manufacturingDate.isEmpty
+                            ? null
+                            : MedicineProfile.parseDateValue(manufacturingDate);
+                        final expiry = expiryDate.isEmpty
+                            ? null
+                            : MedicineProfile.parseDateValue(
+                                expiryDate,
+                                expiryDate: true,
+                              );
+                        if ((manufacturingDate.isNotEmpty &&
+                                manufacturing == null) ||
+                            (expiryDate.isNotEmpty && expiry == null)) {
+                          ScaffoldMessenger.of(modalContext).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Enter a valid date such as MM/YYYY or DD/MM/YYYY. Ambiguous or incomplete dates are not saved as confirmed dates.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+                        if (manufacturing != null &&
+                            expiry != null &&
+                            manufacturing.isAfter(expiry)) {
+                          ScaffoldMessenger.of(modalContext).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Manufacturing date must not be later than expiry date.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+                        final identifierText = identifierCtrl.text.trim();
+                        final productIdentifier = identifierText.isEmpty
+                            ? null
+                            : ProductIdentifier.tryCreate(
+                                identifierText,
+                                format: identifierFormat.isEmpty
+                                    ? 'manual'
+                                    : identifierFormat,
+                                capturedAt: identifierScannedAt,
+                              );
+                        if (identifierText.isNotEmpty &&
+                            productIdentifier == null) {
+                          ScaffoldMessenger.of(modalContext).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Enter a valid product code of 2,048 characters or fewer.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
                         final updated = profile.copyWith(
-                          medicineName: nameCtrl.text.trim().isNotEmpty
-                              ? nameCtrl.text.trim()
-                              : 'Unnamed Sample',
+                          medicineName: nameCtrl.text.trim(),
                           manufacturer: mfgCtrl.text.trim(),
                           strength: strengthCtrl.text.trim(),
                           dosageForm: dosageCtrl.text.trim(),
                           batchNumber: batchCtrl.text.trim(),
-                          manufacturingDate: mfgDateCtrl.text.trim(),
-                          expiryDate: expDateCtrl.text.trim(),
+                          manufacturingDate: manufacturingDate,
+                          expiryDate: expiryDate,
+                          mrp: mrpCtrl.text.trim(),
+                          rawOcrText: packageImages
+                              .where((image) => image.rawOcrText.isNotEmpty)
+                              .map(
+                                (image) =>
+                                    '--- ${image.label} ---\n${image.rawOcrText}',
+                              )
+                              .join('\n\n'),
+                          packagingImagePath: packageImages.isEmpty
+                              ? null
+                              : packageImages.first.path,
+                          clearPackagingImagePath: packageImages.isEmpty,
+                          packagingImages: List.unmodifiable(packageImages),
                           notes: notesCtrl.text.trim(),
                           isVerifiedByUser: isVerified,
+                          productIdentifier: productIdentifier?.value ?? '',
+                          productIdentifierFormat:
+                              productIdentifier?.format ?? '',
+                          productIdentifierScannedAt:
+                              productIdentifier?.capturedAt,
+                          clearProductIdentifierScannedAt:
+                              productIdentifier == null,
                         );
 
                         final messenger = ScaffoldMessenger.of(context);
                         final navigator = Navigator.of(ctx);
-                        await widget.storage.saveMedicineProfile(updated);
-                        if (!mounted) return;
+                        final saved = await widget.storage.saveMedicineProfile(
+                          updated,
+                        );
+                        if (!mounted || !modalContext.mounted) return;
+                        if (!saved) {
+                          ScaffoldMessenger.of(modalContext).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Could not save this medicine profile. Please try again.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
                         navigator.pop();
                         loadProfiles();
                         messenger.showSnackBar(
@@ -462,7 +1053,176 @@ class MedicineScreenState extends State<MedicineScreen> {
         );
       },
     );
+
+    final matchingProfiles = widget.storage.getMedicineProfiles().where(
+      (stored) => stored.id == profile.id,
+    );
+    final savedProfile = matchingProfiles.isEmpty
+        ? null
+        : matchingProfiles.first;
+    final savedPaths =
+        savedProfile?.packageImageRecords.map((image) => image.path).toSet() ??
+        const <String>{};
+    for (final path in managedPhotoPaths.difference(savedPaths)) {
+      await MedicineImageStorageService.deleteIfAppOwned(path);
+    }
   }
+
+  Future<void> _verifySavedProfile(MedicineProfile profile) async {
+    if (profile.batchNumber.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Add and review the package batch number before checking alerts.',
+          ),
+        ),
+      );
+      return;
+    }
+    if (_verifyingProfileIds.contains(profile.id)) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Check public medicine alerts?'),
+        content: Text(
+          'Send the saved medicine name, manufacturer, batch, dates, strength, and product code to your configured backend. It will check the public CDSCO spurious-drug alert list. Package photos are not sent. A missing match cannot verify the medicine.\n\n${profile.medicineName.isEmpty ? 'Medicine name not recorded' : profile.medicineName} · Batch ${profile.batchNumber}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _verifyingProfileIds.add(profile.id));
+    MedicineVerificationRecord report;
+    try {
+      report = await MedicineVerificationService(widget.storage)
+          .checkOfficialAlerts(profile);
+    } catch (_) {
+      report = MedicineVerificationRecord(
+        status: 'unable_to_verify',
+        statusLabel: 'Unable to verify',
+        checkedAt: DateTime.now(),
+        sources: const [
+          MedicineVerificationSource(
+            title: 'CDSCO Alerts (not queried)',
+            url: 'https://www.cdsco.gov.in/opencms/opencms/en/Alerts/',
+          ),
+        ],
+        warning: 'The configured backend or official source was unavailable. No product conclusion was produced.',
+        disclaimer: 'This preliminary source check cannot establish the identity, composition, dosage, safety, or authenticity of the physical medicine.',
+      );
+    }
+
+    final storedProfiles = widget.storage.getMedicineProfiles().where(
+      (item) => item.id == profile.id,
+    );
+    var historySaved = false;
+    if (storedProfiles.isNotEmpty) {
+      final current = storedProfiles.first;
+      historySaved = await widget.storage.saveMedicineProfile(
+        current.copyWith(
+          verificationHistory: [report, ...current.verificationHistory],
+        ),
+      );
+    }
+    if (mounted) {
+      loadProfiles();
+      if (!historySaved) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('The result could not be saved to medicine history.'),
+          ),
+        );
+      }
+      await _showVerificationReport(report, historySaved: historySaved);
+      if (mounted) setState(() => _verifyingProfileIds.remove(profile.id));
+    }
+  }
+
+  Future<void> _showVerificationReport(
+    MedicineVerificationRecord report, {
+    required bool historySaved,
+  }) => showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Text(report.statusLabel),
+      content: SizedBox(
+        width: 520,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(report.warning),
+              if (report.explanation?.isNotEmpty == true) ...[
+                const SizedBox(height: 12),
+                const Text('AI explanation of the cited evidence'),
+                const SizedBox(height: 4),
+                Text(report.explanation!),
+                const SizedBox(height: 4),
+                const Text(
+                  'Ollama only explains source evidence; it does not decide or change this status.',
+                ),
+              ],
+              if (report.evidenceMatches.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text('Matched fields: ${report.evidenceMatches.join(', ')}'),
+              ],
+              const SizedBox(height: 12),
+              Text(
+                'Checked ${DateFormat.yMMMd().add_jm().format(report.checkedAt.toLocal())}',
+              ),
+              if (report.sources.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text('Sources'),
+                for (final source in report.sources) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    source.title,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  SelectableText(source.url),
+                  if (source.publishedAt != null)
+                    Text('Published: ${source.publishedAt}'),
+                  if (source.retrievedAt != null)
+                    Text(
+                      'Retrieved: ${DateFormat.yMMMd().add_jm().format(source.retrievedAt!.toLocal())}',
+                    ),
+                  if (source.excerpt.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    SelectableText(source.excerpt),
+                  ],
+                ],
+              ],
+              const SizedBox(height: 12),
+              Text(report.disclaimer),
+              if (historySaved)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text('This check is saved in medicine history.'),
+                ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
 
   void _confirmDeleteProfile(MedicineProfile profile) {
     showDialog(
@@ -481,7 +1241,16 @@ class MedicineScreenState extends State<MedicineScreen> {
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
             onPressed: () async {
               Navigator.pop(ctx);
-              await widget.storage.deleteMedicineProfile(profile.id);
+              final deleted = await widget.storage.deleteMedicineProfile(
+                profile.id,
+              );
+              if (deleted) {
+                for (final image in profile.packageImageRecords) {
+                  await MedicineImageStorageService.deleteIfAppOwned(
+                    image.path,
+                  );
+                }
+              }
               loadProfiles();
             },
             child: const Text('Delete', style: TextStyle(color: Colors.white)),
@@ -703,6 +1472,11 @@ class MedicineScreenState extends State<MedicineScreen> {
                       'VERIFIED',
                       'Verified (${_allProfiles.where((p) => p.isVerifiedByUser).length})',
                     ),
+                    const SizedBox(width: 6),
+                    _filterChip(
+                      'VERIFICATION_HISTORY',
+                      'Checked (${_allProfiles.where((p) => p.verificationHistory.isNotEmpty).length})',
+                    ),
                   ],
                 ),
               ),
@@ -755,29 +1529,37 @@ class MedicineScreenState extends State<MedicineScreen> {
     ThemeData theme,
   ) {
     final days = profile.daysUntilExpiry;
+    final expiryStatus = profile.expiryStatus();
+    final badgeColor = switch (expiryStatus) {
+      MedicineExpiryStatus.expired => tokens.counterfeitRed,
+      MedicineExpiryStatus.expiringSoon => tokens.suspiciousAmber,
+      MedicineExpiryStatus.valid ||
+      MedicineExpiryStatus.unknown => tokens.textMuted,
+    };
+    final badgeBg = switch (expiryStatus) {
+      MedicineExpiryStatus.expired => tokens.counterfeitRedBg,
+      MedicineExpiryStatus.expiringSoon => tokens.suspiciousAmberBg,
+      MedicineExpiryStatus.valid ||
+      MedicineExpiryStatus.unknown => tokens.surfaceSubtle,
+    };
+    final badgeText = switch (expiryStatus) {
+      MedicineExpiryStatus.expired => 'Expired · ${profile.expiryDate}',
+      MedicineExpiryStatus.expiringSoon =>
+        'Expires in ${days ?? 0} days · ${profile.expiryDate}',
+      MedicineExpiryStatus.valid => 'Not expired · ${profile.expiryDate}',
+      MedicineExpiryStatus.unknown =>
+        profile.expiryDate.trim().isEmpty
+            ? 'Expiry date not recorded'
+            : 'Expiry date unclear · ${profile.expiryDate}',
+    };
 
-    Color badgeColor = tokens.authenticGreen;
-    Color badgeBg = tokens.authenticGreenBg;
-    String badgeText = profile.expiryDate.isNotEmpty
-        ? 'Exp: ${profile.expiryDate}'
-        : 'No Expiry Set';
-
-    if (profile.isExpired) {
-      badgeColor = tokens.counterfeitRed;
-      badgeBg = tokens.counterfeitRedBg;
-      badgeText = 'EXPIRED (${profile.expiryDate})';
-    } else if (profile.isNearExpiry(60)) {
-      badgeColor = tokens.suspiciousAmber;
-      badgeBg = tokens.suspiciousAmberBg;
-      badgeText = 'Exp in ${days ?? 0}d (${profile.expiryDate})';
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.elevatedCard,
+    return Material(
+      color: AppTheme.elevatedCard,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: tokens.borderSubtle),
+        side: BorderSide(color: tokens.borderSubtle),
       ),
+      clipBehavior: Clip.antiAlias,
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         leading: Container(
@@ -788,17 +1570,27 @@ class MedicineScreenState extends State<MedicineScreen> {
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: tokens.borderSubtle),
           ),
-          child: Icon(
-            Icons.medication_outlined,
-            color: theme.colorScheme.primary,
-            size: 24,
-          ),
+          child: _verifyingProfileIds.contains(profile.id)
+              ? Padding(
+                  padding: const EdgeInsets.all(11),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: theme.colorScheme.primary,
+                  ),
+                )
+              : Icon(
+                  Icons.medication_outlined,
+                  color: theme.colorScheme.primary,
+                  size: 24,
+                ),
         ),
         title: Row(
           children: [
             Expanded(
               child: Text(
-                profile.medicineName,
+                profile.medicineName.trim().isEmpty
+                    ? 'Medicine name not recorded'
+                    : profile.medicineName,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -884,6 +1676,8 @@ class MedicineScreenState extends State<MedicineScreen> {
           onSelected: (val) {
             if (val == 'edit') {
               _showEditProfileModal(context, profile);
+            } else if (val == 'official_alerts') {
+              _verifySavedProfile(profile);
             } else if (val == 'delete') {
               _confirmDeleteProfile(profile);
             }
@@ -900,6 +1694,16 @@ class MedicineScreenState extends State<MedicineScreen> {
               ),
             ),
             const PopupMenuItem(
+              value: 'official_alerts',
+              child: Row(
+                children: [
+                  Icon(Icons.policy_outlined, size: 18),
+                  SizedBox(width: 8),
+                  Text('Check official alerts'),
+                ],
+              ),
+            ),
+            PopupMenuItem(
               value: 'delete',
               child: Row(
                 children: [

@@ -442,11 +442,7 @@ class ResultsScreen extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.info_outline,
-            color: AppTheme.suspiciousAmber,
-            size: 16,
-          ),
+          Icon(Icons.info_outline, color: AppTheme.suspiciousAmber, size: 16),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

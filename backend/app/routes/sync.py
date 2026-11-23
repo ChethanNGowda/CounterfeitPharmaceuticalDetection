@@ -20,6 +20,7 @@ store = SyncStore()
 
 MAX_RECORD_PAYLOAD = 256 * 1024
 MAX_IMAGE_SIZE = 15 * 1024 * 1024
+MAX_IMAGE_DIMENSION = 10_000
 ALLOWED_MEDIA_TYPES = {
     "image/jpeg": "jpg",
     "image/jpg": "jpg",
@@ -42,10 +43,17 @@ def _decode_image(request: SyncRecordRequest) -> tuple[bytes | None, str | None]
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Image upload requires explicit consent.",
         )
-    if request.image_media_type not in ALLOWED_MEDIA_TYPES:
+    media_type = (request.image_media_type or "").lower()
+    if media_type not in ALLOWED_MEDIA_TYPES:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             detail="Unsupported image format.",
+        )
+    max_encoded_size = ((MAX_IMAGE_SIZE + 2) // 3) * 4
+    if len(request.image_base64) > max_encoded_size:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail="Image payload exceeds the 15 MB limit.",
         )
     try:
         image_bytes = base64.b64decode(request.image_base64, validate=True)
@@ -63,13 +71,19 @@ def _decode_image(request: SyncRecordRequest) -> tuple[bytes | None, str | None]
         with Image.open(io.BytesIO(image_bytes)) as image:
             if image.format not in {"JPEG", "PNG", "WEBP", "BMP"}:
                 raise ValueError
+            if (
+                image.width < 1
+                or image.height < 1
+                or max(image.width, image.height) > MAX_IMAGE_DIMENSION
+            ):
+                raise ValueError
             image.verify()
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Image payload is invalid or corrupted.",
         )
-    return image_bytes, ALLOWED_MEDIA_TYPES[request.image_media_type]
+    return image_bytes, ALLOWED_MEDIA_TYPES[media_type]
 
 
 @router.post(
@@ -88,7 +102,8 @@ def synchronize_record(
             detail="Valid device credentials are required.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if len(request.model_dump_json()) > MAX_RECORD_PAYLOAD:
+    metadata_json = request.model_dump_json(exclude={"image_base64"})
+    if len(metadata_json.encode("utf-8")) > MAX_RECORD_PAYLOAD:
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail="Synchronization record exceeds the size limit.",
@@ -113,8 +128,10 @@ def synchronize_record(
                 detail="Client record ID was already synchronized with different data.",
             )
         raise
-    except Exception:
-        logger.exception("Synchronization record persistence failed")
+    except Exception as exc:
+        logger.error(
+            "Synchronization record persistence failed (%s)", type(exc).__name__
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Synchronization could not be durably stored.",

@@ -173,38 +173,59 @@ class PharmaSectionHeader extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 20, color: theme.colorScheme.primary),
-            const SizedBox(width: 8),
-          ],
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: tokens.textMuted,
-                    ),
-                  ),
-                ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final titleContent = Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 20, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
               ],
-            ),
-          ),
-          ?trailing,
-        ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: tokens.textMuted,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          );
+
+          if (trailing == null) return titleContent;
+          if (constraints.maxWidth < 380) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                titleContent,
+                Align(alignment: Alignment.centerRight, child: trailing),
+              ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: titleContent),
+              trailing!,
+            ],
+          );
+        },
       ),
     );
   }

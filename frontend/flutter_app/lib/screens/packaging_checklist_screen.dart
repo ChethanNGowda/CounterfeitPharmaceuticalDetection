@@ -81,6 +81,23 @@ class _PackagingChecklistScreenState extends State<PackagingChecklistScreen> {
   }
 
   Future<void> _saveSummary() async {
+    final sampleId = _sampleIdCtrl.text.trim();
+    if (sampleId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a sample ID before saving.')),
+      );
+      return;
+    }
+    if (_items.every((item) => item.status == 'UNCHECKED')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Record at least one packaging observation before saving.',
+          ),
+        ),
+      );
+      return;
+    }
     final incomplete = _items.where((i) => i.status == 'UNCHECKED').length;
     if (incomplete > 0) {
       final proceed = await showDialog<bool>(
@@ -88,7 +105,7 @@ class _PackagingChecklistScreenState extends State<PackagingChecklistScreen> {
         builder: (ctx) => AlertDialog(
           title: const Text('Incomplete Inspection Items'),
           content: Text(
-            '$incomplete item(s) are still unchecked. Do you want to save this preliminary checklist summary anyway?',
+            '$incomplete item(s) are still unchecked. Save these user observations as an incomplete checklist?',
           ),
           actions: [
             TextButton(
@@ -107,24 +124,30 @@ class _PackagingChecklistScreenState extends State<PackagingChecklistScreen> {
 
     final summary = PackagingChecklistSummary(
       id: 'CHK-${DateTime.now().millisecondsSinceEpoch}',
-      sampleId: _sampleIdCtrl.text.trim().isNotEmpty
-          ? _sampleIdCtrl.text.trim()
-          : 'SMP-CHK',
-      medicineName: _medicineCtrl.text.trim().isNotEmpty
-          ? _medicineCtrl.text.trim()
-          : 'Unlabeled Sample',
+      sampleId: sampleId,
+      medicineName: _medicineCtrl.text.trim(),
       imagePath: _attachedImagePath,
       items: _items,
       overallNotes: _overallNotesCtrl.text.trim(),
       inspectedAt: DateTime.now(),
     );
 
-    await widget.storage.saveChecklistSummary(summary);
+    final saved = await widget.storage.saveChecklistSummary(summary);
+    if (!saved) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not save the inspection. Please try again.'),
+          ),
+        );
+      }
+      return;
+    }
     _loadSavedSummaries();
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Packaging inspection summary saved successfully.'),
           backgroundColor: AppTheme.success,
         ),
@@ -199,6 +222,22 @@ class _PackagingChecklistScreenState extends State<PackagingChecklistScreen> {
         ),
         const SizedBox(height: 14),
 
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: tokens.suspiciousAmberBg,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: tokens.suspiciousAmber),
+          ),
+          child: Text(
+            'This checklist stores your visual observations only. It is separate from image-based AI screening and does not change or validate an AI result.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: tokens.suspiciousAmber,
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+
         // Sample Information Form
         PharmaCard(
           padding: const EdgeInsets.all(14),
@@ -212,40 +251,54 @@ class _PackagingChecklistScreenState extends State<PackagingChecklistScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _sampleIdCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Sample ID',
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final fieldWidth = constraints.maxWidth < 560
+                      ? constraints.maxWidth
+                      : (constraints.maxWidth - 10) / 2;
+                  return Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      SizedBox(
+                        width: fieldWidth,
+                        child: TextField(
+                          key: const ValueKey('checklist-sample-id-field'),
+                          controller: _sampleIdCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Sample ID',
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      controller: _medicineCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Medicine Name',
-                        hintText: 'e.g. Paracetamol 500mg',
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
+                      SizedBox(
+                        width: fieldWidth,
+                        child: TextField(
+                          key: const ValueKey('checklist-medicine-name-field'),
+                          controller: _medicineCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Medicine Name (optional)',
+                            hintText: 'Enter only if known',
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 10),
 
               // Attached Image Thumbnail / Selector
-              Row(
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   if (_attachedImagePath != null &&
                       File(_attachedImagePath!).existsSync()) ...[
@@ -260,7 +313,8 @@ class _PackagingChecklistScreenState extends State<PackagingChecklistScreen> {
                     ),
                     const SizedBox(width: 10),
                   ],
-                  Expanded(
+                  SizedBox(
+                    width: 180,
                     child: OutlinedButton.icon(
                       icon: const Icon(Icons.add_a_photo_outlined, size: 16),
                       label: Text(
@@ -272,6 +326,14 @@ class _PackagingChecklistScreenState extends State<PackagingChecklistScreen> {
                       onPressed: () => _pickImage(ImageSource.camera),
                     ),
                   ),
+                  SizedBox(
+                    width: 180,
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.photo_library_outlined, size: 16),
+                      label: const Text('Choose from Gallery'),
+                      onPressed: () => _pickImage(ImageSource.gallery),
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -280,8 +342,10 @@ class _PackagingChecklistScreenState extends State<PackagingChecklistScreen> {
         const SizedBox(height: 14),
 
         // Progress Bar
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          alignment: WrapAlignment.spaceBetween,
           children: [
             Text(
               'Inspection Progress ($completedCount/${_items.length} items checked)',
@@ -445,6 +509,18 @@ class _PackagingChecklistScreenState extends State<PackagingChecklistScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          TextFormField(
+            initialValue: item.notes,
+            minLines: 1,
+            maxLines: 3,
+            onChanged: (value) => item.notes = value,
+            decoration: const InputDecoration(
+              labelText: 'Your observation (optional)',
+              hintText: 'Describe what you saw on the package',
+              isDense: true,
+            ),
+          ),
         ],
       ),
     );
@@ -465,7 +541,7 @@ class _PackagingChecklistScreenState extends State<PackagingChecklistScreen> {
           });
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
           decoration: BoxDecoration(
             color: isSelected
                 ? color.withValues(alpha: 0.15)
@@ -477,12 +553,24 @@ class _PackagingChecklistScreenState extends State<PackagingChecklistScreen> {
             ),
           ),
           alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 10.5,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: isSelected ? color : AppTheme.textMuted,
+          child: Semantics(
+            button: true,
+            selected: isSelected,
+            label: '$label${isSelected ? ', selected' : ''}',
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 28),
+              child: Center(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  softWrap: true,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected ? color : AppTheme.textMuted,
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -529,19 +617,32 @@ class _PackagingChecklistScreenState extends State<PackagingChecklistScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    summary.medicineName,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
+                  Expanded(
+                    child: Text(
+                      summary.medicineName.trim().isEmpty
+                          ? 'Medicine name not recorded'
+                          : summary.medicineName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                  Text(
-                    DateFormat('MMM d, yyyy HH:mm').format(summary.inspectedAt),
-                    style: TextStyle(color: tokens.textMuted, fontSize: 11),
+                  IconButton(
+                    tooltip: 'Delete saved inspection',
+                    icon: Icon(
+                      Icons.delete_outline,
+                      color: tokens.counterfeitRed,
+                    ),
+                    onPressed: () => _confirmDeleteSummary(summary),
                   ),
                 ],
+              ),
+              Text(
+                'Inspected ${DateFormat('MMM d, yyyy HH:mm').format(summary.inspectedAt)}',
+                style: TextStyle(color: tokens.textMuted, fontSize: 11),
               ),
               const SizedBox(height: 4),
               Text(
@@ -577,10 +678,54 @@ class _PackagingChecklistScreenState extends State<PackagingChecklistScreen> {
                   style: TextStyle(color: tokens.textMuted, fontSize: 11),
                 ),
               ],
+              const SizedBox(height: 8),
+              const Text('Saved user observations'),
+              ...summary.items.map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    '${item.title}: ${item.status}${item.notes.trim().isEmpty ? '' : '  -  ${item.notes.trim()}'}',
+                    style: TextStyle(color: tokens.textMuted, fontSize: 11),
+                  ),
+                ),
+              ),
             ],
           ),
         );
       },
+    );
+  }
+
+  Future<void> _confirmDeleteSummary(PackagingChecklistSummary summary) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete saved inspection?'),
+        content: Text('Delete checklist ${summary.sampleId} from this device?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final deleted = await widget.storage.deleteChecklistSummary(summary.id);
+    if (!mounted) return;
+    _loadSavedSummaries();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          deleted
+              ? 'Saved packaging inspection deleted.'
+              : 'Could not delete this packaging inspection.',
+        ),
+      ),
     );
   }
 

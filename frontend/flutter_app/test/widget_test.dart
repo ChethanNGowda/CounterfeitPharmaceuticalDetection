@@ -1454,7 +1454,7 @@ void main() {
                 final tokens = context.pharmaTokens;
                 expect(tokens.navyBrand, const Color(0xFF102A43));
                 expect(tokens.tealAccent, const Color(0xFF48C5B3));
-                expect(tokens.authenticGreen, const Color(0xFF16845B));
+                expect(tokens.authenticGreen, const Color(0xFF6ED6AE));
                 return const SizedBox.shrink();
               },
             ),

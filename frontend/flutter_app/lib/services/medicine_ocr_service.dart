@@ -1,7 +1,8 @@
 import 'dart:io';
 
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:pharma_assist/models/medicine_profile.dart';
+import 'package:pharma_assist/models/medicine_package_image.dart';
+import 'package:pharma_assist/services/ocr_service.dart';
 
 /// Structured result of real text recognition and packaging-field extraction.
 /// Confidence describes extraction completeness, not authenticity or a
@@ -19,6 +20,35 @@ class OcrExtractionResult {
   final String confidence;
   final Map<String, bool> fieldConfidence;
 
+  Map<String, String> get extractedFields => {
+    MedicineOcrField.medicineName: medicineName,
+    MedicineOcrField.manufacturer: manufacturer,
+    MedicineOcrField.strength: strength,
+    MedicineOcrField.dosageForm: dosageForm,
+    MedicineOcrField.batchNumber: batchNumber,
+    MedicineOcrField.manufacturingDate: manufacturingDate,
+    MedicineOcrField.expiryDate: expiryDate,
+    MedicineOcrField.mrp: mrp,
+  }..removeWhere((_, value) => value.trim().isEmpty);
+
+  MedicinePackageImage? toPackageImage({
+    required String path,
+    String label = 'Front of package',
+    DateTime? capturedAt,
+    String? id,
+  }) {
+    if (path.trim().isEmpty) return null;
+    final now = capturedAt ?? DateTime.now();
+    return MedicinePackageImage(
+      id: id ?? 'IMG-${now.microsecondsSinceEpoch}',
+      path: path,
+      label: label,
+      capturedAt: now,
+      rawOcrText: rawText,
+      extractedFields: extractedFields,
+    );
+  }
+
   const OcrExtractionResult({
     required this.medicineName,
     required this.manufacturer,
@@ -34,12 +64,15 @@ class OcrExtractionResult {
   });
 
   MedicineProfile toProfile({String? id, String? imagePath, String? notes}) {
+    final packageImage = imagePath == null
+        ? null
+        : toPackageImage(path: imagePath);
     return MedicineProfile(
       id: id ?? 'MED-${DateTime.now().millisecondsSinceEpoch}',
-      medicineName: medicineName.isNotEmpty ? medicineName : 'Unlabeled Sample',
+      medicineName: medicineName.trim(),
       manufacturer: manufacturer,
       strength: strength,
-      dosageForm: dosageForm.isNotEmpty ? dosageForm : 'Not detected',
+      dosageForm: dosageForm.trim(),
       batchNumber: batchNumber,
       manufacturingDate: manufacturingDate,
       expiryDate: expiryDate,
@@ -48,20 +81,30 @@ class OcrExtractionResult {
       confidence: confidence,
       isVerifiedByUser: false,
       packagingImagePath: imagePath,
+      packagingImages: packageImage == null ? const [] : [packageImage],
       notes: notes,
       createdAt: DateTime.now(),
     );
   }
 }
 
-/// On-device OCR using Google ML Kit. Latin is always attempted; Devanagari
-/// is additionally attempted on Android when its optional model is bundled.
+class MedicineOcrFieldObservation {
+  final String value;
+  final String imageLabel;
+
+  const MedicineOcrFieldObservation({
+    required this.value,
+    required this.imageLabel,
+  });
+}
+
+/// Converts text recognized by the shared on-device OCR engine into fields.
 class MedicineOcrService {
   static final RegExp _dateRegex = RegExp(
-    r'\b(?:\d{1,2}[/. -]\d{2,4}|\d{4}[/. -]\d{1,2}|[A-Za-z]{3,9}[ ./-]*\d{2,4})\b',
+    r'\b(?:\d{1,2}[/. -]\d{1,2}[/. -]\d{4}|\d{4}[/. -]\d{1,2}(?:[/. -]\d{1,2})?|\d{1,2}[./-]\d{2,4}|[A-Za-z]{3,9}\s+\d{4})\b',
   );
   static final RegExp _strengthRegex = RegExp(
-    r'\b\d+(?:\.\d+)?\s*(?:mcg|â•¬â•g|ug|mg|kg|g|ml|mL|IU|units?|mmol|%)(?:\s*/\s*\d+(?:\.\d+)?\s*(?:ml|mL|g|mg))?\b',
+    r'\b\d+(?:\.\d+)?\s*(?:mcg|μg|µg|ug|mg|kg|g|ml|mL|IU|units?|mmol|%)(?:\s*/\s*\d+(?:\.\d+)?\s*(?:ml|mL|g|mg))?\b',
     caseSensitive: false,
   );
   static final RegExp _dosageFormRegex = RegExp(
@@ -69,39 +112,43 @@ class MedicineOcrService {
     caseSensitive: false,
   );
 
-  /// Reads the selected image itself. No values are generated from filenames.
-  static Future<OcrExtractionResult> recognizeImage(String imagePath) async {
-    final inputImage = InputImage.fromFilePath(imagePath);
-    final recognizedTexts = <String>[];
-
-    final latinRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
-    try {
-      final result = await latinRecognizer.processImage(inputImage);
-      if (result.text.trim().isNotEmpty) recognizedTexts.add(result.text.trim());
-    } finally {
-      await latinRecognizer.close();
-    }
-
-    if (Platform.isAndroid) {
-      final devanagariRecognizer = TextRecognizer(
-        script: TextRecognitionScript.devanagiri,
-      );
-      try {
-        final result = await devanagariRecognizer.processImage(inputImage);
-        final text = result.text.trim();
-        if (text.isNotEmpty &&
-            !recognizedTexts.any(
-              (existing) => existing.toLowerCase() == text.toLowerCase(),
-            )) {
-          recognizedTexts.add(text);
-        }
-      } on Exception {
-        // Keep Latin OCR available if the optional script model fails.
-      } finally {
-        await devanagariRecognizer.close();
+  /// Returns only fields where at least two package views produced different
+  /// non-empty OCR strings. The function never chooses or overwrites a value.
+  static Map<String, List<MedicineOcrFieldObservation>> findConflictingFields(
+    Iterable<MedicinePackageImage> images,
+  ) {
+    final valuesByField = <String, Map<String, MedicineOcrFieldObservation>>{};
+    for (final image in images) {
+      for (final entry in image.extractedFields.entries) {
+        final value = entry.value.trim();
+        if (value.isEmpty) continue;
+        valuesByField
+            .putIfAbsent(entry.key, () => {})
+            .putIfAbsent(
+              value.toLowerCase(),
+              () => MedicineOcrFieldObservation(
+                value: value,
+                imageLabel: image.label,
+              ),
+            );
       }
     }
-    return parsePackagingText(recognizedTexts.join('\n'));
+    return {
+      for (final entry in valuesByField.entries)
+        if (entry.value.length > 1)
+          entry.key: entry.value.values.toList(growable: false),
+    };
+  }
+
+  static final RegExp _otherPackagingFieldLabel = RegExp(
+    r'^\s*(?:exp(?:iry)?|use\s*before|best\s*before|valid\s*(?:upto|up\s*to)|mfg|mfd|manufacturing(?:\s*date)?|manufactured\s*by|marketed\s*by|mrp|strength|dosage\s*form|manufacturer)\b(?:\s*(?:date|dt|no|number))?\s*(?:[:#=\-]|$)',
+    caseSensitive: false,
+  );
+
+  /// Reads the selected image itself. No values are generated from filenames.
+  static Future<OcrExtractionResult> recognizeImage(String imagePath) async {
+    final block = await OcrService.extractTextFromImage(File(imagePath));
+    return parsePackagingText(block.text);
   }
 
   /// Parses OCR text into editable fields. Missing values remain blank;
@@ -150,7 +197,7 @@ class MedicineOcrService {
     final manufacturing = _extractLabelledDate(
       lines,
       RegExp(
-        r'\b(?:mfg\.?\s*(?:date|dt)?|mfd\.?\s*(?:date|dt)?|manufactured\s*(?:date)?)\b',
+        r'\b(?:mfg\.?\s*(?:date|dt)?|mfd\.?\s*(?:date|dt)?|manufacturing\s*(?:date)?|manufactured\s*(?:date)?)\b',
         caseSensitive: false,
       ),
     );
@@ -161,6 +208,7 @@ class MedicineOcrService {
         caseSensitive: false,
       ),
       RegExp(r'([A-Z0-9][A-Z0-9./_-]{1,})', caseSensitive: false),
+      requireDigit: true,
     );
 
     final mrp = _extractLabelledValue(
@@ -231,6 +279,14 @@ class MedicineOcrService {
   }
 
   static String _extractLabelledDate(List<String> lines, RegExp label) {
+    final anotherDateLabel = RegExp(
+      r'\b(?:exp(?:iry)?\.?|use\s*before|best\s*before|valid\s*(?:upto|up\s*to)|mfg\.?|mfd\.?|manufacturing|manufactured)\b',
+      caseSensitive: false,
+    );
+    final expiryDate =
+        label.pattern.toLowerCase().contains('exp') ||
+        label.pattern.toLowerCase().contains('before') ||
+        label.pattern.toLowerCase().contains('valid');
     for (var index = 0; index < lines.length; index++) {
       final match = label.firstMatch(lines[index]);
       if (match == null) continue;
@@ -238,31 +294,50 @@ class MedicineOcrService {
           .substring(match.end)
           .replaceFirst(RegExp(r'^\s*[:#=\-]?\s*'), '');
       final inlineDate = _dateRegex.firstMatch(remainder);
-      if (inlineDate != null) return inlineDate.group(0)!.trim();
-      if (index + 1 < lines.length) {
+      if (inlineDate != null) {
+        return _validatedDate(inlineDate.group(0)!.trim(), expiryDate);
+      }
+      if (index + 1 < lines.length &&
+          !anotherDateLabel.hasMatch(lines[index + 1])) {
         final nextDate = _dateRegex.firstMatch(lines[index + 1]);
-        if (nextDate != null) return nextDate.group(0)!.trim();
+        if (nextDate != null) {
+          return _validatedDate(nextDate.group(0)!.trim(), expiryDate);
+        }
       }
     }
     return '';
   }
 
+  static String _validatedDate(String value, bool expiryDate) {
+    return MedicineProfile.parseDateValue(value, expiryDate: expiryDate) == null
+        ? ''
+        : value;
+  }
+
   static String _extractLabelledValue(
     List<String> lines,
     RegExp label,
-    RegExp valuePattern,
-  ) {
+    RegExp valuePattern, {
+    bool requireDigit = false,
+  }) {
+    String validatedValue(RegExpMatch match) {
+      final value = match.group(1)!.trim();
+      return requireDigit && !RegExp(r'\d').hasMatch(value) ? '' : value;
+    }
+
     for (var index = 0; index < lines.length; index++) {
       final match = label.firstMatch(lines[index]);
       if (match == null) continue;
       final remainder = lines[index]
           .substring(match.end)
           .replaceFirst(RegExp(r'^\s*[:#=\-]?\s*'), '');
+      if (_otherPackagingFieldLabel.hasMatch(remainder)) return '';
       final inlineValue = valuePattern.firstMatch(remainder);
-      if (inlineValue != null) return inlineValue.group(1)!.trim();
-      if (index + 1 < lines.length) {
+      if (inlineValue != null) return validatedValue(inlineValue);
+      if (index + 1 < lines.length &&
+          !_otherPackagingFieldLabel.hasMatch(lines[index + 1])) {
         final nextValue = valuePattern.firstMatch(lines[index + 1]);
-        if (nextValue != null) return nextValue.group(1)!.trim();
+        if (nextValue != null) return validatedValue(nextValue);
       }
     }
     return '';
@@ -295,11 +370,20 @@ class MedicineOcrService {
     required String dosage,
     required String manufacturer,
   }) {
-    final excluded = RegExp(
-      r'\b(?:rx|medicine|pharmaceutical|batch|lot|exp(?:iry)?|mfg|mfd|manufactur|marketed|store|storage|keep out|prescription|composition|warning|caution|schedule|mrp|price|tablet|capsule|syrup|injection|suspension|ointment|cream|gel|solution|drops|inhaler|dosage|each film coated)\b',
+    final explicitName = RegExp(
+      r'^\s*(?:(?:medicine|product|brand|trade)\s+)?name\s*[:#=\-]\s*(.+)$',
       caseSensitive: false,
     );
-    for (final original in lines.take(10)) {
+    final labelledCandidates = <String>[];
+    for (final line in lines) {
+      final match = explicitName.firstMatch(line);
+      if (match != null) labelledCandidates.add(match.group(1)!.trim());
+    }
+    final excluded = RegExp(
+      r'\b(?:rx|medicine|pharmaceutical|batch|lot|exp(?:iry)?|mfg|mfd|manufactur|marketed|store|storage|keep out|prescription|composition|warning|caution|schedule|mrp|price|tablet|capsule|syrup|injection|suspension|ointment|cream|gel|solution|drops|inhaler|dosage|each film coated|with|without|and|or|is|are|this|that|text|detail|information|contains)\b',
+      caseSensitive: false,
+    );
+    for (final original in [...labelledCandidates, ...lines.take(10)]) {
       var candidate = original.replaceFirst(
         RegExp(r'^\s*rx\b[\s:.-]*', caseSensitive: false),
         '',
@@ -322,11 +406,13 @@ class MedicineOcrService {
       if (candidate.length < 3 ||
           candidate.length > 60 ||
           excluded.hasMatch(candidate) ||
-          candidate == manufacturer ||
+          candidate.toLowerCase() == manufacturer.toLowerCase() ||
           !RegExp(r'[A-Za-z\u0900-\u097F]{3}').hasMatch(candidate)) {
         continue;
       }
-      final letters = RegExp(r'[A-Za-z\u0900-\u097F]').allMatches(candidate).length;
+      final letters = RegExp(r'[A-Za-z\u0900-\u097F]')
+          .allMatches(candidate)
+          .length;
       final digits = RegExp(r'\d').allMatches(candidate).length;
       if (letters < 3 || digits > letters) continue;
       return candidate;

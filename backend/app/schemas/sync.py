@@ -27,9 +27,12 @@ class SyncRecordRequest(BaseModel):
     @field_validator("client_record_id")
     @classmethod
     def validate_record_id(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("client_record_id must not be blank")
         if any(char in value for char in ("/", "\\", "\x00")):
             raise ValueError("client_record_id contains a forbidden character")
-        return value.strip()
+        return value
 
 
 class SyncRecordResponse(BaseModel):

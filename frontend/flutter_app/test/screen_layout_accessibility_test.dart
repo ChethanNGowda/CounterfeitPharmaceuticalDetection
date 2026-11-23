@@ -70,6 +70,7 @@ void main() {
       'onboarding': () => OnboardingScreen(onComplete: () {}),
     };
 
+    final layoutErrors = <String>[];
     for (final viewport in [const Size(360, 720), const Size(1280, 900)]) {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = viewport;
@@ -85,13 +86,14 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        expect(
-          tester.takeException(),
-          isNull,
-          reason: 'Layout failed for ${entry.key} at $viewport',
-        );
+        final error = tester.takeException();
+        if (error != null) {
+          layoutErrors.add('${entry.key} at $viewport: $error');
+        }
       }
     }
+
+    expect(layoutErrors, isEmpty, reason: layoutErrors.join('\n'));
 
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);

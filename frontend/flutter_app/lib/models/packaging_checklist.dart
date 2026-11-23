@@ -26,13 +26,17 @@ class PackagingChecklistItem {
   };
 
   factory PackagingChecklistItem.fromJson(Map<String, dynamic> json) {
+    const allowedStatuses = {'PASS', 'CONCERN', 'TAMPERED', 'UNCHECKED'};
+    final savedStatus = json['status']?.toString().toUpperCase();
     return PackagingChecklistItem(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      description: json['description'] as String,
-      criteria: json['criteria'] as String,
-      status: json['status'] as String? ?? 'UNCHECKED',
-      notes: json['notes'] as String? ?? '',
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      criteria: json['criteria']?.toString() ?? '',
+      status: allowedStatuses.contains(savedStatus)
+          ? savedStatus!
+          : 'UNCHECKED',
+      notes: json['notes']?.toString() ?? '',
     );
   }
 }
@@ -60,7 +64,7 @@ class PackagingChecklistSummary {
   int get concernCount => items.where((i) => i.status == 'CONCERN').length;
   int get tamperedCount => items.where((i) => i.status == 'TAMPERED').length;
   int get checkedCount => items.where((i) => i.status != 'UNCHECKED').length;
-  bool get isComplete => checkedCount == items.length;
+  bool get isComplete => items.isNotEmpty && checkedCount == items.length;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -73,19 +77,28 @@ class PackagingChecklistSummary {
   };
 
   factory PackagingChecklistSummary.fromJson(Map<String, dynamic> json) {
+    final parsedItems = <PackagingChecklistItem>[];
+    final savedItems = json['items'];
+    if (savedItems is List) {
+      for (final item in savedItems) {
+        if (item is! Map || item.keys.any((key) => key is! String)) continue;
+        try {
+          parsedItems.add(
+            PackagingChecklistItem.fromJson(Map<String, dynamic>.from(item)),
+          );
+        } on Exception {
+          // Keep readable inspection items if one saved item is malformed.
+        }
+      }
+    }
     return PackagingChecklistSummary(
       id:
           json['id'] as String? ??
           'CHK-${DateTime.now().millisecondsSinceEpoch}',
-      sampleId: json['sample_id'] as String? ?? 'SMP-CHK',
-      medicineName: json['medicine_name'] as String? ?? 'Unknown Packaging',
+      sampleId: json['sample_id']?.toString() ?? '',
+      medicineName: json['medicine_name']?.toString() ?? '',
       imagePath: json['image_path'] as String?,
-      items: (json['items'] as List<dynamic>? ?? [])
-          .map(
-            (item) =>
-                PackagingChecklistItem.fromJson(item as Map<String, dynamic>),
-          )
-          .toList(),
+      items: parsedItems,
       overallNotes: json['overall_notes'] as String? ?? '',
       inspectedAt: json['inspected_at'] != null
           ? DateTime.tryParse(json['inspected_at'] as String) ?? DateTime.now()
@@ -99,48 +112,48 @@ class PackagingChecklistSummary {
         id: 'seal',
         title: 'Packaging Seal & Tamper Evidence',
         description: 'Blister foil seal, box adhesive, cap band or shrink wrap',
-        criteria: 'Check for unbroken foil, consistent heat sealing, absence of re-gluing marks or double seals.',
+        criteria: 'Record visible seal breaks, resealing marks, punctures, or differences from an available official reference. Packaging appearance alone cannot establish product status.',
       ),
       PackagingChecklistItem(
         id: 'print',
         title: 'Printing Quality & Typography',
         description:
             'Text clarity, spelling, font consistency, and ink bleeding',
-        criteria: 'Legitimate pharmaceutical packaging has crisp, sharp printing without typos or fuzzy registration.',
+        criteria: 'Note blurred or misaligned printing, spelling differences, label placement, and variation from a reliable manufacturer reference when available.',
       ),
       PackagingChecklistItem(
         id: 'batch',
         title: 'Batch Number Legibility',
         description: 'Embossed or laser-printed batch / lot identification',
-        criteria: 'Batch number should be clearly stamped, embossed, or dot-matrix printed, not photocopied.',
+        criteria: 'Record whether the batch marking is present and legible, and note alterations or differences across package views. Do not infer a missing value.',
       ),
       PackagingChecklistItem(
         id: 'dates',
         title: 'Manufacturing & Expiry Dates',
         description:
             'Printed dates on both outer carton and inner primary blister',
-        criteria: 'Expiry dates on blister packs and outer carton must match exactly without signs of overwriting.',
+        criteria: 'Compare printed batch and dates across carton, label, and inner packaging; record each observed value and any discrepancy for review.',
       ),
       PackagingChecklistItem(
         id: 'manufacturer',
         title: 'Manufacturer Details & License',
         description:
             'Registered manufacturer name, production address, license numbers',
-        criteria: 'Must include complete manufacturer address and pharmaceutical manufacturing license.',
+        criteria: 'Record the manufacturer and address text visible on the package. Verify details only against an authoritative source where available.',
       ),
       PackagingChecklistItem(
         id: 'security',
         title: 'Holograms & Security Features',
         description:
             'Optically variable devices, iridescent labels, QR/2D barcodes',
-        criteria: 'Genuine security holograms show color shifts and depth when tilted; counterfeits are often flat metallic foil.',
+        criteria: 'Record the security feature and any visible damage. Compare it only with manufacturer or regulatory guidance for this product; a QR code or hologram alone is not proof.',
       ),
       PackagingChecklistItem(
         id: 'integrity',
         title: 'Physical Container Integrity',
         description:
             'Crushed corners, punctures, watermarks, or chemical odors',
-        criteria: 'Packaging must be structurally sound without dampness, discoloration, or foreign particulate contamination.',
+        criteria: 'Record visible crushing, punctures, moisture marks, discoloration, or blister damage. Do not infer contents, safety, or authenticity from appearance.',
       ),
     ];
   }

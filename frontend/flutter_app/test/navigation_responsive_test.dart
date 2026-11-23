@@ -41,7 +41,8 @@ void main() {
 
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.byType(NavigationRail), findsNothing);
-    expect(tester.takeException(), isNull);
+    final phoneException = tester.takeException();
+    expect(phoneException, isNull);
 
     tester.view.physicalSize = const Size(1280, 800);
     await tester.pumpAndSettle();

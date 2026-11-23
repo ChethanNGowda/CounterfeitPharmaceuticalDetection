@@ -19,7 +19,7 @@ class CredentialService implements SyncCredentialStore {
   @override
   Future<void> saveToken(String token) async {
     if (token.trim().isEmpty) {
-      throw ArgumentError.value(token, 'token', 'Token cannot be empty');
+      throw ArgumentError('Token cannot be empty');
     }
     await _storage.write(key: _tokenKey, value: token.trim());
   }

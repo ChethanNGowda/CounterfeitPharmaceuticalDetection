@@ -5,14 +5,20 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 import logging
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from ml.config import DEFAULT_MODEL, SUPPORTED_MODELS, get_device
 from backend.app.routes.predict import router as predict_router
 from backend.app.routes.sync import router as sync_router
+from backend.app.routes.verification import router as verification_router
 from backend.app.schemas.predict import ApiInfoResponse, HealthResponse
 from backend.app.services.classifier import ClassifierService
+from backend.app.middleware import RequestSizeLimitMiddleware
+from backend.app.routes.predict import MAX_UPLOAD_SIZE
+from backend.app.routes.sync import MAX_IMAGE_SIZE, MAX_RECORD_PAYLOAD
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +43,35 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_MAX_SYNC_BODY_BYTES = (
+    ((MAX_IMAGE_SIZE + 2) // 3) * 4 + MAX_RECORD_PAYLOAD + 16 * 1024
+)
+app.add_middleware(
+    RequestSizeLimitMiddleware,
+    limits={
+        "/sync/records": _MAX_SYNC_BODY_BYTES,
+        "/predict": MAX_UPLOAD_SIZE + 256 * 1024,
+        "/verify": MAX_UPLOAD_SIZE + 256 * 1024,
+        "/verification/official-alerts": 16 * 1024,
+    },
+)
+
+
+@app.exception_handler(RequestValidationError)
+async def sanitized_validation_error(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """Return useful validation locations without echoing submitted values."""
+    errors = [
+        {
+            "loc": list(error.get("loc", ())),
+            "msg": error.get("msg", "Invalid value."),
+            "type": error.get("type", "value_error"),
+        }
+        for error in exc.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": errors})
+
 def _cors_origins() -> list[str]:
     configured = os.getenv("CORS_ALLOWED_ORIGINS", "")
     return [origin.strip() for origin in configured.split(",") if origin.strip()]
@@ -53,6 +88,7 @@ app.add_middleware(
 
 app.include_router(predict_router, prefix="", tags=["Screening"])
 app.include_router(sync_router)
+app.include_router(verification_router)
 
 
 @app.get("/", response_model=ApiInfoResponse, tags=["Information"])

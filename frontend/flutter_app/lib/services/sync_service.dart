@@ -221,6 +221,11 @@ class SyncService {
             record.id,
             failureReason: 'Synchronization request timed out.',
           );
+        } on http.ClientException catch (_) {
+          await storage.recordSyncAttempt(
+            record.id,
+            failureReason: 'Backend connection was interrupted.',
+          );
         } on SocketException catch (_) {
           await storage.recordSyncAttempt(
             record.id,

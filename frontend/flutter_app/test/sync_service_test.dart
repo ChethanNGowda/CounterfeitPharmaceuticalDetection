@@ -164,4 +164,64 @@ void main() {
       throwsA(predicate<SyncException>((error) => error.statusCode == 409)),
     );
   });
+
+  test(
+    'network interruption keeps local record and retries idempotently',
+    () async {
+      final item = testItem();
+      await storage.addScanHistoryItem(item);
+      await storage.enqueueSync(item.id);
+      await storage.setSyncConsent(true);
+      await storage.setBackendUrl('http://127.0.0.1:8000');
+
+      var calls = 0;
+      final client = MockClient((_) async {
+        calls++;
+        if (calls == 1) {
+          throw http.ClientException('Bearer do-not-log-this-token');
+        }
+        return http.Response(
+          jsonEncode({
+            'api_version': 'v1',
+            'server_record_id': 'server-retry-1',
+            'client_record_id': item.id,
+            'synchronized_at': '2026-11-23T00:00:00Z',
+            'duplicate': true,
+            'image_stored': false,
+            'screening_verified': false,
+            'message': 'Record synchronized as unverified client metadata.',
+          }),
+          201,
+        );
+      });
+      final service = SyncService(
+        storage,
+        credentials: FakeCredentials()..token = 'pa1.device.secret',
+        client: client,
+      );
+
+      await service.processQueue();
+      expect(storage.getScanHistory().single.id, item.id);
+      final queued = storage.getSyncQueue().single;
+      expect(queued.status, AppConstants.syncStatusPending);
+      expect(queued.attemptCount, 1);
+      expect(queued.lastFailureReason, 'Backend connection was interrupted.');
+      expect(queued.lastFailureReason, isNot(contains('do-not-log')));
+
+      await storage.updateSyncQueueItem(
+        queued.copyWith(
+          nextRetryAt: DateTime.now().subtract(const Duration(seconds: 1)),
+        ),
+      );
+      await service.processQueue();
+
+      expect(storage.getSyncQueue(), isEmpty);
+      expect(storage.getScanHistory().single.serverRecordId, 'server-retry-1');
+      expect(
+        storage.getScanHistory().single.syncStatus,
+        AppConstants.syncStatusSynced,
+      );
+      expect(calls, 2);
+    },
+  );
 }

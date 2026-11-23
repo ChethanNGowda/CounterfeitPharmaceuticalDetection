@@ -505,7 +505,7 @@ class HistoryScreenState extends State<HistoryScreen> {
               onPressed: _openComparisonDialog,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryCyan,
-                foregroundColor: const Color(0xFF0B1020),
+                foregroundColor: AppTheme.onPrimary,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 6,
@@ -763,7 +763,7 @@ class HistoryScreenState extends State<HistoryScreen> {
             alignment: Alignment.centerRight,
             padding: const EdgeInsets.only(right: 20),
             color: AppTheme.counterfeitBg,
-            child: const Icon(Icons.delete, color: AppTheme.error),
+            child: Icon(Icons.delete, color: AppTheme.error),
           ),
           confirmDismiss: (dir) async {
             return await showDialog<bool>(

@@ -13,7 +13,7 @@ Do NOT use ImagePreprocessor for EfficientNet-B0 inference — it will produce
 mismatched statistics that degrade model performance.
 
 This file is retained for:
-  - scripts/build_dataset.py (legacy dataset construction script)
+  - scripts/datasets/build_dataset.py (legacy dataset construction script)
   - tests/test_preprocessing.py (tests that verify this class in isolation)
   - Historical reference
 """

@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import os
 from pathlib import Path
-from scripts.split_dataset import split_dataset
+from scripts.datasets.split_dataset import split_dataset
 
 @pytest.fixture
 def dummy_features(tmp_path):

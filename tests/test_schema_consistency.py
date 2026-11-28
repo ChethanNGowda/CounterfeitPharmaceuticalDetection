@@ -37,15 +37,11 @@ def test_class_names_order_and_values() -> None:
 
 def test_class_names_consistent_with_training_pipeline() -> None:
     """The training pipeline must use the same class ordering as ml.config."""
-    import sys
-    from pathlib import Path
-
-    sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-    from train_pipeline import CLASS_NAMES as TRAIN_CLASS_NAMES
+    from scripts.models.train_pipeline import CLASS_NAMES as TRAIN_CLASS_NAMES
     from ml.config import CLASS_NAMES as CONFIG_CLASS_NAMES
 
     assert list(TRAIN_CLASS_NAMES) == list(CONFIG_CLASS_NAMES), (
-        "ml/config.py and scripts/train_pipeline.py define different CLASS_NAMES. "
+        "ml/config.py and scripts/models/train_pipeline.py define different CLASS_NAMES. "
         "This will cause mismatched labels between training and inference."
     )
 

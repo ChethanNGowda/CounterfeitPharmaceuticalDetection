@@ -128,18 +128,32 @@ The system is intended for educational, research and preliminary screening purpo
 
 ## Repository Structure
 
-| Path | Purpose |
-|---|---|
-| `backend/app/` | FastAPI application, routes, schemas and service integration |
-| `ml/` | Preprocessing, model registry, inference, decision engine, training, evaluation and explainability |
-| `data/splits/` | Binary authentic/counterfeit CSV manifests |
-| `data/processed/` | Images referenced by binary manifests |
-| `external_models/PharmaAssist/` | Pretrained and fine-tuned model artifacts |
-| `scripts/` | Dataset, duplicate, CLI and audit utilities |
-| `frontend/flutter_app/` | Android Flutter client |
-| `tests/` | Python backend and ML regression tests |
-| `reports/` | Evidence-based audits and historical reports |
-| `.github/workflows/` | Continuous integration workflows |
+```text
+CounterfeitPharmaceuticalDetection/
+├── frontend/flutter_app/   Flutter Android application
+├── backend/app/            FastAPI routes, schemas and services
+├── ml/                     Image preprocessing, inference and model code
+├── data/                   Dataset files, manifests and local sync storage
+├── test_images/            Small images used by tests and local demos
+├── tests/                  Automated Python regression tests
+├── scripts/
+│   ├── datasets/            Dataset building, preparation and splitting
+│   ├── audits/              Dataset and model integrity checks
+│   ├── models/              Training, evaluation and model reports
+│   ├── cli/                 Screening command line interface
+│   ├── services/            Local Ollama start/stop helpers
+│   └── devtools/            Developer-only diagnostics
+├── reports/                Generated metrics, figures and experiment output
+├── external_models/        Referenced or separately maintained model projects
+├── .github/workflows/      CI and Android release automation
+├── .env.example            Names and examples of backend configuration
+├── requirements.txt        Python dependencies
+└── README.md               Setup, architecture, commands and limitations
+```
+
+Generated and local-only folders such as `.venv/`, `.pytest_cache/`,
+`__pycache__/`, Flutter `build/`, and `.dart_tool/` are not source code. They
+can be recreated by the relevant development tools.
 
 ---
 
@@ -188,8 +202,6 @@ The Flutter client currently does not package an Android inference runtime or co
 Offline-only mode supports local records, notes, image handling and reports but explicitly does not perform AI screening.
 
 Local AI must not be enabled until model conversion, Python parity and physical-device offline validation are complete.
-
-See `reports/ON_DEVICE_INFERENCE_AUDIT_2026-11-05.md`.
 
 ---
 
@@ -251,10 +263,9 @@ Perceptual-hash candidates indicate similarity, not confirmed duplicates.
 
 No leakage-free generalization claim should be made from the current artifacts.
 
-Audit documentation:
-
-- `reports/ML_PIPELINE_AUDIT_2026-11-02.md`
-- `reports/duplicate_leakage_audit.md`
+The audit scripts are in `scripts/`. Machine-readable audit output, when
+generated locally, is stored under `reports/` and split manifests under
+`data/splits/`.
 
 ### Reproduction Status
 
@@ -750,12 +761,10 @@ Revoke a device:
 python -m backend.sync_admin --db data\pharma_sync.sqlite3 revoke phone-001
 ```
 
-See:
-
-- `BACKEND_SYNC_API_2026-11-05.md`
-- `DEPLOYMENT_READINESS_2026-11-07.md`
-
-These documents contain the synchronization contract, environment variables, storage limits, deployment requirements, APK integrity procedure and physical-device test plan.
+The sync API uses its dedicated authenticated `/sync/records` route. Screening
+requests use `/predict`; they are not used to synchronize stored records.
+Configure the backend URL and device credentials through the supported app and
+environment settings. Never put credentials in source code or query strings.
 
 Flutter upload integration remains intentionally deferred.
 
@@ -792,13 +801,13 @@ The training module uses:
 ### Dataset Auditing
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\audit_datasets.py
+.\.venv\Scripts\python.exe -m scripts.audits.audit_datasets
 ```
 
 Duplicate checks:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\check_duplicates.py `
+.\.venv\Scripts\python.exe -m scripts.audits.check_duplicates `
   --root data\processed `
   --manifest-dir data\splits
 ```
@@ -852,32 +861,12 @@ flutter analyze
 flutter test
 ```
 
-### Current Verified Test Results
-
-| Component | Result |
-|---|---|
-| Flutter analysis | 0 issues |
-| Flutter tests | See latest verified results in [`docs/PHARMAASSIST_2_PROGRESS.md`](docs/PHARMAASSIST_2_PROGRESS.md) |
-| Python tests | See latest verified results in [`docs/PHARMAASSIST_2_PROGRESS.md`](docs/PHARMAASSIST_2_PROGRESS.md) |
-| Release APK | Build output varies; see latest verified progress entry |
-
-Python tests cover backend routes, schemas, ML model registry, decision engine, quality validation and synchronization administration.
+Python tests cover backend routes, schemas, ML model registry, decision engine,
+quality validation and synchronization administration. Run the commands above
+to check the current checkout; results from an earlier run are not a substitute
+for a new run.
 
 These are automated software validation results, not evidence of pharmaceutical authentication accuracy.
-
-## Phase 5 documentation
-
-- [Architecture and data flow](docs/ARCHITECTURE.md)
-- [API reference](docs/API_REFERENCE.md)
-- [OCR and medicine records](docs/OCR_AND_MEDICINE_RECORDS.md)
-- [Model and dataset limitations](docs/MODEL_AND_DATASET.md)
-- [Security and privacy](docs/SECURITY_AND_PRIVACY.md)
-- [Technical project report](reports/PHARMAASSIST_2_FINAL_REPORT.md)
-- [Phase progress and validation](docs/PHARMAASSIST_2_PROGRESS.md)
-- [Physical Android checklist](docs/PHARMAASSIST_PHASE4_ANDROID_CHECKLIST.md)
-- [Protected baseline recovery guide](docs/RECOVERY_GUIDE.md)
-
----
 
 ## Continuous Integration
 
@@ -1021,9 +1010,8 @@ download the APK over HTTPS, and confirm installation through Android's system
 package installer.
 
 A tagged release is built and published by
-`.github/workflows/android-release.yml`. The workflow requires the four
-repository Actions secrets documented in
-[`docs/ANDROID_RELEASES_AND_UPDATES.md`](docs/ANDROID_RELEASES_AND_UPDATES.md).
+`.github/workflows/android-release.yml`. Configure the signing and release
+secrets required by that workflow in the repository's GitHub Actions settings.
 A persistent signing keystore is mandatory for normal in-place Android
 updates. Never commit the keystore or passwords.
 

@@ -11,7 +11,7 @@ Components:
 
 Retained for:
   - tests/test_features.py
-  - scripts/build_dataset.py (legacy dataset construction)
+  - scripts/datasets/build_dataset.py (legacy dataset construction)
   - Historical reference / benchmark comparison
 
 The production EfficientNet-B0 inference pipeline does NOT use this package.

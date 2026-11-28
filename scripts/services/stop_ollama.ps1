@@ -2,7 +2,7 @@
 # PharmaAssist — Ollama Background Service Stop Script (PowerShell 5.1+)
 # ==============================================================================
 # Usage:
-#   powershell -ExecutionPolicy Bypass -File scripts\stop_ollama.ps1
+#   powershell -ExecutionPolicy Bypass -File scripts\services\stop_ollama.ps1
 # ==============================================================================
 
 [CmdletBinding()]
